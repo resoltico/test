@@ -1,0 +1,50 @@
+name: Create Prefixed Release Assets
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  create-assets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Extract repository name
+        shell: bash
+        run: echo "REPO_NAME=${GITHUB_REPOSITORY#*/}" >> $GITHUB_ENV
+        
+      - name: Create prefixed archives
+        id: create_archives
+        run: |
+          # Create zip archive
+          zip -r "${{ env.REPO_NAME }}-${{ github.ref_name }}.zip" .
+          
+          # Create tar.gz archive
+          tar -czf "${{ env.REPO_NAME }}-${{ github.ref_name }}.tar.gz" .
+          
+          # Show file sizes in logs
+          du -h "${{ env.REPO_NAME }}-${{ github.ref_name }}.zip" "${{ env.REPO_NAME }}-${{ github.ref_name }}.tar.gz"
+      
+      - name: Upload to Release
+        id: upload
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ github.ref_name }} \
+            "${{ env.REPO_NAME }}-${{ github.ref_name }}.zip" \
+            "${{ env.REPO_NAME }}-${{ github.ref_name }}.tar.gz"
+      
+      - name: Create Issue on Failure
+        if: failure()
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `⚠️ Release workflow failed for version ${process.env.GITHUB_REF_NAME}`,
+              body: `The release workflow has failed. [See workflow run for details](https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})`
+            })
