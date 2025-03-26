@@ -14,13 +14,14 @@ setup(
     install_requires=[
         "beautifulsoup4>=4.13.3",
         "requests>=2.32.3",
+        "cattrs>=24.1.3",
     ],
     entry_points={
         "console_scripts": [
             "web2json=web2json.cli:main",
         ],
     },
-    python_requires=">=3.6",  # Based on f-strings usage in the code
+    python_requires=">=3.8",  # Updated for modern typing support
     author="Ervins Strauhmanis",
     description="Web page to structured JSON converter",
     long_description="""
@@ -39,11 +40,10 @@ setup(
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
         "Operating System :: OS Independent",
         "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
         "Topic :: Text Processing :: Markup :: HTML",

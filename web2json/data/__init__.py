@@ -1,9 +1,26 @@
 """
-Data models and schemas package for web2json.
+Data models package for web2json.
 """
-from .schemas import ContentSchema, MetadataSchema
+from .models import (
+    Document,
+    Metadata,
+    HeadingContent,
+    ParagraphContent,
+    ListContent,
+    ListItem,
+    BlockquoteContent,
+    SectionContent,
+    ContentItem
+)
 
 __all__ = [
-    'ContentSchema',
-    'MetadataSchema'
+    'Document',
+    'Metadata',
+    'HeadingContent',
+    'ParagraphContent',
+    'ListContent',
+    'ListItem',
+    'BlockquoteContent',
+    'SectionContent',
+    'ContentItem'
 ]
