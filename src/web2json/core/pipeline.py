@@ -1,0 +1,290 @@
+"""
+Pipeline architecture for web2json processing flow.
+
+This module implements a flexible pipeline system for processing web content.
+Each pipeline consists of a series of stages that transform the input data.
+"""
+import asyncio
+import logging
+from pathlib import Path
+from typing import Dict, Any, List, Protocol, Optional, TypeVar, Callable, Awaitable, Union
+
+from web2json.core.fetch import fetch_url
+from web2json.core.parse import parse_html
+from web2json.core.extract import extract_content
+from web2json.core.export import export_document
+from web2json.models.document import Document
+from web2json.utils.filesystem import generate_filename
+from web2json.utils.errors import Web2JsonError
+
+# Type definitions
+T = TypeVar('T')
+Context = Dict[str, Any]
+
+
+class PipelineStage(Protocol):
+    """Protocol defining a pipeline stage."""
+    
+    async def process(self, context: Context) -> Context:
+        """Process the context and return the updated context."""
+        ...
+
+
+async def run_pipeline(stages: List[PipelineStage], initial_context: Context) -> Context:
+    """Run a pipeline with the provided stages and initial context.
+    
+    Args:
+        stages: List of pipeline stages to execute
+        initial_context: Initial context dictionary
+        
+    Returns:
+        Final context after all stages have processed
+    """
+    logger = logging.getLogger(__name__)
+    current_context = initial_context.copy()
+    
+    for i, stage in enumerate(stages):
+        stage_name = stage.__class__.__name__
+        logger.debug(f"Executing pipeline stage {i+1}/{len(stages)}: {stage_name}")
+        
+        try:
+            current_context = await stage.process(current_context)
+        except Exception as e:
+            logger.error(f"Error in pipeline stage {stage_name}: {str(e)}")
+            # Add error information to the context
+            current_context.setdefault("errors", []).append({
+                "stage": stage_name,
+                "error": str(e),
+                "type": type(e).__name__
+            })
+            # Re-raise the exception
+            raise
+    
+    return current_context
+
+
+class FetchStage:
+    """Pipeline stage for fetching web content."""
+    
+    async def process(self, context: Context) -> Context:
+        """Process context by fetching web content."""
+        url = context["url"]
+        logger = logging.getLogger(__name__)
+        logger.info(f"Fetching content from URL: {url}")
+        
+        html_content = await fetch_url(url)
+        context["html_content"] = html_content
+        context["content_length"] = len(html_content)
+        
+        return context
+
+
+class ParseStage:
+    """Pipeline stage for parsing HTML content."""
+    
+    async def process(self, context: Context) -> Context:
+        """Process context by parsing HTML content."""
+        html_content = context["html_content"]
+        logger = logging.getLogger(__name__)
+        logger.info("Parsing HTML content")
+        
+        soup, title, meta_tags = await asyncio.to_thread(
+            parse_html, html_content
+        )
+        
+        context["soup"] = soup
+        context["title"] = title
+        context["meta_tags"] = meta_tags
+        
+        return context
+
+
+class ExtractStage:
+    """Pipeline stage for extracting structured content."""
+    
+    async def process(self, context: Context) -> Context:
+        """Process context by extracting structured content."""
+        soup = context["soup"]
+        preserve_styles = context.get("preserve_styles", False)
+        logger = logging.getLogger(__name__)
+        logger.info("Extracting structured content")
+        
+        content = await asyncio.to_thread(
+            extract_content, soup, preserve_styles
+        )
+        
+        context["content"] = content
+        
+        return context
+
+
+class TransformStage:
+    """Pipeline stage for transforming content into a document."""
+    
+    async def process(self, context: Context) -> Context:
+        """Process context by transforming content into a document."""
+        logger = logging.getLogger(__name__)
+        logger.info("Creating document")
+        
+        # Create document from context
+        document = Document(
+            title=context["title"],
+            content=context["content"],
+            metadata={
+                "url": context["url"],
+                "preserve_styles": context.get("preserve_styles", False),
+                "meta": context.get("meta_tags", {})
+            }
+        )
+        
+        context["document"] = document
+        
+        return context
+
+
+class ExportStage:
+    """Pipeline stage for exporting the document."""
+    
+    async def process(self, context: Context) -> Context:
+        """Process context by exporting the document."""
+        document = context["document"]
+        logger = logging.getLogger(__name__)
+        
+        # Check if output path is provided
+        if "output_path" in context and context["output_path"]:
+            output_path = context["output_path"]
+            logger.info(f"Exporting document to {output_path}")
+        else:
+            # Generate filename based on URL
+            output_dir = context["output_dir"]
+            url = context["url"]
+            dir_path, filename = generate_filename(url, output_dir)
+            output_path = dir_path / filename
+            logger.info(f"Exporting document to {output_path}")
+            
+        # Export document
+        await asyncio.to_thread(
+            export_document, document, output_path
+        )
+        
+        context["output_path"] = output_path
+        
+        return context
+
+
+async def process_url(
+    url: str,
+    output_path: Optional[Path] = None,
+    output_dir: Optional[Path] = None,
+    preserve_styles: bool = False,
+) -> Dict[str, Any]:
+    """Process a single URL through the pipeline.
+    
+    Args:
+        url: URL to process
+        output_path: Optional specific output path
+        output_dir: Directory to save output (if output_path not provided)
+        preserve_styles: Whether to preserve HTML styles
+        
+    Returns:
+        Dictionary with processing results
+    """
+    logger = logging.getLogger(__name__)
+    logger.info(f"Processing URL: {url}")
+    
+    # Create pipeline stages
+    stages = [
+        FetchStage(),
+        ParseStage(),
+        ExtractStage(),
+        TransformStage(),
+        ExportStage(),
+    ]
+    
+    # Prepare initial context
+    context = {
+        "url": url,
+        "preserve_styles": preserve_styles,
+    }
+    
+    if output_path:
+        context["output_path"] = output_path
+    
+    if output_dir:
+        context["output_dir"] = output_dir
+    
+    try:
+        # Process through pipeline
+        result = await run_pipeline(stages, context)
+        
+        return {
+            "success": True,
+            "url": url,
+            "output_path": result["output_path"],
+            "document": result["document"]
+        }
+    except Web2JsonError as e:
+        logger.error(f"Error processing {url}: {e}")
+        return {
+            "success": False,
+            "url": url,
+            "error": str(e)
+        }
+    except Exception as e:
+        logger.error(f"Unexpected error processing {url}: {e}")
+        return {
+            "success": False,
+            "url": url,
+            "error": f"Unexpected error: {e}"
+        }
+
+
+async def bulk_process_urls(
+    urls: List[str],
+    output_dir: Path,
+    preserve_styles: bool = False,
+    max_concurrency: int = 5,
+) -> List[Dict[str, Any]]:
+    """Process multiple URLs in parallel.
+    
+    Args:
+        urls: List of URLs to process
+        output_dir: Directory to save outputs
+        preserve_styles: Whether to preserve HTML styles
+        max_concurrency: Maximum number of concurrent requests
+        
+    Returns:
+        List of processing results for each URL
+    """
+    logger = logging.getLogger(__name__)
+    logger.info(f"Processing {len(urls)} URLs with concurrency {max_concurrency}")
+    
+    # Create output directory if it doesn't exist
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Process URLs with semaphore to limit concurrency
+    semaphore = asyncio.Semaphore(max_concurrency)
+    
+    async def process_with_semaphore(url: str) -> Dict[str, Any]:
+        async with semaphore:
+            return await process_url(url, output_dir=output_dir, preserve_styles=preserve_styles)
+    
+    # Create tasks for all URLs
+    tasks = [process_with_semaphore(url) for url in urls]
+    
+    # Execute all tasks and collect results
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    # Handle exceptions in results
+    processed_results = []
+    for i, result in enumerate(results):
+        if isinstance(result, Exception):
+            processed_results.append({
+                "success": False,
+                "url": urls[i],
+                "error": str(result)
+            })
+        else:
+            processed_results.append(result)
+    
+    return processed_results

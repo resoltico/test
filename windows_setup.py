@@ -1,9 +1,7 @@
 """
-Windows environment configuration helper for web2json.
+Windows configuration helper for web2json.
 
-This script creates a system-wide batch file to run web2json correctly on Windows systems.
-Run this script after installing web2json with 'pip install -e .' to create
-the necessary helper file.
+Run this script after installing web2json with Poetry.
 """
 import os
 import sys
