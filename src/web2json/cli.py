@@ -144,7 +144,7 @@ def process(
                 
                 if not urls:
                     console.print(f"[bold yellow]Warning:[/bold yellow] No URLs found in {file}")
-                    raise typer.Exit(code=EXIT_ERROR_GENERAL)  # Consistently using error code for error conditions
+                    raise typer.Exit(code=EXIT_ERROR_GENERAL)
                 
                 console.print(f"Processing [blue]{len(urls)}[/blue] URLs from {file}")
                 console.print(f"Outputs will be saved to: [blue]{output_dir}/[auto_generated_names].json[/blue]")
@@ -170,8 +170,8 @@ def process(
                         if not result["success"]:
                             console.print(f"  [red]{result['url']}[/red]: {result['error']}")
                 
-                # Set exit code based on success rate
-                if success_count == 0 and failure_count > 0:
+                # UPDATED: Return error code if ANY URLs fail (instead of only when ALL fail)
+                if failure_count > 0:
                     raise typer.Exit(code=EXIT_ERROR_PROCESSING)
                 
             except Exception as e:

@@ -7,9 +7,11 @@ Each pipeline consists of a series of stages that transform the input data.
 import asyncio
 import logging
 import gc
+import os
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Dict, Any, List, Protocol, Optional, TypeVar, Callable, Awaitable, Union
+from typing import Dict, Any, List, Protocol, Optional, TypeVar, Callable, Awaitable, Union, AsyncGenerator
 
 from web2json.core.fetch import fetch_url
 from web2json.core.parse import parse_html
@@ -24,9 +26,38 @@ from web2json.utils.memory import clear_reference, optimize_memory_settings, mem
 T = TypeVar('T')
 Context = Dict[str, Any]
 
-# Dedicated thread pool for CPU-bound operations
-# Use fewer threads than CPUs to avoid context switching overhead
-CPU_BOUND_EXECUTOR = ThreadPoolExecutor(thread_name_prefix="web2json_worker")
+
+@asynccontextmanager
+async def get_thread_pool(thread_name_prefix: str = "web2json_worker") -> AsyncGenerator[ThreadPoolExecutor, None]:
+    """
+    Context manager for thread pool management.
+    
+    This ensures proper cleanup of thread pool resources regardless of execution path.
+    
+    Args:
+        thread_name_prefix: Prefix for worker thread names
+        
+    Yields:
+        ThreadPoolExecutor instance
+    """
+    # Get optimal worker count based on system resources
+    # Using fewer threads than CPUs to avoid context switching overhead
+    max_workers = max(2, min(32, (os.cpu_count() or 4) - 1))
+    
+    # Create the thread pool
+    executor = ThreadPoolExecutor(
+        max_workers=max_workers,
+        thread_name_prefix=thread_name_prefix
+    )
+    
+    try:
+        # Yield the executor for use
+        yield executor
+    finally:
+        # Ensure the executor is properly shut down during cleanup
+        # Setting wait=True ensures all pending tasks complete before shutdown
+        executor.shutdown(wait=True)
+        logging.getLogger(__name__).debug("Thread pool shutdown complete")
 
 
 class PipelineStage(Protocol):
@@ -81,25 +112,35 @@ async def run_pipeline(stages: List[PipelineStage], initial_context: Context) ->
     return current_context
 
 
-async def run_in_thread(func, *args, **kwargs):
-    """Run a CPU-bound function in a dedicated thread pool.
+async def run_in_thread(func, *args, executor=None, **kwargs):
+    """Run a CPU-bound function in a thread pool.
     
     This helps avoid blocking the event loop with CPU-intensive operations.
-    The dedicated thread pool is sized appropriately for CPU-bound tasks.
     
     Args:
         func: Function to run
         *args: Positional arguments to pass to the function
+        executor: ThreadPoolExecutor to use (if None, one will be created)
         **kwargs: Keyword arguments to pass to the function
         
     Returns:
         Result of the function
     """
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(
-        CPU_BOUND_EXECUTOR,
-        lambda: func(*args, **kwargs)
-    )
+    
+    if executor is None:
+        # Create a one-time use executor if none provided
+        async with get_thread_pool() as temp_executor:
+            return await loop.run_in_executor(
+                temp_executor,
+                lambda: func(*args, **kwargs)
+            )
+    else:
+        # Use the provided executor
+        return await loop.run_in_executor(
+            executor,
+            lambda: func(*args, **kwargs)
+        )
 
 
 class FetchStage:
@@ -121,6 +162,9 @@ class FetchStage:
 class ParseStage:
     """Pipeline stage for parsing HTML content."""
     
+    def __init__(self, executor=None):
+        self.executor = executor
+    
     async def process(self, context: Context) -> Context:
         """Process context by parsing HTML content."""
         html_content = context["html_content"]
@@ -130,7 +174,7 @@ class ParseStage:
         # Use specialized function for running in thread pool
         # This avoids blocking the event loop with CPU-intensive parsing
         soup, title, meta_tags = await run_in_thread(
-            parse_html, html_content
+            parse_html, html_content, executor=self.executor
         )
         
         # Clear HTML content from memory as it's no longer needed
@@ -146,6 +190,9 @@ class ParseStage:
 class ExtractStage:
     """Pipeline stage for extracting structured content."""
     
+    def __init__(self, executor=None):
+        self.executor = executor
+    
     async def process(self, context: Context) -> Context:
         """Process context by extracting structured content."""
         soup = context["soup"]
@@ -155,7 +202,7 @@ class ExtractStage:
         
         # Use dedicated thread pool for CPU-intensive extraction
         content = await run_in_thread(
-            extract_content, soup, preserve_styles
+            extract_content, soup, preserve_styles, executor=self.executor
         )
         
         # Clear soup object from memory as it's no longer needed
@@ -197,6 +244,9 @@ class TransformStage:
 class ExportStage:
     """Pipeline stage for exporting the document."""
     
+    def __init__(self, executor=None):
+        self.executor = executor
+    
     async def process(self, context: Context) -> Context:
         """Process context by exporting the document."""
         document = context["document"]
@@ -216,7 +266,7 @@ class ExportStage:
             
         # Export document using the thread pool for I/O operations
         await run_in_thread(
-            export_document, document, output_path
+            export_document, document, output_path, executor=self.executor
         )
         
         context["output_path"] = output_path
@@ -247,58 +297,60 @@ async def process_url(
     logger = logging.getLogger(__name__)
     logger.info(f"Processing URL: {url}")
     
-    # Create pipeline stages
-    stages = [
-        FetchStage(),
-        ParseStage(),
-        ExtractStage(),
-        TransformStage(),
-        ExportStage(),
-    ]
-    
-    # Prepare initial context
-    context = {
-        "url": url,
-        "preserve_styles": preserve_styles,
-    }
-    
-    if output_path:
-        context["output_path"] = output_path
-    
-    if output_dir:
-        context["output_dir"] = output_dir
-    
-    try:
-        # Process through pipeline
-        result = await run_pipeline(stages, context)
+    # Use a context manager to ensure proper thread pool shutdown
+    async with get_thread_pool() as executor:
+        # Create pipeline stages with shared executor
+        stages = [
+            FetchStage(),
+            ParseStage(executor=executor),
+            ExtractStage(executor=executor),
+            TransformStage(),
+            ExportStage(executor=executor),
+        ]
         
-        # Clear document from memory after export
-        clear_reference(context, "document", force_gc=True)
+        # Prepare initial context
+        context = {
+            "url": url,
+            "preserve_styles": preserve_styles,
+        }
         
-        return {
-            "success": True,
-            "url": url,
-            "output_path": result["output_path"],
-            "document": result["document"]
-        }
-    except Web2JsonError as e:
-        logger.error(f"Error processing {url}: {e}")
-        # Force garbage collection after error
-        gc.collect()
-        return {
-            "success": False,
-            "url": url,
-            "error": str(e)
-        }
-    except Exception as e:
-        logger.error(f"Unexpected error processing {url}: {e}")
-        # Force garbage collection after error
-        gc.collect()
-        return {
-            "success": False,
-            "url": url,
-            "error": f"Unexpected error: {e}"
-        }
+        if output_path:
+            context["output_path"] = output_path
+        
+        if output_dir:
+            context["output_dir"] = output_dir
+        
+        try:
+            # Process through pipeline
+            result = await run_pipeline(stages, context)
+            
+            # Clear document from memory after export
+            clear_reference(context, "document", force_gc=True)
+            
+            return {
+                "success": True,
+                "url": url,
+                "output_path": result["output_path"],
+                "document": result["document"]
+            }
+        except Web2JsonError as e:
+            logger.error(f"Error processing {url}: {e}")
+            # Force garbage collection after error
+            gc.collect()
+            return {
+                "success": False,
+                "url": url,
+                "error": str(e)
+            }
+        except Exception as e:
+            logger.error(f"Unexpected error processing {url}: {e}")
+            # Force garbage collection after error
+            gc.collect()
+            return {
+                "success": False,
+                "url": url,
+                "error": f"Unexpected error: {e}"
+            }
 
 
 async def bulk_process_urls(
@@ -327,22 +379,68 @@ async def bulk_process_urls(
     # Create output directory if it doesn't exist
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    # Process URLs with semaphore to limit concurrency
-    semaphore = asyncio.Semaphore(max_concurrency)
-    
-    async def process_with_semaphore(url: str) -> Dict[str, Any]:
-        async with semaphore:
-            result = await process_url(url, output_dir=output_dir, preserve_styles=preserve_styles)
-            # Force garbage collection between URLs
-            gc.collect()
-            return result
-    
-    # Create tasks for all URLs
-    tasks = [process_with_semaphore(url) for url in urls]
-    
-    # Execute all tasks and collect results
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-    
+    # Use a context manager to ensure proper thread pool shutdown
+    async with get_thread_pool() as executor:
+        # Process URLs with semaphore to limit concurrency
+        semaphore = asyncio.Semaphore(max_concurrency)
+        
+        async def process_with_semaphore(url: str) -> Dict[str, Any]:
+            async with semaphore:
+                # Pass the executor to process_url via a new implementation
+                async with get_thread_pool() as url_executor:
+                    # Create pipeline stages with shared executor
+                    stages = [
+                        FetchStage(),
+                        ParseStage(executor=url_executor),
+                        ExtractStage(executor=url_executor),
+                        TransformStage(),
+                        ExportStage(executor=url_executor),
+                    ]
+                    
+                    # Prepare initial context
+                    context = {
+                        "url": url,
+                        "preserve_styles": preserve_styles,
+                        "output_dir": output_dir
+                    }
+                    
+                    try:
+                        # Process through pipeline
+                        result = await run_pipeline(stages, context)
+                        
+                        # Clear document from memory after export
+                        clear_reference(context, "document", force_gc=True)
+                        
+                        return {
+                            "success": True,
+                            "url": url,
+                            "output_path": result["output_path"]
+                        }
+                    except Web2JsonError as e:
+                        logger.error(f"Error processing {url}: {e}")
+                        # Force garbage collection after error
+                        gc.collect()
+                        return {
+                            "success": False,
+                            "url": url,
+                            "error": str(e)
+                        }
+                    except Exception as e:
+                        logger.error(f"Unexpected error processing {url}: {e}")
+                        # Force garbage collection after error
+                        gc.collect()
+                        return {
+                            "success": False,
+                            "url": url,
+                            "error": f"Unexpected error: {e}"
+                        }
+        
+        # Create tasks for all URLs
+        tasks = [process_with_semaphore(url) for url in urls]
+        
+        # Execute all tasks and collect results
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
     # Handle exceptions in results
     processed_results = []
     for i, result in enumerate(results):
@@ -357,10 +455,5 @@ async def bulk_process_urls(
     
     # Final garbage collection
     gc.collect()
-    
-    # Properly schedule executor shutdown using event loop
-    # This is a non-blocking approach that ensures all tasks complete
-    loop = asyncio.get_running_loop()
-    loop.call_soon(lambda: CPU_BOUND_EXECUTOR.shutdown(wait=False))
     
     return processed_results
