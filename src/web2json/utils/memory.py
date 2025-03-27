@@ -6,30 +6,88 @@ This module provides functions for managing memory usage during processing.
 import gc
 import logging
 import sys
-from typing import Any, Dict, Optional
+import inspect
+import types
+from typing import Any, Dict, Optional, Set, List, Tuple
+from collections import deque
 
 # Size threshold for triggering garbage collection (in bytes)
 # Objects larger than this will trigger collection when cleared
 GC_SIZE_THRESHOLD = 1_000_000  # 1MB
 
+# Maximum depth for recursive size calculation
+MAX_RECURSION_DEPTH = 20
 
-def get_object_size(obj: Any) -> int:
-    """Estimate the memory size of an object.
+# Limit on number of objects to measure to prevent excessive CPU use
+MAX_OBJECTS_TO_MEASURE = 10000
+
+
+def get_object_size(obj: Any, seen: Optional[Set[int]] = None, depth: int = 0) -> int:
+    """Estimate the memory size of an object recursively.
     
-    This is an approximation and may not account for all memory usage,
-    especially for complex objects with many references.
+    This improved function handles circular references and provides a more
+    accurate estimation for container objects by recursively measuring their contents.
     
     Args:
         obj: Object to measure
+        seen: Set of object IDs already measured (to handle circular references)
+        depth: Current recursion depth
         
     Returns:
         Approximate size in bytes
     """
+    # Initialize the set of seen objects if this is the first call
+    if seen is None:
+        seen = set()
+    
+    # Check for circular references or excessive recursion
+    obj_id = id(obj)
+    if obj_id in seen or depth > MAX_RECURSION_DEPTH:
+        return 0
+    
+    # Mark this object as seen
+    seen.add(obj_id)
+    
     try:
-        return sys.getsizeof(obj)
-    except (TypeError, AttributeError):
-        # For objects that don't support getsizeof
-        return GC_SIZE_THRESHOLD + 1  # Assume it's large
+        # Get the basic size of the object
+        size = sys.getsizeof(obj)
+        
+        # Handle various container types
+        if isinstance(obj, (str, bytes, bytearray)):
+            # Strings and bytes are already fully accounted for by getsizeof
+            pass
+        
+        elif isinstance(obj, (list, tuple, set, frozenset, deque)):
+            # For sequence containers, add the size of their items
+            size += sum(get_object_size(item, seen, depth + 1) for item in obj)
+            
+        elif isinstance(obj, dict):
+            # For dictionaries, add the size of keys and values
+            size += sum(
+                get_object_size(k, seen, depth + 1) + get_object_size(v, seen, depth + 1)
+                for k, v in list(obj.items())[:MAX_OBJECTS_TO_MEASURE]
+            )
+            # If dictionary has more items than we measured, make a rough estimate
+            if len(obj) > MAX_OBJECTS_TO_MEASURE:
+                size = int(size * (len(obj) / MAX_OBJECTS_TO_MEASURE))
+        
+        elif hasattr(obj, '__dict__') and not isinstance(obj, (type, types.ModuleType, types.FunctionType)):
+            # For objects with a __dict__ (not classes, modules, or functions), include their attributes
+            size += get_object_size(obj.__dict__, seen, depth + 1)
+            
+        elif hasattr(obj, '__slots__'):
+            # For objects with __slots__, measure the slot values
+            for slot_name in obj.__slots__:
+                if hasattr(obj, slot_name):
+                    size += get_object_size(getattr(obj, slot_name), seen, depth + 1)
+        
+    except (TypeError, AttributeError, OverflowError):
+        # For objects that don't support getsizeof or other errors
+        logging.debug(f"Could not precisely measure size of {type(obj).__name__}")
+        # Use a reasonable default size
+        return 1000  # 1KB
+    
+    return size
 
 
 def clear_reference(context: Dict[str, Any], key: str, force_gc: bool = False) -> None:
@@ -43,10 +101,15 @@ def clear_reference(context: Dict[str, Any], key: str, force_gc: bool = False) -
     logger = logging.getLogger(__name__)
     
     if key in context and context[key] is not None:
-        # Check size before clearing
-        obj_size = get_object_size(context[key])
-        
-        # Clear the reference
+        # Check if object is large enough to warrant measuring
+        # This avoids wasting CPU time on small objects
+        if force_gc or sys.getsizeof(context[key]) > 1000:
+            # Only measure detailed size for potentially large objects
+            obj_size = get_object_size(context[key])
+        else:
+            obj_size = sys.getsizeof(context[key])
+            
+        # Remove reference to allow garbage collection
         context[key] = None
         
         # Collect garbage if object was large or forced
@@ -57,6 +120,26 @@ def clear_reference(context: Dict[str, Any], key: str, force_gc: bool = False) -
             logger.debug(f"Cleared {key} without garbage collection ({obj_size} bytes)")
 
 
+def clear_memory_aggressively() -> Dict[str, Any]:
+    """Perform aggressive memory cleanup.
+    
+    Useful after processing very large documents.
+    
+    Returns:
+        Dictionary with garbage collection statistics
+    """
+    # Run garbage collection multiple times to ensure all cycles are cleaned
+    stats = {}
+    for i in range(3):
+        collected = gc.collect(i)
+        stats[f"gen{i}_collected"] = collected
+    
+    # Get memory status after collection
+    stats.update(memory_status())
+    
+    return stats
+
+
 def memory_status() -> Dict[str, Any]:
     """Get current memory status information.
     
@@ -64,6 +147,23 @@ def memory_status() -> Dict[str, Any]:
         Dictionary with memory statistics
     """
     gc_counts = gc.get_count()
+    
+    # Get summary of objects being tracked
+    objects_summary = {}
+    if gc.get_debug() & gc.DEBUG_SAVEALL:
+        # Only collect type info if detailed garbage collection is enabled
+        garbage = gc.garbage
+        objects_by_type = {}
+        
+        for obj in garbage[:1000]:  # Limit to 1000 objects to avoid excessive processing
+            obj_type = type(obj).__name__
+            objects_by_type[obj_type] = objects_by_type.get(obj_type, 0) + 1
+        
+        objects_summary = {
+            "total_garbage": len(garbage),
+            "types": objects_by_type
+        }
+    
     return {
         "gc_counts": {
             "generation0": gc_counts[0],
@@ -72,19 +172,37 @@ def memory_status() -> Dict[str, Any]:
         },
         "gc_enabled": gc.isenabled(),
         "gc_thresholds": gc.get_threshold(),
-        "gc_objects": len(gc.get_objects())
+        "gc_objects": len(gc.get_objects()),
+        "gc_garbage_summary": objects_summary
     }
 
 
 def optimize_memory_settings() -> None:
-    """Configure garbage collector for optimal performance."""
+    """Configure garbage collector for optimal performance based on workload.
+    
+    This function adjusts GC settings based on expected memory usage patterns.
+    """
     # Ensure garbage collection is enabled
     gc.enable()
     
-    # Set more aggressive thresholds for generation 0 (new objects)
-    # This makes GC run more frequently for new objects but less for old ones
+    # Set threshold for generation 0 (young objects)
+    # Lower threshold means GC runs more frequently for new objects
+    # This is good for web scraping where we create many temporary objects
+    
+    # Set threshold for generations 1 and 2 (older objects)
+    # Higher threshold means GC runs less frequently for old objects
+    # This reduces overhead for long-lived objects
+    
+    # Custom thresholds tuned for web scraping workload
+    # Format: (threshold0, threshold1, threshold2)
     gc.set_threshold(700, 10, 10)
+    
+    # Don't enable DEBUG_SAVEALL in production as it prevents cleanup
+    # gc.set_debug(gc.DEBUG_SAVEALL)
     
     # Log current settings
     logger = logging.getLogger(__name__)
     logger.debug(f"Memory optimization applied: {memory_status()}")
+    
+    # Run initial collection
+    gc.collect()

@@ -19,7 +19,9 @@ from web2json.utils.errors import (
 from web2json.utils.memory import (
     clear_reference,
     optimize_memory_settings,
-    memory_status
+    memory_status,
+    get_object_size,
+    clear_memory_aggressively
 )
 
 __all__ = [
@@ -38,5 +40,7 @@ __all__ = [
     'Result',
     'clear_reference',
     'optimize_memory_settings',
-    'memory_status'
+    'memory_status',
+    'get_object_size',
+    'clear_memory_aggressively'
 ]

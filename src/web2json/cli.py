@@ -25,6 +25,12 @@ console = Console()
 # Default output directory
 DEFAULT_OUTPUT_FOLDER = Path("fetched_jsons")
 
+# Exit code constants for better readability and consistency
+EXIT_SUCCESS = 0
+EXIT_ERROR_GENERAL = 1
+EXIT_ERROR_PROCESSING = 2
+EXIT_ERROR_UNEXPECTED = 3
+
 
 def setup_logging(verbose: bool = False) -> None:
     """Configure logging with rich formatting."""
@@ -50,31 +56,38 @@ def show_banner() -> None:
 def process(
     url: Optional[str] = typer.Option(None, "--url", "-u", help="Single URL to process"),
     file: Optional[Path] = typer.Option(None, "--file", "-f", help="File containing URLs (one per line)"),
-    output: Optional[str] = typer.Option(None, "--output", "-o", help="Custom output path/name"),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Custom output filename (without extension)"),
     output_dir: Path = typer.Option(
-        DEFAULT_OUTPUT_FOLDER, "--output-dir", help="Output directory"
+        DEFAULT_OUTPUT_FOLDER, "--output-dir", "-d", help="Directory to save output files"
     ),
     preserve_styles: bool = typer.Option(
         False, "--preserve-styles", help="Preserve HTML style tags"
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose logging"),
 ):
-    """Process URLs and convert to structured JSON."""
+    """Process URLs and convert to structured JSON.
+    
+    For a single URL (--url), the output will be saved as:
+      - With --output: [output_dir]/[output].json
+      - Without --output: [output_dir]/[auto_generated_name].json
+    
+    For multiple URLs (--file), each output will be saved with auto-generated names in [output_dir].
+    """
     setup_logging(verbose)
     show_banner()
     
     if url and file:
         console.print("[bold red]Error:[/bold red] Cannot specify both URL and file")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=EXIT_ERROR_GENERAL)
         
     if output and not url:
-        console.print("[bold red]Error:[/bold red] Custom output path requires single URL")
-        raise typer.Exit(code=1)
+        console.print("[bold red]Error:[/bold red] Custom output filename (--output) can only be used with a single URL (--url)")
+        raise typer.Exit(code=EXIT_ERROR_GENERAL)
         
     if not any([url, file]):
-        console.print("[bold red]Error:[/bold red] You must specify either a URL or a file containing URLs")
+        console.print("[bold red]Error:[/bold red] You must specify either a URL (--url) or a file containing URLs (--file)")
         typer.echo(app.info.help)
-        raise typer.Exit(code=1)  # Changed from 0 to 1 to indicate error
+        raise typer.Exit(code=EXIT_ERROR_GENERAL)
     
     # Ensure output directory exists
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -83,7 +96,7 @@ def process(
         if url:
             if not validate_url(url):
                 console.print(f"[bold red]Invalid URL:[/bold red] {url}")
-                raise typer.Exit(code=2)
+                raise typer.Exit(code=EXIT_ERROR_PROCESSING)
             
             console.print(f"Processing: [blue]{url}[/blue]")
             
@@ -99,6 +112,9 @@ def process(
                 output_path = None
                 if output:
                     output_path = output_dir / f"{output}.json"
+                    console.print(f"Output will be saved to: [blue]{output_path}[/blue]")
+                else:
+                    console.print(f"Output will be saved to: [blue]{output_dir}/[auto_generated_name].json[/blue]")
                 
                 # Process URL
                 result = asyncio.run(process_url(
@@ -113,7 +129,7 @@ def process(
                     console.print(f"Output saved to: [blue]{result['output_path']}[/blue]")
                 else:
                     console.print(f"[red]Error:[/red] {result['error']}")
-                    raise typer.Exit(code=2)
+                    raise typer.Exit(code=EXIT_ERROR_PROCESSING)
                 
         elif file:
             try:
@@ -121,16 +137,17 @@ def process(
                 file_path = Path(file)
                 if not file_path.exists():
                     console.print(f"[bold red]Error:[/bold red] File not found: {file}")
-                    raise typer.Exit(code=1)
+                    raise typer.Exit(code=EXIT_ERROR_GENERAL)
                 
                 urls = file_path.read_text().splitlines()
                 urls = [url.strip() for url in urls if url.strip()]
                 
                 if not urls:
                     console.print(f"[bold yellow]Warning:[/bold yellow] No URLs found in {file}")
-                    raise typer.Exit(code=1)  # Changed from 0 to 1 to indicate error
+                    raise typer.Exit(code=EXIT_ERROR_GENERAL)  # Consistently using error code for error conditions
                 
                 console.print(f"Processing [blue]{len(urls)}[/blue] URLs from {file}")
+                console.print(f"Outputs will be saved to: [blue]{output_dir}/[auto_generated_names].json[/blue]")
                 
                 # Process URLs
                 results = asyncio.run(bulk_process_urls(
@@ -155,20 +172,20 @@ def process(
                 
                 # Set exit code based on success rate
                 if success_count == 0 and failure_count > 0:
-                    raise typer.Exit(code=2)
+                    raise typer.Exit(code=EXIT_ERROR_PROCESSING)
                 
             except Exception as e:
                 console.print(f"[bold red]Error processing URLs file:[/bold red] {str(e)}")
-                raise typer.Exit(code=1)
+                raise typer.Exit(code=EXIT_ERROR_GENERAL)
     
     except KeyboardInterrupt:
         console.print("\n[yellow]Operation cancelled by user[/yellow]")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=EXIT_ERROR_GENERAL)
     except Exception as e:
         console.print(f"[bold red]Unexpected error:[/bold red] {str(e)}")
         if verbose:
             console.print_exception()
-        raise typer.Exit(code=3)
+        raise typer.Exit(code=EXIT_ERROR_UNEXPECTED)
 
 
 @app.command()

@@ -7,6 +7,7 @@ Each pipeline consists of a series of stages that transform the input data.
 import asyncio
 import logging
 import gc
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Dict, Any, List, Protocol, Optional, TypeVar, Callable, Awaitable, Union
 
@@ -22,6 +23,10 @@ from web2json.utils.memory import clear_reference, optimize_memory_settings, mem
 # Type definitions
 T = TypeVar('T')
 Context = Dict[str, Any]
+
+# Dedicated thread pool for CPU-bound operations
+# Use fewer threads than CPUs to avoid context switching overhead
+CPU_BOUND_EXECUTOR = ThreadPoolExecutor(thread_name_prefix="web2json_worker")
 
 
 class PipelineStage(Protocol):
@@ -76,6 +81,27 @@ async def run_pipeline(stages: List[PipelineStage], initial_context: Context) ->
     return current_context
 
 
+async def run_in_thread(func, *args, **kwargs):
+    """Run a CPU-bound function in a dedicated thread pool.
+    
+    This helps avoid blocking the event loop with CPU-intensive operations.
+    The dedicated thread pool is sized appropriately for CPU-bound tasks.
+    
+    Args:
+        func: Function to run
+        *args: Positional arguments to pass to the function
+        **kwargs: Keyword arguments to pass to the function
+        
+    Returns:
+        Result of the function
+    """
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        CPU_BOUND_EXECUTOR,
+        lambda: func(*args, **kwargs)
+    )
+
+
 class FetchStage:
     """Pipeline stage for fetching web content."""
     
@@ -101,8 +127,9 @@ class ParseStage:
         logger = logging.getLogger(__name__)
         logger.info("Parsing HTML content")
         
-        # Parse HTML using lxml parser for better memory efficiency
-        soup, title, meta_tags = await asyncio.to_thread(
+        # Use specialized function for running in thread pool
+        # This avoids blocking the event loop with CPU-intensive parsing
+        soup, title, meta_tags = await run_in_thread(
             parse_html, html_content
         )
         
@@ -126,7 +153,8 @@ class ExtractStage:
         logger = logging.getLogger(__name__)
         logger.info("Extracting structured content")
         
-        content = await asyncio.to_thread(
+        # Use dedicated thread pool for CPU-intensive extraction
+        content = await run_in_thread(
             extract_content, soup, preserve_styles
         )
         
@@ -186,8 +214,8 @@ class ExportStage:
             output_path = dir_path / filename
             logger.info(f"Exporting document to {output_path}")
             
-        # Export document
-        await asyncio.to_thread(
+        # Export document using the thread pool for I/O operations
+        await run_in_thread(
             export_document, document, output_path
         )
         
@@ -329,5 +357,9 @@ async def bulk_process_urls(
     
     # Final garbage collection
     gc.collect()
+    
+    # Close the executor when done
+    # This is done in a non-blocking way to avoid hanging
+    CPU_BOUND_EXECUTOR._max_workers = 0
     
     return processed_results
