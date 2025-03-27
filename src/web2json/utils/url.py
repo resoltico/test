@@ -57,15 +57,19 @@ def normalize_url(url: str, base_url: Optional[str] = None) -> str:
     Raises:
         PathError: If URL is invalid
     """
-    if not validate_url(url) and not base_url:
+    # First check if URL needs to be resolved against a base URL
+    if not url.startswith(('http://', 'https://')) and base_url:
+        resolved_url = urljoin(base_url, url)
+        # Now validate the resolved URL
+        if not validate_url(resolved_url):
+            raise PathError(f"Invalid resolved URL: {resolved_url} from {url} and {base_url}")
+        url = resolved_url
+    elif not validate_url(url):
+        # If it's not a relative URL requiring a base URL, it must be valid on its own
         raise PathError(f"Invalid URL: {url}")
         
     try:
         parsed = urlparse(url)
-        
-        # If URL is relative and we have a base URL, resolve it
-        if not parsed.netloc and base_url:
-            return urljoin(base_url, url)
             
         # Normalize the URL components
         normalized = urlunparse((

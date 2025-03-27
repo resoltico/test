@@ -331,7 +331,7 @@ async def process_url(
                 "success": True,
                 "url": url,
                 "output_path": result["output_path"],
-                "document": result["document"]
+                "document": result.get("document")  # Use get to safely handle missing keys
             }
         except Web2JsonError as e:
             logger.error(f"Error processing {url}: {e}")
@@ -379,61 +379,59 @@ async def bulk_process_urls(
     # Create output directory if it doesn't exist
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    # Use a context manager to ensure proper thread pool shutdown
+    # Use a single thread pool for all URLs
     async with get_thread_pool() as executor:
         # Process URLs with semaphore to limit concurrency
         semaphore = asyncio.Semaphore(max_concurrency)
         
         async def process_with_semaphore(url: str) -> Dict[str, Any]:
             async with semaphore:
-                # Pass the executor to process_url via a new implementation
-                async with get_thread_pool() as url_executor:
-                    # Create pipeline stages with shared executor
-                    stages = [
-                        FetchStage(),
-                        ParseStage(executor=url_executor),
-                        ExtractStage(executor=url_executor),
-                        TransformStage(),
-                        ExportStage(executor=url_executor),
-                    ]
+                # Create pipeline stages with shared executor
+                stages = [
+                    FetchStage(),
+                    ParseStage(executor=executor),
+                    ExtractStage(executor=executor),
+                    TransformStage(),
+                    ExportStage(executor=executor),
+                ]
+                
+                # Prepare initial context
+                context = {
+                    "url": url,
+                    "preserve_styles": preserve_styles,
+                    "output_dir": output_dir
+                }
+                
+                try:
+                    # Process through pipeline
+                    result = await run_pipeline(stages, context)
                     
-                    # Prepare initial context
-                    context = {
+                    # Clear document from memory after export
+                    clear_reference(context, "document", force_gc=True)
+                    
+                    return {
+                        "success": True,
                         "url": url,
-                        "preserve_styles": preserve_styles,
-                        "output_dir": output_dir
+                        "output_path": result["output_path"]
                     }
-                    
-                    try:
-                        # Process through pipeline
-                        result = await run_pipeline(stages, context)
-                        
-                        # Clear document from memory after export
-                        clear_reference(context, "document", force_gc=True)
-                        
-                        return {
-                            "success": True,
-                            "url": url,
-                            "output_path": result["output_path"]
-                        }
-                    except Web2JsonError as e:
-                        logger.error(f"Error processing {url}: {e}")
-                        # Force garbage collection after error
-                        gc.collect()
-                        return {
-                            "success": False,
-                            "url": url,
-                            "error": str(e)
-                        }
-                    except Exception as e:
-                        logger.error(f"Unexpected error processing {url}: {e}")
-                        # Force garbage collection after error
-                        gc.collect()
-                        return {
-                            "success": False,
-                            "url": url,
-                            "error": f"Unexpected error: {e}"
-                        }
+                except Web2JsonError as e:
+                    logger.error(f"Error processing {url}: {e}")
+                    # Force garbage collection after error
+                    gc.collect()
+                    return {
+                        "success": False,
+                        "url": url,
+                        "error": str(e)
+                    }
+                except Exception as e:
+                    logger.error(f"Unexpected error processing {url}: {e}")
+                    # Force garbage collection after error
+                    gc.collect()
+                    return {
+                        "success": False,
+                        "url": url,
+                        "error": f"Unexpected error: {e}"
+                    }
         
         # Create tasks for all URLs
         tasks = [process_with_semaphore(url) for url in urls]

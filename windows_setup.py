@@ -95,7 +95,7 @@ def create_windows_helper():
             
             # Try to import the key modules
             import requests
-            import beautifulsoup4  # This might fail but we'll handle it
+            import bs4
             print("\n✓ Python can now find the required dependencies")
         except ImportError as e:
             print(f"\n! Warning: Could not import all dependencies: {e}")

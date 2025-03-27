@@ -54,9 +54,8 @@ class Document(BaseModel):
             if "meta" not in metadata_dict:
                 metadata_dict["meta"] = None
                 
-            # Create or keep metadata
-            if not isinstance(metadata_dict, Metadata):
-                data["metadata"] = Metadata(**metadata_dict)
+            # Create metadata directly - removed redundant condition check
+            data["metadata"] = Metadata(**metadata_dict)
         
         return data
     

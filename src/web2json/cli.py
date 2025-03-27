@@ -114,7 +114,8 @@ def process(
                     output_path = output_dir / f"{output}.json"
                     console.print(f"Output will be saved to: [blue]{output_path}[/blue]")
                 else:
-                    console.print(f"Output will be saved to: [blue]{output_dir}/[auto_generated_name].json[/blue]")
+                    # Fix misleading message by informing user that path will be shown after processing
+                    console.print(f"Output will be saved to [blue]{output_dir}[/blue] with an auto-generated filename")
                 
                 # Process URL
                 result = asyncio.run(process_url(
@@ -147,7 +148,7 @@ def process(
                     raise typer.Exit(code=EXIT_ERROR_GENERAL)
                 
                 console.print(f"Processing [blue]{len(urls)}[/blue] URLs from {file}")
-                console.print(f"Outputs will be saved to: [blue]{output_dir}/[auto_generated_names].json[/blue]")
+                console.print(f"Outputs will be saved to: [blue]{output_dir}[/blue] with auto-generated filenames")
                 
                 # Process URLs
                 results = asyncio.run(bulk_process_urls(
