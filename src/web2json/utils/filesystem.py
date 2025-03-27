@@ -12,7 +12,6 @@ import platform
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Tuple, Union, Set
-from urllib.parse import urlparse
 
 from web2json.utils.errors import PathError
 
@@ -24,9 +23,10 @@ DEFAULT_OUTPUT_FOLDER = Path("fetched_jsons")
 
 # Path length constraints
 # For Windows, MAX_PATH is 260 by default, but can be longer with \\?\ prefix
-# We'll use a safer limit that works across platforms
+# We'll use a more nuanced approach based on platform
 MAX_FILENAME_LENGTH = 220 if IS_WINDOWS else 255
 MAX_PATH_LENGTH = 50
+WINDOWS_MAX_PATH = 260  # Windows API standard MAX_PATH
 
 # Reserved filenames in Windows
 WINDOWS_RESERVED_NAMES = {
@@ -56,6 +56,8 @@ def expand_path(path: Union[str, Path]) -> Path:
     Raises:
         PathError: If path expansion fails
     """
+    logger = logging.getLogger(__name__)
+    
     try:
         if not path:
             raise ValueError("Path cannot be empty")
@@ -63,13 +65,31 @@ def expand_path(path: Union[str, Path]) -> Path:
         path_str = str(path)
         expanded = os.path.expanduser(path_str)
         expanded = os.path.expandvars(expanded)
+        normalized = os.path.normpath(expanded)
         
-        # Handle long paths on Windows with \\?\ prefix
-        if IS_WINDOWS and len(expanded) > 260 and not expanded.startswith("\\\\?\\"):
-            expanded = "\\\\?\\" + os.path.abspath(expanded)
-        
-        return Path(os.path.normpath(expanded))
+        # Handle long paths on Windows - always use absolute paths
+        if IS_WINDOWS:
+            abs_path = os.path.abspath(normalized)
+            
+            # Apply the \\?\ prefix for all Windows paths to consistently handle long paths
+            if not abs_path.startswith("\\\\?\\"):
+                # Check if path might exceed traditional Windows path limits
+                if len(abs_path) > WINDOWS_MAX_PATH - 12:  # Allow some margin for additional components
+                    logger.debug(f"Using long path format for potentially long path: {abs_path}")
+                    return Path("\\\\?\\" + abs_path)
+            
+            # Already has the prefix, keep it
+            if abs_path.startswith("\\\\?\\"):
+                return Path(abs_path)
+            
+            # Path is safe and doesn't need special handling
+            return Path(abs_path)
+        else:
+            # For non-Windows platforms, just return the normalized path
+            return Path(normalized)
+            
     except Exception as e:
+        logger.error(f"Failed to expand path '{path}': {str(e)}")
         raise PathError(f"Failed to expand path '{path}': {str(e)}")
 
 
@@ -87,12 +107,9 @@ def is_safe_path(base_dir: Union[str, Path], path: Union[str, Path]) -> bool:
         if not path or not base_dir:
             return False
         
-        base_abs = os.path.abspath(str(base_dir))
-        path_abs = os.path.abspath(str(path))
-        
-        # Normalize path separators for consistent comparison
-        base_abs = os.path.normpath(base_abs)
-        path_abs = os.path.normpath(path_abs)
+        # Normalize paths for consistent comparison
+        base_abs = str(expand_path(base_dir))
+        path_abs = str(expand_path(path))
         
         try:
             # Use commonpath for safer path comparison
@@ -197,40 +214,47 @@ def validate_output_path(dir_path: Union[str, Path], filename: str) -> Path:
         ValueError: If path is invalid
         PathError: If path creation fails
     """
+    logger = logging.getLogger(__name__)
+    
     try:
         # Sanitize filename
         safe_filename = sanitize_filename(filename)
         if safe_filename != filename:
-            logging.info(f"Filename sanitized: '{filename}' -> '{safe_filename}'")
+            logger.info(f"Filename sanitized: '{filename}' -> '{safe_filename}'")
         
         # Convert to Path objects
         dir_path_obj = Path(dir_path)
-        path_obj = dir_path_obj / safe_filename
         
         # Expand path to handle ~, environment variables, etc.
-        path_obj = expand_path(path_obj)
+        expanded_dir = expand_path(dir_path_obj)
+        path_obj = expanded_dir / safe_filename
         
         # Check total path length
         path_str = str(path_obj)
-        if len(path_str) > MAX_FILENAME_LENGTH:
-            logging.warning(f"Path exceeds recommended length: {len(path_str)} characters")
-            
-            # For Windows with long paths
-            if IS_WINDOWS and len(path_str) > 260 and not path_str.startswith("\\\\?\\"):
-                # Use the \\?\ prefix to handle long paths
-                path_str = "\\\\?\\" + os.path.abspath(path_str)
-                path_obj = Path(path_str)
-                logging.info("Using Windows long path handling with \\\\?\\ prefix")
+        
+        # Windows-specific path handling for long paths
+        if IS_WINDOWS:
+            # Check if path exceeds Windows standard MAX_PATH
+            if len(path_str) > WINDOWS_MAX_PATH:
+                logger.warning(f"Path exceeds Windows MAX_PATH ({WINDOWS_MAX_PATH}): {len(path_str)} characters")
+                
+                # Make sure path is absolute and has the \\?\ prefix
+                path_abs = os.path.abspath(path_str)
+                if not path_abs.startswith("\\\\?\\"):
+                    path_str = "\\\\?\\" + path_abs
+                    path_obj = Path(path_str)
+                    logger.info("Using Windows long path format with \\\\?\\ prefix")
         
         # Create parent directory if it doesn't exist
-        if not path_obj.parent.exists():
-            try:
-                path_obj.parent.mkdir(parents=True, exist_ok=True)
-            except Exception as e:
-                logging.error(f"Failed to create directory: {str(e)}")
-                raise PathError(f"Failed to create directory: {str(e)}")
-        elif not os.access(path_obj.parent, os.W_OK):
-            logging.error(f"No write permission for directory: {path_obj.parent}")
+        try:
+            path_obj.parent.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            logger.error(f"Failed to create directory: {str(e)}")
+            raise PathError(f"Failed to create directory: {str(e)}")
+            
+        # Check write permissions
+        if path_obj.parent.exists() and not os.access(path_obj.parent, os.W_OK):
+            logger.error(f"No write permission for directory: {path_obj.parent}")
             raise PathError(f"No write permission for directory: {path_obj.parent}")
         
         return path_obj
@@ -238,7 +262,7 @@ def validate_output_path(dir_path: Union[str, Path], filename: str) -> Path:
     except ValueError as e:
         raise e
     except Exception as e:
-        logging.error(f"Path validation error: {str(e)}")
+        logger.error(f"Path validation error: {str(e)}")
         raise PathError(f"Path validation error: {str(e)}")
 
 
@@ -255,6 +279,8 @@ def generate_filename(url: str, output_dir: Union[str, Path]) -> Tuple[Path, str
     Raises:
         PathError: If filename generation fails
     """
+    logger = logging.getLogger(__name__)
+    
     if not url or not output_dir:
         raise PathError("URL and output directory cannot be empty")
     
@@ -263,6 +289,7 @@ def generate_filename(url: str, output_dir: Union[str, Path]) -> Tuple[Path, str
         output_path = expand_path(output_dir)
         
         # Parse URL for domain and path
+        from urllib.parse import urlparse
         parsed = urlparse(url)
         
         # Get domain, removing www. prefix if present
@@ -308,9 +335,11 @@ def generate_filename(url: str, output_dir: Union[str, Path]) -> Tuple[Path, str
         # Add .json extension
         filename = f"{filename}.json"
         
+        logger.debug(f"Generated filename: {filename} for URL: {url}")
         return output_path, filename
     
     except Exception as e:
+        logger.error(f"Failed to generate filename: {str(e)}")
         raise PathError(f"Failed to generate filename: {str(e)}")
 
 
