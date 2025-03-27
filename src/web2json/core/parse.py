@@ -11,12 +11,12 @@ from bs4 import BeautifulSoup, NavigableString
 from web2json.utils.errors import ParseError
 
 
-def parse_html(html_content: str, parser: str = "html.parser") -> Tuple[BeautifulSoup, str, Dict[str, str]]:
+def parse_html(html_content: str, parser: str = "lxml") -> Tuple[BeautifulSoup, str, Dict[str, str]]:
     """Parse HTML content and extract basic metadata.
     
     Args:
         html_content: Raw HTML content to parse
-        parser: BeautifulSoup parser to use
+        parser: BeautifulSoup parser to use (default: lxml for memory efficiency)
         
     Returns:
         Tuple of (BeautifulSoup object, title, metadata)
@@ -27,7 +27,7 @@ def parse_html(html_content: str, parser: str = "html.parser") -> Tuple[Beautifu
     logger = logging.getLogger(__name__)
     
     try:
-        # Parse HTML content
+        # Parse HTML content using lxml for better memory efficiency
         soup = BeautifulSoup(html_content, parser)
         
         # Extract title

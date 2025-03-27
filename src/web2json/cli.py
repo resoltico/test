@@ -72,8 +72,9 @@ def process(
         raise typer.Exit(code=1)
         
     if not any([url, file]):
+        console.print("[bold red]Error:[/bold red] You must specify either a URL or a file containing URLs")
         typer.echo(app.info.help)
-        raise typer.Exit(code=0)
+        raise typer.Exit(code=1)  # Changed from 0 to 1 to indicate error
     
     # Ensure output directory exists
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -127,7 +128,7 @@ def process(
                 
                 if not urls:
                     console.print(f"[bold yellow]Warning:[/bold yellow] No URLs found in {file}")
-                    raise typer.Exit(code=0)
+                    raise typer.Exit(code=1)  # Changed from 0 to 1 to indicate error
                 
                 console.print(f"Processing [blue]{len(urls)}[/blue] URLs from {file}")
                 

@@ -11,6 +11,7 @@ from typing import Any, Dict, Union
 
 from web2json.models.document import Document
 from web2json.utils.errors import ExportError
+from web2json.utils.filesystem import validate_output_path, sanitize_filename
 
 
 class CustomJSONEncoder(json.JSONEncoder):
@@ -53,32 +54,51 @@ def export_document(
     
     try:
         # Convert filepath to Path object
-        path = Path(filepath)
+        original_path = Path(filepath)
         
-        # Ensure directory exists
-        path.parent.mkdir(parents=True, exist_ok=True)
+        # Extract directory and filename
+        dir_path = original_path.parent
+        filename = original_path.name
+        
+        # Validate and sanitize output path
+        path = validate_output_path(dir_path, filename)
         
         # If document is a Document object, convert to dict
         if isinstance(document, Document):
-            # Use model_dump() from Pydantic to convert to dict
-            data = document.model_dump(mode='json')
+            try:
+                # Use model_dump() from Pydantic to convert to dict
+                data = document.model_dump(mode='json')
+            except Exception as e:
+                logger.error(f"Failed to convert document to dict: {str(e)}")
+                raise ExportError(f"Failed to convert document to dict: {str(e)}")
         else:
             data = document
         
         # Serialize to JSON
-        json_string = json.dumps(
-            data,
-            indent=indent,
-            ensure_ascii=False,
-            cls=CustomJSONEncoder
-        )
+        try:
+            json_string = json.dumps(
+                data,
+                indent=indent,
+                ensure_ascii=False,
+                cls=CustomJSONEncoder
+            )
+        except Exception as e:
+            logger.error(f"Failed to serialize document to JSON: {str(e)}")
+            raise ExportError(f"Failed to serialize document to JSON: {str(e)}")
         
         # Write to file
-        path.write_text(json_string, encoding=encoding)
+        try:
+            path.write_text(json_string, encoding=encoding)
+        except Exception as e:
+            logger.error(f"Failed to write document to file: {str(e)}")
+            raise ExportError(f"Failed to write document to file: {str(e)}")
         
         logger.info(f"Document saved to {path}")
         return path
         
+    except ExportError:
+        # Re-raise ExportError as is
+        raise
     except Exception as e:
         logger.error(f"Failed to save document: {str(e)}")
         raise ExportError(f"Failed to save document: {str(e)}")

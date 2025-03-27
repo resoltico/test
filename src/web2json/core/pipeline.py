@@ -6,6 +6,7 @@ Each pipeline consists of a series of stages that transform the input data.
 """
 import asyncio
 import logging
+import gc
 from pathlib import Path
 from typing import Dict, Any, List, Protocol, Optional, TypeVar, Callable, Awaitable, Union
 
@@ -16,6 +17,7 @@ from web2json.core.export import export_document
 from web2json.models.document import Document
 from web2json.utils.filesystem import generate_filename
 from web2json.utils.errors import Web2JsonError
+from web2json.utils.memory import clear_reference, optimize_memory_settings, memory_status
 
 # Type definitions
 T = TypeVar('T')
@@ -41,6 +43,10 @@ async def run_pipeline(stages: List[PipelineStage], initial_context: Context) ->
         Final context after all stages have processed
     """
     logger = logging.getLogger(__name__)
+    
+    # Configure garbage collection for optimal performance
+    optimize_memory_settings()
+    
     current_context = initial_context.copy()
     
     for i, stage in enumerate(stages):
@@ -48,7 +54,14 @@ async def run_pipeline(stages: List[PipelineStage], initial_context: Context) ->
         logger.debug(f"Executing pipeline stage {i+1}/{len(stages)}: {stage_name}")
         
         try:
+            # Process the stage
             current_context = await stage.process(current_context)
+            
+            # Log memory status after each stage (if in debug mode)
+            if logger.isEnabledFor(logging.DEBUG):
+                mem_status = memory_status()
+                logger.debug(f"Memory after {stage_name}: {mem_status}")
+            
         except Exception as e:
             logger.error(f"Error in pipeline stage {stage_name}: {str(e)}")
             # Add error information to the context
@@ -88,9 +101,13 @@ class ParseStage:
         logger = logging.getLogger(__name__)
         logger.info("Parsing HTML content")
         
+        # Parse HTML using lxml parser for better memory efficiency
         soup, title, meta_tags = await asyncio.to_thread(
             parse_html, html_content
         )
+        
+        # Clear HTML content from memory as it's no longer needed
+        clear_reference(context, "html_content")
         
         context["soup"] = soup
         context["title"] = title
@@ -112,6 +129,9 @@ class ExtractStage:
         content = await asyncio.to_thread(
             extract_content, soup, preserve_styles
         )
+        
+        # Clear soup object from memory as it's no longer needed
+        clear_reference(context, "soup")
         
         context["content"] = content
         
@@ -136,6 +156,10 @@ class TransformStage:
                 "meta": context.get("meta_tags", {})
             }
         )
+        
+        # Clear content list from memory as it's now in the document
+        clear_reference(context, "content")
+        clear_reference(context, "meta_tags")
         
         context["document"] = document
         
@@ -168,6 +192,9 @@ class ExportStage:
         )
         
         context["output_path"] = output_path
+        
+        # Perform final garbage collection
+        gc.collect()
         
         return context
 
@@ -217,6 +244,9 @@ async def process_url(
         # Process through pipeline
         result = await run_pipeline(stages, context)
         
+        # Clear document from memory after export
+        clear_reference(context, "document", force_gc=True)
+        
         return {
             "success": True,
             "url": url,
@@ -225,6 +255,8 @@ async def process_url(
         }
     except Web2JsonError as e:
         logger.error(f"Error processing {url}: {e}")
+        # Force garbage collection after error
+        gc.collect()
         return {
             "success": False,
             "url": url,
@@ -232,6 +264,8 @@ async def process_url(
         }
     except Exception as e:
         logger.error(f"Unexpected error processing {url}: {e}")
+        # Force garbage collection after error
+        gc.collect()
         return {
             "success": False,
             "url": url,
@@ -259,6 +293,9 @@ async def bulk_process_urls(
     logger = logging.getLogger(__name__)
     logger.info(f"Processing {len(urls)} URLs with concurrency {max_concurrency}")
     
+    # Configure garbage collection for optimal performance
+    optimize_memory_settings()
+    
     # Create output directory if it doesn't exist
     output_dir.mkdir(parents=True, exist_ok=True)
     
@@ -267,7 +304,10 @@ async def bulk_process_urls(
     
     async def process_with_semaphore(url: str) -> Dict[str, Any]:
         async with semaphore:
-            return await process_url(url, output_dir=output_dir, preserve_styles=preserve_styles)
+            result = await process_url(url, output_dir=output_dir, preserve_styles=preserve_styles)
+            # Force garbage collection between URLs
+            gc.collect()
+            return result
     
     # Create tasks for all URLs
     tasks = [process_with_semaphore(url) for url in urls]
@@ -286,5 +326,8 @@ async def bulk_process_urls(
             })
         else:
             processed_results.append(result)
+    
+    # Final garbage collection
+    gc.collect()
     
     return processed_results

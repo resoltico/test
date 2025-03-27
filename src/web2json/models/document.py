@@ -5,10 +5,13 @@ This module defines the Pydantic models for documents.
 """
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Union
+import logging
+import json
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from web2json.models.content import ContentItem
+from web2json.utils.errors import ExportError
 
 
 class Metadata(BaseModel):
@@ -66,15 +69,29 @@ class Document(BaseModel):
         return v
     
     def model_dump_json(self, **kwargs) -> str:
-        """Convert the model to a JSON string."""
-        import json
+        """Convert the model to a JSON string.
         
-        # Get default options if not provided
-        kwargs.setdefault("indent", 2)
-        kwargs.setdefault("ensure_ascii", False)
+        Args:
+            **kwargs: Arguments to pass to json.dumps
+            
+        Returns:
+            JSON string representation of the model
+            
+        Raises:
+            ExportError: If serialization fails
+        """
+        logger = logging.getLogger(__name__)
         
-        # Dump to dict first
-        data = self.model_dump(mode="json")
-        
-        # Convert to JSON
-        return json.dumps(data, **kwargs)
+        try:
+            # Get default options if not provided
+            kwargs.setdefault("indent", 2)
+            kwargs.setdefault("ensure_ascii", False)
+            
+            # Dump to dict first
+            data = self.model_dump(mode="json")
+            
+            # Convert to JSON
+            return json.dumps(data, **kwargs)
+        except Exception as e:
+            logger.error(f"Failed to serialize document to JSON: {str(e)}")
+            raise ExportError(f"Failed to serialize document to JSON: {str(e)}")
