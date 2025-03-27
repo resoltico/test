@@ -8,6 +8,7 @@ import logging
 import sys
 import inspect
 import types
+import random
 from typing import Any, Dict, Optional, Set, List, Tuple
 from collections import deque
 
@@ -21,12 +22,16 @@ MAX_RECURSION_DEPTH = 20
 # Limit on number of objects to measure to prevent excessive CPU use
 MAX_OBJECTS_TO_MEASURE = 10000
 
+# Number of random samples to take for large dictionaries
+DICT_SAMPLE_SIZE = 100
+
 
 def get_object_size(obj: Any, seen: Optional[Set[int]] = None, depth: int = 0) -> int:
     """Estimate the memory size of an object recursively.
     
     This improved function handles circular references and provides a more
     accurate estimation for container objects by recursively measuring their contents.
+    It uses statistical sampling for large dictionaries to improve accuracy.
     
     Args:
         obj: Object to measure
@@ -59,17 +64,37 @@ def get_object_size(obj: Any, seen: Optional[Set[int]] = None, depth: int = 0) -
         
         elif isinstance(obj, (list, tuple, set, frozenset, deque)):
             # For sequence containers, add the size of their items
-            size += sum(get_object_size(item, seen, depth + 1) for item in obj)
+            if len(obj) <= MAX_OBJECTS_TO_MEASURE:
+                # For smaller containers, measure all items
+                size += sum(get_object_size(item, seen, depth + 1) for item in obj)
+            else:
+                # For larger containers, use statistical sampling
+                samples = random.sample(list(obj), min(DICT_SAMPLE_SIZE, len(obj)))
+                avg_item_size = sum(get_object_size(item, seen, depth + 1) for item in samples) / len(samples)
+                size += int(avg_item_size * len(obj))
             
         elif isinstance(obj, dict):
-            # For dictionaries, add the size of keys and values
-            size += sum(
-                get_object_size(k, seen, depth + 1) + get_object_size(v, seen, depth + 1)
-                for k, v in list(obj.items())[:MAX_OBJECTS_TO_MEASURE]
-            )
-            # If dictionary has more items than we measured, make a rough estimate
-            if len(obj) > MAX_OBJECTS_TO_MEASURE:
-                size = int(size * (len(obj) / MAX_OBJECTS_TO_MEASURE))
+            # For dictionaries, use an improved approach with statistical sampling
+            items = list(obj.items())
+            if len(items) <= MAX_OBJECTS_TO_MEASURE:
+                # For smaller dictionaries, measure all items
+                size += sum(
+                    get_object_size(k, seen, depth + 1) + get_object_size(v, seen, depth + 1)
+                    for k, v in items
+                )
+            else:
+                # For larger dictionaries, take a random sample of items
+                # This helps ensure we get a more representative sample
+                samples = random.sample(items, min(DICT_SAMPLE_SIZE, len(items)))
+                
+                # Calculate the average size of sampled items
+                avg_item_size = sum(
+                    get_object_size(k, seen, depth + 1) + get_object_size(v, seen, depth + 1)
+                    for k, v in samples
+                ) / len(samples)
+                
+                # Estimate total size based on average
+                size += int(avg_item_size * len(items))
         
         elif hasattr(obj, '__dict__') and not isinstance(obj, (type, types.ModuleType, types.FunctionType)):
             # For objects with a __dict__ (not classes, modules, or functions), include their attributes

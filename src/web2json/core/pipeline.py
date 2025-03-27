@@ -358,8 +358,9 @@ async def bulk_process_urls(
     # Final garbage collection
     gc.collect()
     
-    # Close the executor when done
-    # This is done in a non-blocking way to avoid hanging
-    CPU_BOUND_EXECUTOR._max_workers = 0
+    # Properly schedule executor shutdown using event loop
+    # This is a non-blocking approach that ensures all tasks complete
+    loop = asyncio.get_running_loop()
+    loop.call_soon(lambda: CPU_BOUND_EXECUTOR.shutdown(wait=False))
     
     return processed_results
