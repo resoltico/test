@@ -15,10 +15,10 @@ packages = [{include = "web2json", from = "src"}]
 [tool.poetry.dependencies]
 python = "^3.9"
 beautifulsoup4 = "^4.13.3"
-aiohttp = "^3.11.14"
-pydantic = "^2.10.6"
+aiohttp = "^3.11.15"
+pydantic = "^2.11.1"
 typer = "^0.15.2"
-rich = "^13.9.4"
+rich = "^14.0.0"
 lxml = "^5.3.1"
 
 [tool.poetry.group.dev.dependencies]
