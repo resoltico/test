@@ -6,12 +6,13 @@ with proper preservation of line breaks and separation of captions.
 """
 import logging
 import re
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Union
 
 from bs4 import BeautifulSoup, Tag, NavigableString
 
 from web2json.utils.errors import ExtractError
 from web2json.core.extractors.base import get_element_text
+from web2json.models.content import CodeContent
 
 # Tags that indicate a code block
 CODE_TAGS = {'pre', 'code'}
@@ -36,7 +37,7 @@ LANGUAGE_CLASS_PATTERNS = [
 ]
 
 
-def extract_code_block(element: Tag, preserve_styles: bool = False) -> Dict[str, Any]:
+def extract_code_block(element: Tag, preserve_styles: bool = False) -> CodeContent:
     """Extract a code block with proper formatting and caption handling.
     
     Args:
@@ -44,7 +45,7 @@ def extract_code_block(element: Tag, preserve_styles: bool = False) -> Dict[str,
         preserve_styles: Whether to preserve HTML style tags
         
     Returns:
-        Dictionary representing the code block
+        CodeContent object representing the code block
         
     Raises:
         ExtractError: If extraction fails
@@ -52,14 +53,6 @@ def extract_code_block(element: Tag, preserve_styles: bool = False) -> Dict[str,
     logger = logging.getLogger(__name__)
     
     try:
-        # Initialize content structure
-        content_data = {
-            "type": "code_block",
-            "language": None,
-            "caption": None,
-            "text": "",
-        }
-        
         # Find the actual code element
         code_element = element
         
@@ -75,41 +68,43 @@ def extract_code_block(element: Tag, preserve_styles: bool = False) -> Dict[str,
         
         # Extract caption if present in the container or nearby
         caption = extract_code_caption(element)
-        if caption:
-            content_data["caption"] = caption
-        
+            
         # Extract language information
         language = detect_code_language(code_element)
-        if language:
-            content_data["language"] = language
-        
+            
         # Extract formatted code content
-        content_data["text"] = extract_formatted_code(code_element)
+        text_content = extract_formatted_code(code_element)
         
         # Make sure we have some content
-        if not content_data["text"].strip():
+        if not text_content.strip():
             raise ValueError("Code block is empty")
         
-        return content_data
+        # Create the CodeContent object directly
+        return CodeContent(
+            type="code_block",
+            text=text_content,
+            language=language,
+            caption=caption
+        )
         
     except Exception as e:
         logger.error(f"Error extracting code block: {str(e)}")
         # Fallback to simpler extraction
         try:
-            return {
-                "type": "code_block",
-                "text": element.get_text(strip=False),
-                "language": detect_code_language(element),
-                "caption": None
-            }
+            return CodeContent(
+                type="code_block",
+                text=element.get_text(strip=False),
+                language=detect_code_language(element),
+                caption=None
+            )
         except Exception:
             # Ultimate fallback
-            return {
-                "type": "code_block",
-                "text": "Error extracting code",
-                "language": None,
-                "caption": None
-            }
+            return CodeContent(
+                type="code_block",
+                text="Error extracting code",
+                language=None,
+                caption=None
+            )
 
 
 def extract_code_caption(element: Tag) -> Optional[str]:

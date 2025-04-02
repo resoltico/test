@@ -528,16 +528,16 @@
         },
         {
           "type": "code_block",
+          "text": "web2json process [OPTIONS]",
           "language": "plaintext",
-          "caption": null,
-          "text": "web2json process [OPTIONS]"
+          "caption": ""
         }
       ]
     }
   ],
   "metadata": {
     "url": "https://resoltico.com/en/tools/web2json/",
-    "fetched_at": "2025-04-02 16:13:36",
+    "fetched_at": "2025-04-02 17:02:33",
     "preserve_styles": false,
     "meta": {
       "viewport": "width=device-width, initial-scale=1",

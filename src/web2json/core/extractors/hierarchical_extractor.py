@@ -678,6 +678,9 @@ def organize_hierarchically(blocks: List[Tag], preserve_styles: bool) -> List[Co
                     
             elif block.name == "pre" or (block.name == "div" and block.find("pre")):
                 # Create code content
+                from web2json.core.extractors.code_extractor import extract_code_block
+                
+                # Extract code block as a CodeContent object
                 code_content = extract_code_block(block, preserve_styles)
                 
                 # Add to current section or result
@@ -735,7 +738,9 @@ def organize_hierarchically(blocks: List[Tag], preserve_styles: bool) -> List[Co
                     ))
                     
                 elif block.name == "pre" or block.find("pre"):
-                    result.append(extract_code_block(block, preserve_styles))
+                    # Extract as a CodeContent object
+                    code_content = extract_code_block(block, preserve_styles)
+                    result.append(code_content)
                     
                 elif block.name == "table" and is_data_table(block):
                     table_content = extract_table(block, preserve_styles)

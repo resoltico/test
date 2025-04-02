@@ -3,7 +3,7 @@ Content models module for web2json.
 
 This module defines the Pydantic models for content items in the document.
 """
-from typing import List, Optional, Union, Literal, Dict, Any
+from typing import List, Optional, Union, Literal, Dict, Any, ForwardRef
 
 from pydantic import BaseModel, Field
 
@@ -87,6 +87,9 @@ class TableContent(BaseContentItem):
     rows: List[List[str]] = Field(default_factory=list, description="Table rows")
 
 
+# Use ForwardRef to handle recursive SectionContent
+SectionContentRef = ForwardRef("SectionContent")
+
 class SectionContent(BaseContentItem):
     """Content model for document sections."""
     
@@ -100,7 +103,7 @@ class SectionContent(BaseContentItem):
         CodeContent,
         ImageContent,
         TableContent,
-        "SectionContent"
+        SectionContentRef
     ]] = Field(default_factory=list, description="Section content")
 
 
@@ -117,6 +120,5 @@ ContentItem = Union[
     CodeContent,
     ImageContent,
     TableContent,
-    SectionContent,
-    Dict[str, Any]  # Allow raw dictionaries for flexibility
+    SectionContent
 ]
