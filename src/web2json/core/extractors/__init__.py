@@ -32,9 +32,9 @@ from web2json.core.extractors.list_extractor import (
 
 from web2json.core.extractors.code_extractor import (
     extract_code_block,
-    _extract_code_caption,
-    _detect_code_language,
-    _extract_formatted_code
+    extract_code_caption,
+    detect_code_language,
+    extract_formatted_code
 )
 
 from web2json.core.extractors.table_extractor import (
@@ -46,9 +46,9 @@ from web2json.core.extractors.table_extractor import (
 
 from web2json.core.extractors.hierarchical_extractor import (
     extract_content_hierarchically,
-    _get_main_content,
-    _extract_content_blocks,
-    _organize_hierarchically
+    find_main_content_elements,
+    score_content_element,
+    organize_hierarchically
 )
 
 __all__ = [
@@ -77,9 +77,9 @@ __all__ = [
     
     # Code extractor
     'extract_code_block',
-    '_extract_code_caption',
-    '_detect_code_language',
-    '_extract_formatted_code',
+    'extract_code_caption',
+    'detect_code_language',
+    'extract_formatted_code',
     
     # Table extractor
     'extract_tables',
@@ -89,7 +89,7 @@ __all__ = [
     
     # Hierarchical extractor
     'extract_content_hierarchically',
-    '_get_main_content',
-    '_extract_content_blocks',
-    '_organize_hierarchically'
+    'find_main_content_elements',
+    'score_content_element',
+    'organize_hierarchically'
 ]

@@ -7,6 +7,7 @@ import asyncio
 import gc
 import logging
 import os
+import sys
 import time
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Union
@@ -52,6 +53,14 @@ async def process_url(
     """
     logger = logging.getLogger(__name__)
     logger.info(f"Processing URL: {url}")
+    
+    # Validate the URL
+    if not validate_url(url):
+        return {
+            "success": False,
+            "url": url,
+            "error": "Invalid URL format"
+        }
     
     # Use a context manager to ensure proper thread pool shutdown
     async with get_thread_pool() as executor:
@@ -100,7 +109,8 @@ async def process_url(
                     "extract": result.get("extract_time"),
                     "transform": result.get("transform_time"),
                     "export": result.get("export_time"),
-                }
+                },
+                "content_stats": result.get("content_stats", {})
             }
             
         except asyncio.TimeoutError as e:
@@ -167,6 +177,14 @@ async def bulk_process_urls(
         """Process a URL with semaphore for concurrency control."""
         start_time = time.time()
         
+        # Skip invalid URLs
+        if not validate_url(url):
+            return {
+                "success": False,
+                "url": url,
+                "error": "Invalid URL format"
+            }
+        
         # Use semaphore to limit concurrency
         async with semaphore:
             logger.debug(f"Starting processing of {url}")
@@ -203,7 +221,8 @@ async def bulk_process_urls(
                     "success": True,
                     "url": url,
                     "output_path": result["output_path"],
-                    "processing_time": total_time
+                    "processing_time": total_time,
+                    "content_stats": result.get("content_stats", {})
                 }
                 
             except asyncio.TimeoutError as e:
@@ -239,43 +258,45 @@ async def bulk_process_urls(
     # Use a single thread pool for all URLs and create a semaphore for concurrency control
     semaphore = asyncio.Semaphore(max_concurrency)
     
+    # Process URLs with proper error handling
     async with get_thread_pool() as executor:
         # Create tasks for all URLs with proper resource management
         tasks = [process_with_semaphore(semaphore, executor, url) for url in urls]
         
-        # Wait for all tasks to complete with per-URL timeout protection
+        # Wait for all tasks to complete 
         results = []
         
         for task in asyncio.as_completed(tasks):
             try:
-                # Each URL has its own timeout protection within process_with_semaphore
                 result = await task
                 results.append(result)
                 
                 # Log progress
                 completed = len(results)
                 if completed % 5 == 0 or completed == len(urls):
-                    logger.info(f"Progress: {completed}/{len(urls)} URLs processed")
+                    success_count = sum(1 for r in results if r.get("success", False))
+                    logger.info(f"Progress: {completed}/{len(urls)} URLs processed ({success_count} successful)")
                     
             except Exception as e:
                 # Handle any unexpected errors from task execution
                 logger.error(f"Unexpected error in task execution: {str(e)}")
                 results.append({
                     "success": False,
-                    "url": "unknown",  # We don't know which URL caused the error
+                    "url": "unknown",
                     "error": f"Task execution error: {str(e)}"
                 })
     
     # Verify all URLs are accounted for in results
     processed_urls = {result.get("url") for result in results if "url" in result}
-    for url in urls:
-        if url not in processed_urls:
-            logger.warning(f"No result found for URL: {url}, adding error entry")
-            results.append({
-                "success": False,
-                "url": url,
-                "error": "URL processing was skipped or failed without error information"
-            })
+    missing_urls = set(urls) - processed_urls
+    
+    for url in missing_urls:
+        logger.warning(f"No result found for URL: {url}, adding error entry")
+        results.append({
+            "success": False,
+            "url": url,
+            "error": "URL processing was skipped or failed without error information"
+        })
     
     # Final garbage collection
     gc.collect()
@@ -297,9 +318,24 @@ def get_thread_pool_sync(max_workers=None, thread_name_prefix="web2json_worker")
     
     # Get optimal worker count based on system resources
     if max_workers is None:
-        max_workers = max(2, min(32, (os.cpu_count() or 4) - 1))
+        # Use 75% of available CPUs to avoid overloading the system
+        max_workers = max(2, min(32, int((os.cpu_count() or 4) * 0.75)))
     
     return concurrent.futures.ThreadPoolExecutor(
         max_workers=max_workers,
         thread_name_prefix=thread_name_prefix
     )
+
+
+def get_version() -> str:
+    """Get the current version of web2json.
+    
+    Returns:
+        Version string
+    """
+    try:
+        return sys.modules["web2json"].__version__
+    except (KeyError, AttributeError):
+        # Fallback to manual import
+        from web2json import __version__
+        return __version__
