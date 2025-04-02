@@ -7,7 +7,8 @@ import logging
 import time
 from typing import Dict, Any, List
 
-from web2json.core.extractors.hierarchical_extractor import extract_content_hierarchically
+# Updated import to use the new hierarchical package
+from web2json.core.extractors.hierarchical import extract_content_hierarchically
 from web2json.core.pipeline_stages.base import run_in_thread
 from web2json.utils.errors import ExtractError
 from web2json.utils.memory import clear_reference

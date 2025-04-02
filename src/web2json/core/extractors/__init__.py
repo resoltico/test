@@ -44,7 +44,8 @@ from web2json.core.extractors.table_extractor import (
     is_data_table
 )
 
-from web2json.core.extractors.hierarchical_extractor import (
+# Import from the new hierarchical package
+from web2json.core.extractors.hierarchical import (
     extract_content_hierarchically,
     find_main_content_elements,
     score_content_element,
