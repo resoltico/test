@@ -6,6 +6,7 @@ This module provides high-level functions for processing URLs through the pipeli
 import asyncio
 import gc
 import logging
+import os
 import time
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Union
@@ -32,7 +33,6 @@ async def process_url(
     output_path: Optional[Path] = None,
     output_dir: Optional[Path] = None,
     preserve_styles: bool = False,
-    hierarchical: bool = True,
     timeout: int = 60,
 ) -> Result:
     """Process a single URL through the pipeline.
@@ -42,7 +42,6 @@ async def process_url(
         output_path: Optional specific output path for the document
         output_dir: Directory to save output (if output_path not provided)
         preserve_styles: Whether to preserve HTML styles in content
-        hierarchical: Whether to use hierarchical extraction
         timeout: Timeout in seconds for each stage
         
     Returns:
@@ -60,7 +59,7 @@ async def process_url(
         stages = [
             FetchStage(),
             ParseStage(executor=executor),
-            ExtractStage(executor=executor, hierarchical=hierarchical),
+            ExtractStage(executor=executor),
             TransformStage(),
             ExportStage(executor=executor),
         ]
@@ -139,7 +138,6 @@ async def bulk_process_urls(
     urls: List[str],
     output_dir: Path,
     preserve_styles: bool = False,
-    hierarchical: bool = True,
     max_concurrency: int = 5,
     timeout: int = 60,
 ) -> List[Result]:
@@ -149,7 +147,6 @@ async def bulk_process_urls(
         urls: List of URLs to process
         output_dir: Directory to save outputs
         preserve_styles: Whether to preserve HTML styles
-        hierarchical: Whether to use hierarchical extraction
         max_concurrency: Maximum number of concurrent requests
         timeout: Timeout in seconds for each stage
         
@@ -178,7 +175,7 @@ async def bulk_process_urls(
             stages = [
                 FetchStage(),
                 ParseStage(executor=executor),
-                ExtractStage(executor=executor, hierarchical=hierarchical),
+                ExtractStage(executor=executor),
                 TransformStage(),
                 ExportStage(executor=executor),
             ]

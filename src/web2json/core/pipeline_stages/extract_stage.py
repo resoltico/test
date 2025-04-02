@@ -19,15 +19,13 @@ Context = Dict[str, Any]
 class ExtractStage:
     """Pipeline stage for extracting structured content."""
     
-    def __init__(self, executor=None, hierarchical=True):
+    def __init__(self, executor=None):
         """Initialize the extract stage.
         
         Args:
             executor: Optional ThreadPoolExecutor for CPU-bound operations
-            hierarchical: Whether to use hierarchical extraction (default: True)
         """
         self.executor = executor
-        self.hierarchical = hierarchical
     
     async def process(self, context: Context) -> Context:
         """Process context by extracting structured content.
@@ -49,24 +47,13 @@ class ExtractStage:
         try:
             start_time = time.time()
             
-            # Use hierarchical extraction by default
-            if self.hierarchical:
-                content = await run_in_thread(
-                    extract_content_hierarchically, 
-                    soup, 
-                    preserve_styles,
-                    executor=self.executor
-                )
-            else:
-                # Fallback to flat extraction if hierarchical is disabled
-                # This maintains backward compatibility
-                from web2json.core.extract import extract_content
-                content = await run_in_thread(
-                    extract_content,
-                    soup,
-                    preserve_styles,
-                    executor=self.executor
-                )
+            # Use hierarchical extraction exclusively - no fallback to legacy extract.py
+            content = await run_in_thread(
+                extract_content_hierarchically, 
+                soup, 
+                preserve_styles,
+                executor=self.executor
+            )
             
             elapsed = time.time() - start_time
             logger.debug(f"Extract completed in {elapsed:.2f} seconds")
@@ -77,7 +64,6 @@ class ExtractStage:
             # Store results in context
             context["content"] = content
             context["extract_time"] = elapsed
-            context["hierarchical"] = self.hierarchical
             
             # Count content items for logging
             content_count = len(content)
