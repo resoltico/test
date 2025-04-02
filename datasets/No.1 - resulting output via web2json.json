@@ -1,0 +1,718 @@
+{
+  "title": "web2json",
+  "content": [
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "On this page"
+    },
+    {
+      "type": "heading",
+      "level": 1,
+      "text": "web2json"
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "What it Does"
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Why JSON?"
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Requirements"
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Installation"
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "macOS Users"
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Linux Users"
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Windows Users"
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Using web2json"
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Basic Command Structure"
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Common Options for the Process Command"
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Other Commands"
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Examples"
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "About web2json"
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Need Help?"
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Coffee!"
+    },
+    {
+      "type": "paragraph",
+      "text": "Welcome to web2json, a tool for converting web pages into structured JSON format. This documentation will guide you through almost everything you need to know about installing and using this multi-module Python package."
+    },
+    {
+      "type": "paragraph",
+      "text": "web2json is a tool that transforms web pages into structured JSON data. This is useful for:"
+    },
+    {
+      "type": "paragraph",
+      "text": "JSON (JavaScript Object Notation) is used because it’s:"
+    },
+    {
+      "type": "paragraph",
+      "text": "web2json requires Python 3.9 or higher. The latest stable version is recommended. Additionally, since the package relies on C extensions (for aiohttp and lxml), a proper build environment (compiler and development headers) is required for installation."
+    },
+    {
+      "type": "paragraph",
+      "text": "As much as possible we will rely on Homebrew, and we will set up web2json in your Home folder, within a subfolder named Tools. The steps are as follows:"
+    },
+    {
+      "type": "paragraph",
+      "text": "You’ve probably compiled a kernel before breakfast, so you don’t need me to tell you how to set up a Python project. Carry on, wizard."
+    },
+    {
+      "type": "paragraph",
+      "text": "Running web2json on Windows involves complexities with C extension compilation, so Windows installation instructions are not provided. For a simpler and more reliable experience, consider installing and running web2json on a Linux virtual machine."
+    },
+    {
+      "type": "paragraph",
+      "text": "The web2json command uses different subcommands to perform various functions. The main subcommand for processing web pages is process."
+    },
+    {
+      "type": "paragraph",
+      "text": "web2json was created by Ervins Strauhmanis and is licensed under the MIT License. This means you are free to use, modify, and share it as needed."
+    },
+    {
+      "type": "paragraph",
+      "text": "Current version: 2.0.0."
+    },
+    {
+      "type": "paragraph",
+      "text": "If something isn’t working as expected or you have ideas for new features, please file an Issue on GitHub."
+    },
+    {
+      "type": "paragraph",
+      "text": "Loving how web2json smooths out your workflow? Consider a coffee-sized thank you to the developer who made it possible!"
+    },
+    {
+      "type": "paragraph",
+      "text": "Last updated: Mar 24, 2025"
+    },
+    {
+      "type": "list",
+      "list_type": "unordered",
+      "items": [
+        {
+          "text": "Guides Example Guide",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "Reference Example Reference",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "Tools Black Blank Screen Open Terminal in Folder web2json",
+          "type": null,
+          "list_type": null,
+          "items": null
+        }
+      ]
+    },
+    {
+      "type": "list",
+      "list_type": "unordered",
+      "items": [
+        {
+          "text": "Overview",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "What it Does",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "Why JSON?",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "Requirements",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "Installation",
+          "type": "sublist",
+          "list_type": "unordered",
+          "items": [
+            {
+              "text": "macOS Users",
+              "type": null,
+              "list_type": null,
+              "items": null
+            },
+            {
+              "text": "Linux Users",
+              "type": null,
+              "list_type": null,
+              "items": null
+            },
+            {
+              "text": "Windows Users",
+              "type": null,
+              "list_type": null,
+              "items": null
+            }
+          ]
+        },
+        {
+          "text": "Using web2json",
+          "type": "sublist",
+          "list_type": "unordered",
+          "items": [
+            {
+              "text": "Basic Command Structure",
+              "type": null,
+              "list_type": null,
+              "items": null
+            },
+            {
+              "text": "Common Options for the Process Command",
+              "type": null,
+              "list_type": null,
+              "items": null
+            },
+            {
+              "text": "Other Commands",
+              "type": null,
+              "list_type": null,
+              "items": null
+            },
+            {
+              "text": "Examples",
+              "type": null,
+              "list_type": null,
+              "items": null
+            }
+          ]
+        },
+        {
+          "text": "About web2json",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "Need Help?",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "Coffee!",
+          "type": null,
+          "list_type": null,
+          "items": null
+        }
+      ]
+    },
+    {
+      "type": "list",
+      "list_type": "unordered",
+      "items": [
+        {
+          "text": "Overview",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "What it Does",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "Why JSON?",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "Requirements",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "Installation",
+          "type": "sublist",
+          "list_type": "unordered",
+          "items": [
+            {
+              "text": "macOS Users",
+              "type": null,
+              "list_type": null,
+              "items": null
+            },
+            {
+              "text": "Linux Users",
+              "type": null,
+              "list_type": null,
+              "items": null
+            },
+            {
+              "text": "Windows Users",
+              "type": null,
+              "list_type": null,
+              "items": null
+            }
+          ]
+        },
+        {
+          "text": "Using web2json",
+          "type": "sublist",
+          "list_type": "unordered",
+          "items": [
+            {
+              "text": "Basic Command Structure",
+              "type": null,
+              "list_type": null,
+              "items": null
+            },
+            {
+              "text": "Common Options for the Process Command",
+              "type": null,
+              "list_type": null,
+              "items": null
+            },
+            {
+              "text": "Other Commands",
+              "type": null,
+              "list_type": null,
+              "items": null
+            },
+            {
+              "text": "Examples",
+              "type": null,
+              "list_type": null,
+              "items": null
+            }
+          ]
+        },
+        {
+          "text": "About web2json",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "Need Help?",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "Coffee!",
+          "type": null,
+          "list_type": null,
+          "items": null
+        }
+      ]
+    },
+    {
+      "type": "list",
+      "list_type": "unordered",
+      "items": [
+        {
+          "text": "Content analysis and data mining: Extract and analyze web content easily",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "Archival and offline access: Save web content in a standardized format",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "Integration with data processing pipelines: Feed web content into your data workflows",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "Content transformation and republishing: Reformat web content for different purposes",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "Machine learning dataset preparation: Create structured data for training models",
+          "type": null,
+          "list_type": null,
+          "items": null
+        }
+      ]
+    },
+    {
+      "type": "list",
+      "list_type": "unordered",
+      "items": [
+        {
+          "text": "A structured format that’s easy to parse",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "Language-agnostic, working with virtually any programming language",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "Ideal for APIs and data processing",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "Able to preserve content hierarchy and relationships",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "Perfect for selective content extraction",
+          "type": null,
+          "list_type": null,
+          "items": null
+        }
+      ]
+    },
+    {
+      "type": "list",
+      "list_type": "ordered",
+      "items": [
+        {
+          "text": "Download the latest release from GitHub",
+          "type": "sublist",
+          "list_type": "unordered",
+          "items": [
+            {
+              "text": "Save this archive file to your Downloads folder",
+              "type": null,
+              "list_type": null,
+              "items": null
+            }
+          ]
+        },
+        {
+          "text": "Open Terminal",
+          "type": "sublist",
+          "list_type": "unordered",
+          "items": [
+            {
+              "text": "Open it via Applications → Utilities → Terminal, or use Spotlight with Command+Space and type “Terminal”",
+              "type": null,
+              "list_type": null,
+              "items": null
+            }
+          ]
+        },
+        {
+          "text": "Install Python Dependency Management Tool Terminal windowbrew install pipxpipx ensurepathsource ~/.zshrcpipx install poetry",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "Create a suitable folder structure Terminal windowmkdir -p ~/Tools",
+          "type": "sublist",
+          "list_type": "unordered",
+          "items": [
+            {
+              "text": "Create a Tools folder if it doesn’t exist:",
+              "type": null,
+              "list_type": null,
+              "items": null
+            }
+          ]
+        },
+        {
+          "text": "Unarchive the downloaded package Terminal windowcd ~/Downloads Terminal windowtar -xzvf web2json.tar.gz",
+          "type": "sublist",
+          "list_type": "unordered",
+          "items": [
+            {
+              "text": "Navigate to your Downloads folder:",
+              "type": null,
+              "list_type": null,
+              "items": null
+            }
+          ]
+        },
+        {
+          "text": "Move the files to your Tools folder Terminal windowmv web2json ~/Tools/web2json",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "Navigate to the web2json folder Terminal windowcd ~/Tools/web2json",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "Install web2json and its dependencies with Poetry Terminal windowpoetry install",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "Create a shell function",
+          "type": "sublist",
+          "list_type": "unordered",
+          "items": [
+            {
+              "text": "This will allow you to run web2json from anywhere in your Terminal",
+              "type": null,
+              "list_type": null,
+              "items": null
+            },
+            {
+              "text": "This assumes you are using the Z shell (Zsh), which is a default shell since macOS 10.15:",
+              "type": "sublist",
+              "list_type": "unordered",
+              "items": [
+                {
+                  "text": "Open your ~/.zshrc file, for example via nano ~/.zshrc",
+                  "type": null,
+                  "list_type": null,
+                  "items": null
+                },
+                {
+                  "text": "Add this shell function: web2json() { (cd ~/Tools/web2json && poetry run web2json \"$@\")}",
+                  "type": null,
+                  "list_type": null,
+                  "items": null
+                },
+                {
+                  "text": "Reload the shell via source ~/.zshrc or launch a new Terminal instance",
+                  "type": null,
+                  "list_type": null,
+                  "items": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "text": "Test your installation Terminal windowweb2json process -u https://resoltico.com/en/tools/web2json/ -o test_output",
+          "type": "sublist",
+          "list_type": "unordered",
+          "items": [
+            {
+              "text": "Launch Terminal",
+              "type": null,
+              "list_type": null,
+              "items": null
+            },
+            {
+              "text": "Execute this command to verify the set up:",
+              "type": null,
+              "list_type": null,
+              "items": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "list",
+      "list_type": "unordered",
+      "items": [
+        {
+          "text": "-u or --url: Process a single webpage web2json process -u https://example.com/article",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "-f or --file: Process multiple URLs from a text file (one URL per line) web2json process -f urls.txt",
+          "type": "sublist",
+          "list_type": "unordered",
+          "items": [
+            {
+              "text": "Note: For relative paths, web2json looks for the file in its current directory. You can specify absolute paths like web2json process -f ~/Downloads/urls.txt",
+              "type": null,
+              "list_type": null,
+              "items": null
+            }
+          ]
+        },
+        {
+          "text": "-o or --output: Set custom output name for the JSON file (without extension) web2json process -u https://example.com/article -o my_article",
+          "type": "sublist",
+          "list_type": "unordered",
+          "items": [
+            {
+              "text": "This will create my_article.json",
+              "type": null,
+              "list_type": null,
+              "items": null
+            }
+          ]
+        },
+        {
+          "text": "-d or --output-dir: Change where files are saved (default: fetched_jsons directory) web2json process -u https://example.com -d ~/Downloads",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "--preserve-styles: Keep HTML styling (bold, italic, etc.) in the output web2json process -u https://example.com --preserve-styles",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "-v or --verbose: Show detailed progress information web2json process -u https://example.com -v",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "-t or --timeout: Set request timeout in seconds (default: 60) web2json process -u https://example.com -t 30",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "-c or --max-concurrent: Maximum number of concurrent URL processing tasks (default: 5) web2json process -f urls.txt -c 10",
+          "type": null,
+          "list_type": null,
+          "items": null
+        }
+      ]
+    },
+    {
+      "type": "list",
+      "list_type": "unordered",
+      "items": [
+        {
+          "text": "Check the version: web2json version",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "Get help: web2json --help",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "Get help for a specific command: web2json process --help",
+          "type": null,
+          "list_type": null,
+          "items": null
+        }
+      ]
+    },
+    {
+      "type": "list",
+      "list_type": "ordered",
+      "items": [
+        {
+          "text": "Basic URL processing: web2json process -u https://example.com/article -o example_article",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "Processing multiple URLs with verbose output: web2json process -f my_urls.txt -v",
+          "type": null,
+          "list_type": null,
+          "items": null
+        },
+        {
+          "text": "Processing a URL and saving to a custom location with style preservation: web2json process -u https://example.com -d ~/Documents/web_archives --preserve-styles",
+          "type": null,
+          "list_type": null,
+          "items": null
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "url": "https://resoltico.com/en/tools/web2json/",
+    "fetched_at": "2025-04-02 03:13:47",
+    "preserve_styles": false,
+    "meta": {
+      "viewport": "width=device-width, initial-scale=1",
+      "generator": "Starlight v0.32.5",
+      "og:title": "web2json",
+      "og:type": "article",
+      "og:url": "https://resoltico.com/en/tools/web2json/",
+      "og:locale": "en",
+      "og:description": "Archive web content, prepare ML datasets, analyze online data with web2json. This tool converts HTML to structured JSON, maintaining content hierarchy.",
+      "og:site_name": "Resoltico",
+      "twitter:card": "summary_large_image",
+      "description": "Archive web content, prepare ML datasets, analyze online data with web2json. This tool converts HTML to structured JSON, maintaining content hierarchy."
+    }
+  }
+}

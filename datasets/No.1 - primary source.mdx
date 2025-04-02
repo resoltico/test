@@ -1,0 +1,229 @@
+---
+title: web2json
+description: Archive web content, prepare ML datasets, analyze online data with web2json. This tool converts HTML to structured JSON, maintaining content hierarchy.
+_my-prompt-for-the-above-description: Generate variants (for me to choose) of the "content" property for the "<meta name="description" content=""/>" HTML tag, ensuring best SEO considerations and practices; maintain 150 characters limit.
+lastUpdated: 2025-03-24
+pagefind: true
+draft: false
+
+_sidebar:
+  badge:
+    text: Experimental
+    variant: caution
+---
+
+import DirectKofiButton from '@components/DirectKofiButton.astro';
+
+<article class="prose">
+
+Welcome to web2json, a tool for converting web pages into structured JSON format. This documentation will guide you through almost everything you need to know about installing and using this multi-module Python package.
+
+## What it Does
+
+web2json is a tool that transforms web pages into structured JSON data. This is useful for:
+
+- Content analysis and data mining: Extract and analyze web content easily
+- Archival and offline access: Save web content in a standardized format
+- Integration with data processing pipelines: Feed web content into your data workflows
+- Content transformation and republishing: Reformat web content for different purposes
+- Machine learning dataset preparation: Create structured data for training models
+
+## Why JSON?
+
+JSON (JavaScript Object Notation) is used because it's:
+
+- A structured format that's easy to parse
+- Language-agnostic, working with virtually any programming language
+- Ideal for APIs and data processing
+- Able to preserve content hierarchy and relationships
+- Perfect for selective content extraction
+
+## Requirements
+
+web2json requires Python 3.9 or higher. The latest stable version is recommended. Additionally, since the package relies on C extensions (for [aiohttp](https://pypi.org/project/aiohttp/) and [lxml](https://pypi.org/project/lxml/)), a proper build environment (compiler and development headers) is required for installation.
+
+## Installation
+
+### macOS Users
+As much as possible we will rely on [Homebrew](https://brew.sh), and we will set up web2json in your Home folder, within a subfolder named `Tools`.
+The steps are as follows:
+
+1. **Download the latest release from GitHub**
+   - Save [this archive](https://github.com/resoltico/web2json/releases/download/v2.0.0/web2json.tar.gz) file to your Downloads folder
+
+2. **Open Terminal**
+   - Open it via Applications → Utilities → Terminal, or use Spotlight with Command+Space and type "Terminal"
+
+3. **Install Python Dependency Management Tool**
+   ```bash
+   brew install pipx
+   pipx ensurepath
+   source ~/.zshrc
+   pipx install poetry
+   ```
+
+4. **Create a suitable folder structure**
+
+   - Create a Tools folder if it doesn't exist:
+   ```bash
+   mkdir -p ~/Tools
+   ```
+
+5. **Unarchive the downloaded package**
+   - Navigate to your Downloads folder:
+   ```bash
+   cd ~/Downloads
+   ```
+   - Extract the contents of the downloaded archive file:
+   ```bash
+   tar -xzvf web2json.tar.gz
+   ```
+
+6. **Move the files to your Tools folder**
+   ```bash
+   mv web2json ~/Tools/web2json
+   ```
+
+7. **Navigate to the web2json folder**
+   ```bash
+   cd ~/Tools/web2json
+   ```
+
+8. **Install web2json and its dependencies with Poetry**
+   ```bash
+   poetry install
+   ```
+
+9. **Create a shell function**
+    - This will allow you to run web2json from anywhere in your Terminal
+    - This assumes you are using the Z shell (Zsh), which is a default shell since macOS 10.15:
+       - Open your ~/.zshrc file, for example via `nano ~/.zshrc`
+       - Add this shell function:
+         ```
+         web2json() {
+           (cd ~/Tools/web2json && poetry run web2json "$@")
+         }
+         ```
+       - Reload the shell via `source ~/.zshrc` or launch a new Terminal instance
+
+11. **Test your installation**
+    - Launch Terminal
+    - Execute this command to verify the set up:
+    ```bash
+    web2json process -u https://resoltico.com/en/tools/web2json/ -o test_output
+    ```
+    - This should create a file named `test_output.json` in the `~\Tools\web2json\fetched_jsons` folder
+
+### Linux Users
+
+You’ve probably compiled a kernel before breakfast, so you don’t need me to tell you how to set up a Python project. Carry on, wizard.
+
+### Windows Users
+
+Running web2json on Windows involves complexities with C extension compilation, so Windows installation instructions are not provided. For a simpler and more reliable experience, consider installing and running web2json on a Linux virtual machine.
+
+## Using web2json
+
+The `web2json` command uses different subcommands to perform various functions. The main subcommand for processing web pages is `process`.
+
+### Basic Command Structure
+
+```
+web2json process [OPTIONS]
+```
+
+### Common Options for the Process Command
+
+- `-u` or `--url`: Process a single webpage
+  ```
+  web2json process -u https://example.com/article
+  ```
+
+- `-f` or `--file`: Process multiple URLs from a text file (one URL per line)
+  ```
+  web2json process -f urls.txt
+  ```
+  - Note: For relative paths, web2json looks for the file in its current directory. You can specify absolute paths like `web2json process -f ~/Downloads/urls.txt`
+
+- `-o` or `--output`: Set custom output name for the JSON file (without extension)
+  ```
+  web2json process -u https://example.com/article -o my_article
+  ```
+  - This will create `my_article.json`
+
+- `-d` or `--output-dir`: Change where files are saved (default: `fetched_jsons` directory)
+  ```
+  web2json process -u https://example.com -d ~/Downloads
+  ```
+
+- `--preserve-styles`: Keep HTML styling (bold, italic, etc.) in the output
+  ```
+  web2json process -u https://example.com --preserve-styles
+  ```
+
+- `-v` or `--verbose`: Show detailed progress information
+  ```
+  web2json process -u https://example.com -v
+  ```
+
+- `-t` or `--timeout`: Set request timeout in seconds (default: 60)
+  ```
+  web2json process -u https://example.com -t 30
+  ```
+
+- `-c` or `--max-concurrent`: Maximum number of concurrent URL processing tasks (default: 5)
+  ```
+  web2json process -f urls.txt -c 10
+  ```
+
+### Other Commands
+
+- Check the version:
+  ```
+  web2json version
+  ```
+
+- Get help:
+  ```
+  web2json --help
+  ```
+  
+- Get help for a specific command:
+  ```
+  web2json process --help
+  ```
+
+### Examples
+
+1. **Basic URL processing**:
+   ```
+   web2json process -u https://example.com/article -o example_article
+   ```
+
+2. **Processing multiple URLs with verbose output**:
+   ```
+   web2json process -f my_urls.txt -v
+   ```
+
+3. **Processing a URL and saving to a custom location with style preservation**:
+   ```
+   web2json process -u https://example.com -d ~/Documents/web_archives --preserve-styles
+   ```
+
+## About web2json
+
+web2json was created by Ervins Strauhmanis and is licensed under the MIT License. This means you are free to use, modify, and share it as needed.
+
+Current version: 2.0.0.
+
+## Need Help?
+
+If something isn’t working as expected or you have ideas for new features, please file an Issue on [GitHub](https://github.com/resoltico/web2json/issues).
+
+## Coffee!
+
+Loving how web2json smooths out your workflow? Consider a coffee-sized thank you to the developer who made it possible!
+
+<DirectKofiButton label="Caffeinate the Creator" color="#9810fa" />
+
+</article>
