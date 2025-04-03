@@ -23,7 +23,7 @@ from web2json.core.pipeline_stages import (
     ParseStage,
     ExtractStage,
     TransformStage,
-    ExportStage
+    HierarchicalExportStage
 )
 
 # Pipeline stage utilities
@@ -37,7 +37,11 @@ from web2json.core.extractors import (
     extract_headings,
     extract_paragraphs,
     extract_lists,
-    extract_code_block,
+    extract_code_block
+)
+
+# Hierarchical content extractor
+from web2json.core.extractors.hierarchical import (
     extract_content_hierarchically
 )
 
@@ -59,7 +63,7 @@ __all__ = [
     'ParseStage',
     'ExtractStage',
     'TransformStage',
-    'ExportStage',
+    'HierarchicalExportStage',
     
     # Pipeline stage utilities
     'run_in_thread',

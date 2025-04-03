@@ -6,20 +6,14 @@
       "level": 1,
       "title": "Content",
       "content": [
-        "Welcome to web2json, a tool for converting web pages into structured JSON format. This documentation will guide you through almost everything you need to know about installing and using this multi-module Python package.",
-        "web2json is a tool that transforms web pages into structured JSON data. This is useful for:",
-        "JSON (JavaScript Object Notation) is used because it’s:",
-        "web2json requires Python 3.9 or higher. The latest stable version is recommended. Additionally, since the package relies on C extensions (for aiohttp and lxml), a proper build environment (compiler and development headers) is required for installation.",
-        "As much as possible we will rely on Homebrew, and we will set up web2json in your Home folder, within a subfolder named Tools. The steps are as follows:",
-        "You’ve probably compiled a kernel before breakfast, so you don’t need me to tell you how to set up a Python project. Carry on, wizard.",
-        "Running web2json on Windows involves complexities with C extension compilation, so Windows installation instructions are not provided. For a simpler and more reliable experience, consider installing and running web2json on a Linux virtual machine.",
-        "The web2json command uses different subcommands to perform various functions. The main subcommand for processing web pages is process."
+        "Open Terminal in Folder",
+        "Last updated: Mar 24, 2025"
       ]
     }
   ],
   "metadata": {
     "url": "https://resoltico.com/en/tools/web2json/",
-    "fetched_at": "2025-04-03 09:44:40",
+    "fetched_at": "2025-04-03 14:50:13",
     "preserve_styles": false,
     "meta": {
       "viewport": "width=device-width, initial-scale=1",

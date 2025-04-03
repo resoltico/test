@@ -30,8 +30,12 @@ from web2json.core.extractors.hierarchical.content_organizer import (
 # Constants
 MIN_TEXT_LENGTH = 30
 
+
 def extract_content_hierarchically(soup: BeautifulSoup, preserve_styles: bool = False) -> List[ContentItem]:
     """Extract structured content from HTML in a hierarchical manner.
+    
+    This function finds the main content areas, extracts blocks of content,
+    and organizes them hierarchically based on heading structure.
     
     Args:
         soup: BeautifulSoup object representing the parsed HTML
@@ -103,6 +107,22 @@ def extract_content_hierarchically(soup: BeautifulSoup, preserve_styles: bool = 
         
         # Sort blocks to maintain document order
         processed_blocks = sort_blocks_by_position(processed_blocks)
+        
+        # Log block count before organization
+        logger.debug(f"Found {len(processed_blocks)} content blocks to organize")
+        
+        # If we still have no blocks, try extracting any major tag
+        if not processed_blocks:
+            logger.warning("No blocks found, trying last-resort extraction")
+            for tag in ['h1', 'h2', 'h3', 'p', 'div']:
+                elements = soup.find_all(tag)
+                for element in elements:
+                    if len(element.get_text(strip=True)) > MIN_TEXT_LENGTH:
+                        processed_blocks.append(element)
+                
+                # If we have enough blocks, stop
+                if len(processed_blocks) >= 5:
+                    break
         
         # Organize content into hierarchical structure
         hierarchical_content = organize_hierarchically(processed_blocks, preserve_styles)

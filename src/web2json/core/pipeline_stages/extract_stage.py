@@ -7,7 +7,7 @@ import logging
 import time
 from typing import Dict, Any, List
 
-# Updated import to use the new hierarchical package
+# Updated import to use the hierarchical extractor
 from web2json.core.extractors.hierarchical import extract_content_hierarchically
 from web2json.core.pipeline_stages.base import run_in_thread
 from web2json.utils.errors import ExtractError
@@ -105,7 +105,7 @@ class ExtractStage:
         Returns:
             List of content items
         """
-        from web2json.models.content import ParagraphContent
+        from web2json.models.content import ParagraphContent, HeadingContent
         
         logger = logging.getLogger(__name__)
         logger.debug("Performing fallback extraction")
@@ -120,7 +120,6 @@ class ExtractStage:
         
         # Get all headings directly
         for h in soup.find_all(["h1", "h2", "h3", "h4", "h5", "h6"]):
-            from web2json.models.content import HeadingContent
             level = int(h.name[1])
             text = h.get_text(strip=True)
             if text:

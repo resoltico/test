@@ -15,6 +15,7 @@ from web2json.models.content import (
 )
 from web2json.core.extractors.base import get_element_text
 
+
 def sort_blocks_by_position(blocks: List[Tag]) -> List[Tag]:
     """Sort blocks by their position in the document.
     
@@ -51,8 +52,13 @@ def sort_blocks_by_position(blocks: List[Tag]) -> List[Tag]:
     # Get position for each block and sort
     return sorted(blocks, key=get_position)
 
+
 def organize_hierarchically(blocks: List[Tag], preserve_styles: bool) -> List[ContentItem]:
     """Organize content blocks into a hierarchical structure.
+    
+    This function builds a tree structure based on heading levels, where each heading
+    starts a new section that contains all content until the next heading of the same 
+    or higher level.
     
     Args:
         blocks: List of content blocks
@@ -259,4 +265,56 @@ def organize_hierarchically(blocks: List[Tag], preserve_styles: bool) -> List[Co
             except Exception as e:
                 logging.warning(f"Error in flat extraction: {str(e)}")
     
+    # Add position information for later sorting
+    for i, item in enumerate(result):
+        if hasattr(item, "position"):
+            item.position = i
+    
     return result
+
+
+def arrange_headings_hierarchically(headings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Arrange headings into a hierarchical structure based on their levels.
+    
+    Args:
+        headings: List of heading dictionaries with 'level' and 'text'
+        
+    Returns:
+        List of headings arranged in a hierarchical structure
+    """
+    # Sort headings by position if available
+    if headings and "position" in headings[0]:
+        sorted_headings = sorted(headings, key=lambda h: h["position"])
+    else:
+        sorted_headings = headings
+    
+    # Create hierarchy
+    hierarchy = []
+    stack = [(hierarchy, 0)]  # (container, level)
+    
+    for heading in sorted_headings:
+        level = heading["level"]
+        
+        # Pop from stack until we find a suitable parent or reach root
+        while stack[-1][1] >= level:
+            stack.pop()
+        
+        # Get the parent container
+        parent_container, _ = stack[-1]
+        
+        # Create a new heading entry
+        heading_entry = {
+            "type": "heading",
+            "level": level,
+            "title": heading["text"],
+            "content": heading.get("content", []),
+            "children": []
+        }
+        
+        # Add to parent
+        parent_container.append(heading_entry)
+        
+        # Add this heading's children container to the stack
+        stack.append((heading_entry["children"], level))
+    
+    return hierarchy

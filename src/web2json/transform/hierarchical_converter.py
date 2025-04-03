@@ -1,7 +1,7 @@
 """
 Hierarchical converter for web2json.
 
-This module provides functions to convert the current output format to a hierarchical structure
+This module provides functions to convert the content into a hierarchical structure
 that matches the custom JSON format with heading titles and children arrays.
 """
 from typing import List, Dict, Any, Optional, Union
@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 
 def convert_to_hierarchical(document: Union[Dict[str, Any], BaseModel]) -> Dict[str, Any]:
-    """Convert the current document format to the hierarchical format.
+    """Convert the document into the hierarchical format.
     
     The hierarchical format uses a structure with headings, content text arrays,
     and children arrays for nested elements, matching the custom JSON format.

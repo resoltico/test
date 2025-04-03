@@ -9,14 +9,13 @@ from typing import Optional
 
 from bs4 import Tag
 
-# Constants from the original file
+# Constants for content scoring
 MIN_TEXT_LENGTH = 30
 
-# Content class patterns for scoring
+# Generic content class patterns for scoring (framework-agnostic)
 CONTENT_CLASS_PATTERNS = [
-    r'(^|\s)(article|blog|post|entry|content|main|body|text|page)(\s|$)',
-    r'(^|\s)(prose|markdown|md|doc|document|story|narrative)(\s|$)',
-    r'(^|\s)(sl-markdown-content)(\s|$)',
+    r'(^|\s)(content|article|main|body|text)(\s|$)',
+    r'(^|\s)(markdown|post|entry|story)(\s|$)'
 ]
 
 # Patterns indicating non-content areas
@@ -25,6 +24,7 @@ NON_CONTENT_PATTERNS = [
     r'(^|\s)(menu|nav|footer|header|copyright|social|share|toolbar)(\s|$)',
     r'(^|\s)(comment|related|recommended|popular|trending)(\s|$)'
 ]
+
 
 def score_content_element(element: Tag) -> float:
     """Calculate a relevance score for a content element.
@@ -105,6 +105,7 @@ def score_content_element(element: Tag) -> float:
     
     return max(score, 0)  # Ensure score is not negative
 
+
 def get_content_text_length(element: Tag) -> int:
     """Get the total text length of an element, excluding scripts, styles, etc.
     
@@ -122,6 +123,7 @@ def get_content_text_length(element: Tag) -> int:
         tag.decompose()
     
     return len(elem_copy.get_text(strip=True))
+
 
 def create_content_fingerprint(element: Tag) -> Optional[str]:
     """Create a fingerprint for an element to detect duplicates.

@@ -21,8 +21,7 @@ from web2json.core.extractors.hierarchical.content_organizer import (
     sort_blocks_by_position
 )
 
-# Re-export main function and key supporting functions 
-# to maintain backward compatibility
+# Export main function and key supporting functions
 __all__ = [
     'extract_content_hierarchically',
     'find_main_content_elements',

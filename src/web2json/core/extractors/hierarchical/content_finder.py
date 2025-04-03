@@ -9,13 +9,7 @@ from typing import List, Set, Optional
 
 from bs4 import BeautifulSoup, Tag, NavigableString
 
-# Constants from the original file
-CONTENT_CONTAINERS = {
-    "article", "main", "div", "section", "content", "post", "entry", 
-    "blog-post", "page-content", "post-content", "entry-content", "article-content",
-    "body-content", "page-body", "prose", "markdown", "md-content", "site-content"
-}
-
+# Constants for content detection
 STRUCTURAL_TAGS = {
     "h1", "h2", "h3", "h4", "h5", "h6",
     "p", "blockquote", "pre", "ul", "ol", "dl", "table",
@@ -31,39 +25,19 @@ EXCLUDE_TAGS = {
 MIN_TEXT_LENGTH = 30
 MIN_PARAGRAPH_LENGTH = 20
 
-# Enhanced content class patterns for better framework detection
+# Generic content patterns (framework-agnostic)
 CONTENT_CLASS_PATTERNS = [
     # Generic content patterns
-    r'(^|\s)(article|blog|post|entry|content|main|body|text|page)(\s|$)',
-    r'(^|\s)(prose|markdown|md|doc|document|story|narrative)(\s|$)',
+    r'(^|\s)(content|article|main|body|text)(\s|$)',
+    r'(^|\s)(markdown|post|entry|story)(\s|$)',
     
-    # Framework-specific patterns
-    # Starlight
-    r'(^|\s)(sl-markdown-content|sl-container|starlight)(\s|$)',
+    # Common containers across frameworks
+    r'(^|\s)(container|wrapper|page|document)(\s|$)',
+    r'(^|\s)(row|column|grid|card)(\s|$)',
     
-    # Docusaurus
-    r'(^|\s)(markdown|docusaurus|theme-doc)(\s|$)',
-    
-    # MkDocs
-    r'(^|\s)(md-content|md-container|mkdocs)(\s|$)',
-    
-    # Hugo
-    r'(^|\s)(content|hugo-content|page-content)(\s|$)',
-    
-    # Jekyll
-    r'(^|\s)(post|post-content|jekyll|page-content)(\s|$)',
-    
-    # WordPress
-    r'(^|\s)(entry-content|wp-content|post-content)(\s|$)',
-    
-    # Ghost
-    r'(^|\s)(gh-content|ghost-content|kg-content)(\s|$)',
-    
-    # Bootstrap
-    r'(^|\s)(container|row|col|card|card-body)(\s|$)',
-    
-    # Common ID patterns
-    r'(^|\s)(content|main|post|article|body|text)(\s|$)',
+    # Content area patterns
+    r'(^|\s)(article-body|post-content|page-content)(\s|$)',
+    r'(^|\s)(blog-post|blog-entry|blog-content)(\s|$)',
 ]
 
 NON_CONTENT_PATTERNS = [
@@ -76,11 +50,10 @@ NON_CONTENT_PATTERNS = [
 def find_main_content_elements(soup: BeautifulSoup) -> List[Tag]:
     """Find elements likely to contain the main content.
     
-    This function uses multiple strategies to identify content containers:
+    This function uses multiple generic strategies to identify content containers:
     1. Common HTML5 semantic elements
     2. Elements with content-related class/id names
     3. Elements with high text-to-tag ratios
-    4. Content containers specific to common frameworks/CMS
     
     Args:
         soup: BeautifulSoup object
@@ -96,7 +69,6 @@ def find_main_content_elements(soup: BeautifulSoup) -> List[Tag]:
     potential_elements.extend(semantic_elements)
     
     # Strategy 2: Look for elements with content-related classes
-    # First compile all patterns
     compiled_patterns = [re.compile(pattern, re.IGNORECASE) for pattern in CONTENT_CLASS_PATTERNS]
     
     for element in soup.find_all(True):
@@ -120,30 +92,9 @@ def find_main_content_elements(soup: BeautifulSoup) -> List[Tag]:
                     potential_elements.append(element)
                     break
     
-    # Strategy 3: Look for specific content containers used by common frameworks
-    # Starlight framework
-    starlight_content = soup.select('.sl-markdown-content, .prose')
-    potential_elements.extend(starlight_content)
-    
-    # WordPress and other common CMS
-    cms_content = soup.select('.entry-content, .post-content, .article-body, .content-area')
-    potential_elements.extend(cms_content)
-    
-    # Medium-like platforms
-    medium_content = soup.select('article section, [role="article"]')
-    potential_elements.extend(medium_content)
-    
-    # Documentation sites
-    docs_content = soup.select('.documentation, .docs-content, .markdown-body')
-    potential_elements.extend(docs_content)
-    
-    # Common web app frameworks
-    webapp_content = soup.select('.container .content, .container-fluid .content, .app-content, #content, #main-content')
-    potential_elements.extend(webapp_content)
-    
-    # Look for custom data attributes that might indicate content
-    data_content = soup.select('[data-content="main"], [data-role="content"], [data-testid="content"]')
-    potential_elements.extend(data_content)
+    # Strategy 3: Look for generic content containers
+    generic_content = soup.select('.content, .post-content, .article-body, [role="article"]')
+    potential_elements.extend(generic_content)
     
     # Strategy 4: Analyze text-to-tag ratio for generic <div> elements
     for div in soup.find_all('div'):
@@ -360,10 +311,7 @@ def extract_content_aggressively(soup: BeautifulSoup) -> List[Tag]:
     
     # Look for tables
     for table in soup.find_all('table'):
-        # Import here to avoid circular imports
-        from web2json.core.extractors.table_extractor import is_data_table
-        
-        if is_data_table(table) and not is_likely_non_content(table):
+        if not is_likely_non_content(table):
             blocks.append(table)
     
     return blocks
