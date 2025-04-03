@@ -9,6 +9,7 @@ from web2json.core.pipeline_stages.parse_stage import ParseStage
 from web2json.core.pipeline_stages.extract_stage import ExtractStage
 from web2json.core.pipeline_stages.transform_stage import TransformStage
 from web2json.core.pipeline_stages.export_stage import ExportStage
+from web2json.core.pipeline_stages.hierarchical_export_stage import HierarchicalExportStage
 
 __all__ = [
     'PipelineStage',
@@ -17,5 +18,6 @@ __all__ = [
     'ParseStage',
     'ExtractStage',
     'TransformStage',
-    'ExportStage'
+    'ExportStage',
+    'HierarchicalExportStage'
 ]

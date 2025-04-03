@@ -17,9 +17,10 @@ from web2json.core.pipeline_stages import (
     FetchStage,
     ParseStage,
     ExtractStage,
-    TransformStage,
-    ExportStage
+    TransformStage
 )
+# Import the new hierarchical export stage
+from web2json.core.pipeline_stages.hierarchical_export_stage import HierarchicalExportStage
 from web2json.core.pipeline_stages.base import get_thread_pool
 from web2json.utils.errors import Web2JsonError
 from web2json.utils.memory import optimize_memory_settings, clear_reference
@@ -70,7 +71,8 @@ async def process_url(
             ParseStage(executor=executor),
             ExtractStage(executor=executor),
             TransformStage(),
-            ExportStage(executor=executor),
+            # Use the hierarchical export stage
+            HierarchicalExportStage(executor=executor),
         ]
         
         # Prepare initial context
@@ -195,7 +197,8 @@ async def bulk_process_urls(
                 ParseStage(executor=executor),
                 ExtractStage(executor=executor),
                 TransformStage(),
-                ExportStage(executor=executor),
+                # Use the hierarchical export stage
+                HierarchicalExportStage(executor=executor),
             ]
             
             # Prepare initial context

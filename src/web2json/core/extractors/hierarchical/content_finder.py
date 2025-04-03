@@ -31,10 +31,39 @@ EXCLUDE_TAGS = {
 MIN_TEXT_LENGTH = 30
 MIN_PARAGRAPH_LENGTH = 20
 
+# Enhanced content class patterns for better framework detection
 CONTENT_CLASS_PATTERNS = [
+    # Generic content patterns
     r'(^|\s)(article|blog|post|entry|content|main|body|text|page)(\s|$)',
     r'(^|\s)(prose|markdown|md|doc|document|story|narrative)(\s|$)',
-    r'(^|\s)(sl-markdown-content)(\s|$)',
+    
+    # Framework-specific patterns
+    # Starlight
+    r'(^|\s)(sl-markdown-content|sl-container|starlight)(\s|$)',
+    
+    # Docusaurus
+    r'(^|\s)(markdown|docusaurus|theme-doc)(\s|$)',
+    
+    # MkDocs
+    r'(^|\s)(md-content|md-container|mkdocs)(\s|$)',
+    
+    # Hugo
+    r'(^|\s)(content|hugo-content|page-content)(\s|$)',
+    
+    # Jekyll
+    r'(^|\s)(post|post-content|jekyll|page-content)(\s|$)',
+    
+    # WordPress
+    r'(^|\s)(entry-content|wp-content|post-content)(\s|$)',
+    
+    # Ghost
+    r'(^|\s)(gh-content|ghost-content|kg-content)(\s|$)',
+    
+    # Bootstrap
+    r'(^|\s)(container|row|col|card|card-body)(\s|$)',
+    
+    # Common ID patterns
+    r'(^|\s)(content|main|post|article|body|text)(\s|$)',
 ]
 
 NON_CONTENT_PATTERNS = [
@@ -42,6 +71,7 @@ NON_CONTENT_PATTERNS = [
     r'(^|\s)(menu|nav|footer|header|copyright|social|share|toolbar)(\s|$)',
     r'(^|\s)(comment|related|recommended|popular|trending)(\s|$)'
 ]
+
 
 def find_main_content_elements(soup: BeautifulSoup) -> List[Tag]:
     """Find elements likely to contain the main content.
@@ -59,6 +89,7 @@ def find_main_content_elements(soup: BeautifulSoup) -> List[Tag]:
         List of elements likely to contain main content
     """
     potential_elements = []
+    logger = logging.getLogger(__name__)
     
     # Strategy 1: Look for semantic HTML5 elements
     semantic_elements = soup.find_all(['article', 'main', 'section'])
@@ -106,6 +137,14 @@ def find_main_content_elements(soup: BeautifulSoup) -> List[Tag]:
     docs_content = soup.select('.documentation, .docs-content, .markdown-body')
     potential_elements.extend(docs_content)
     
+    # Common web app frameworks
+    webapp_content = soup.select('.container .content, .container-fluid .content, .app-content, #content, #main-content')
+    potential_elements.extend(webapp_content)
+    
+    # Look for custom data attributes that might indicate content
+    data_content = soup.select('[data-content="main"], [data-role="content"], [data-testid="content"]')
+    potential_elements.extend(data_content)
+    
     # Strategy 4: Analyze text-to-tag ratio for generic <div> elements
     for div in soup.find_all('div'):
         # Skip small divs and already processed divs
@@ -122,6 +161,30 @@ def find_main_content_elements(soup: BeautifulSoup) -> List[Tag]:
             if ratio > 10:
                 potential_elements.append(div)
     
+    # Strategy 5: Check for common content element IDs
+    for id_value in ['content', 'main', 'main-content', 'article', 'post', 'entry']:
+        element = soup.find(id=id_value)
+        if element and element not in potential_elements:
+            potential_elements.append(element)
+    
+    # Strategy 6: Look for the largest text block if we still don't have candidates
+    if not potential_elements:
+        logger.warning("No content containers found with standard patterns, falling back to text analysis")
+        # Find all elements with substantial text
+        text_blocks = []
+        for elem in soup.find_all(True):
+            if elem.name not in EXCLUDE_TAGS and not is_likely_non_content(elem):
+                text = elem.get_text(strip=True)
+                if len(text) > 300:  # Substantial text block
+                    text_blocks.append((elem, len(text)))
+        
+        # Sort by text length, descending
+        text_blocks.sort(key=lambda x: x[1], reverse=True)
+        
+        # Take the top 3 largest text blocks
+        for elem, _ in text_blocks[:3]:
+            potential_elements.append(elem)
+    
     # Remove duplicates while preserving order
     seen = set()
     unique_elements = []
@@ -132,6 +195,7 @@ def find_main_content_elements(soup: BeautifulSoup) -> List[Tag]:
             unique_elements.append(element)
     
     return unique_elements
+
 
 def is_likely_non_content(element: Tag) -> bool:
     """Check if an element is likely to be navigation, footer, etc. rather than content.
@@ -146,6 +210,10 @@ def is_likely_non_content(element: Tag) -> bool:
     if element.name in ['nav', 'footer', 'header']:
         return True
     
+    # Check role attribute
+    if element.get('role') in ['navigation', 'banner', 'contentinfo', 'complementary']:
+        return True
+    
     # Check class and id attributes
     for attr in ['class', 'id']:
         if element.get(attr):
@@ -155,12 +223,20 @@ def is_likely_non_content(element: Tag) -> bool:
             for pattern in NON_CONTENT_PATTERNS:
                 if re.search(pattern, attr_value, re.IGNORECASE):
                     return True
-                    
-    # Check role attribute
-    if element.get('role') in ['navigation', 'banner', 'contentinfo']:
-        return True
-        
+    
+    # Check for common non-content indicators
+    common_non_content = ['menu', 'nav', 'search', 'sidebar', 'footer', 'header', 'comment']
+    for indicator in common_non_content:
+        if any(indicator in attr_value.lower() for attr_value in [
+            element.get('id', ''),
+            ' '.join(element.get('class', [])),
+            element.get('data-role', ''),
+            element.get('data-testid', '')
+        ]):
+            return True
+    
     return False
+
 
 def extract_content_blocks(element: Tag) -> List[Tag]:
     """Extract content blocks from an element, focusing on structural elements.
@@ -215,6 +291,7 @@ def extract_content_blocks(element: Tag) -> List[Tag]:
             blocks.append(structural)
     
     return blocks
+
 
 def extract_content_aggressively(soup: BeautifulSoup) -> List[Tag]:
     """Extract content aggressively, finding any potential content elements.

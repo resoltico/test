@@ -72,7 +72,12 @@ def get_element_text(element: Union[Tag, str], preserve_styles: bool = False) ->
                 tag.unwrap()
     
     # Get text and normalize whitespace
-    text = soup.get_text()
+    if preserve_styles:
+        # For style preservation, get the HTML string
+        text = str(soup)
+    else:
+        # For no style preservation, get just the text
+        text = soup.get_text()
     
     # Normalize whitespace but preserve meaningful newlines
     lines = [line.strip() for line in text.splitlines()]
@@ -237,11 +242,24 @@ def find_content_containers(soup: BeautifulSoup) -> List[Tag]:
     content_patterns = [
         r'(^|\s)(content|main|article|body|text)(\s|$)',
         r'(^|\s)(entry|post|story|blog)(\s|$)',
-        r'(^|\s)(markdown|prose)(\s|$)'
+        r'(^|\s)(markdown|prose)(\s|$)',
+        # Common framework patterns
+        r'(^|\s)(sl-markdown-content|docusaurus|md-content|hugo-content)(\s|$)',
+        r'(^|\s)(container|card-body|page-content|article-content)(\s|$)'
     ]
     
     for pattern in content_patterns:
         containers.extend(find_elements_by_class_pattern(soup, pattern))
+    
+    # Look for common ID patterns
+    id_patterns = [
+        r'(^|\s)(content|main|article|post|entry)(\s|$)'
+    ]
+    
+    for pattern in id_patterns:
+        for element in soup.find_all(id=True):
+            if re.search(pattern, element.get('id', ''), re.IGNORECASE):
+                containers.append(element)
     
     # Remove duplicates while preserving order
     seen = set()
@@ -254,3 +272,73 @@ def find_content_containers(soup: BeautifulSoup) -> List[Tag]:
             unique_containers.append(container)
     
     return unique_containers
+
+
+def extract_meaningful_content(element: Tag, preserve_styles: bool = False) -> str:
+    """Extract meaningful content from an element, preserving structure.
+    
+    This function goes beyond simple text extraction to maintain formatting.
+    
+    Args:
+        element: Element to extract content from
+        preserve_styles: Whether to preserve HTML style tags
+        
+    Returns:
+        Formatted text with preserved structure
+    """
+    # Handle headings
+    if element.name in ["h1", "h2", "h3", "h4", "h5", "h6"]:
+        text = get_element_text(element, preserve_styles)
+        level = int(element.name[1])
+        # Add markup based on heading level
+        if preserve_styles:
+            return text
+        else:
+            prefix = "#" * level
+            return f"{prefix} {text}"
+    
+    # Handle paragraphs
+    elif element.name == "p":
+        return get_element_text(element, preserve_styles)
+    
+    # Handle lists
+    elif element.name in ["ul", "ol"]:
+        lines = []
+        for i, li in enumerate(element.find_all("li", recursive=False)):
+            marker = f"{i+1}." if element.name == "ol" else "•"
+            item_text = get_element_text(li, preserve_styles)
+            lines.append(f"{marker} {item_text}")
+        return "\n".join(lines)
+    
+    # Handle blockquotes
+    elif element.name == "blockquote":
+        text = get_element_text(element, preserve_styles)
+        if preserve_styles:
+            return text
+        else:
+            lines = text.split("\n")
+            return "\n".join([f"> {line}" for line in lines])
+    
+    # Handle code blocks
+    elif element.name == "pre" or (element.name == "div" and element.find("pre")):
+        code_elem = element.find("pre") or element
+        text = code_elem.get_text(strip=False)
+        
+        # Try to detect language from class
+        language = None
+        if code_elem.has_attr("class"):
+            for cls in code_elem.get("class", []):
+                if cls.startswith(("language-", "lang-")):
+                    language = cls.split("-")[1]
+                    break
+        
+        if preserve_styles:
+            return text
+        else:
+            if language:
+                return f"```{language}\n{text}\n```"
+            else:
+                return f"```\n{text}\n```"
+    
+    # Default fallback
+    return get_element_text(element, preserve_styles)
