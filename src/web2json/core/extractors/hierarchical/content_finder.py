@@ -25,7 +25,7 @@ EXCLUDE_TAGS = {
 MIN_TEXT_LENGTH = 30
 MIN_PARAGRAPH_LENGTH = 20
 
-# Generic content patterns (framework-agnostic)
+# Framework-agnostic content patterns
 CONTENT_CLASS_PATTERNS = [
     # Generic content patterns
     r'(^|\s)(content|article|main|body|text)(\s|$)',
@@ -93,7 +93,7 @@ def find_main_content_elements(soup: BeautifulSoup) -> List[Tag]:
                     break
     
     # Strategy 3: Look for generic content containers
-    generic_content = soup.select('.content, .post-content, .article-body, [role="article"]')
+    generic_content = soup.select('div.content, div.post-content, div.article-body, [role="article"]')
     potential_elements.extend(generic_content)
     
     # Strategy 4: Analyze text-to-tag ratio for generic <div> elements

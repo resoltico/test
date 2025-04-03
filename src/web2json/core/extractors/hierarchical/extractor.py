@@ -124,7 +124,7 @@ def extract_content_hierarchically(soup: BeautifulSoup, preserve_styles: bool = 
                 if len(processed_blocks) >= 5:
                     break
         
-        # Organize content into hierarchical structure
+        # Organize content into hierarchical structure, preserving styles if requested
         hierarchical_content = organize_hierarchically(processed_blocks, preserve_styles)
         
         logger.info(f"Extracted {len(hierarchical_content)} top-level content items")

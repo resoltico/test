@@ -238,13 +238,12 @@ def find_content_containers(soup: BeautifulSoup) -> List[Tag]:
     for tag in ['article', 'main', 'section']:
         containers.extend(soup.find_all(tag))
     
-    # Look for content classes
+    # Look for content classes - framework-agnostic patterns
     content_patterns = [
         r'(^|\s)(content|main|article|body|text)(\s|$)',
         r'(^|\s)(entry|post|story|blog)(\s|$)',
         r'(^|\s)(markdown|prose)(\s|$)',
-        # Common framework patterns
-        r'(^|\s)(sl-markdown-content|docusaurus|md-content|hugo-content)(\s|$)',
+        # Common container patterns (generic across frameworks)
         r'(^|\s)(container|card-body|page-content|article-content)(\s|$)'
     ]
     

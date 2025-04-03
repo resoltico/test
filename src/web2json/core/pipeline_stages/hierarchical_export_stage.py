@@ -18,7 +18,7 @@ from web2json.utils.memory import clear_reference
 
 
 class HierarchicalExportStage(PipelineStage):
-    """Pipeline stage for exporting the document in the hierarchical format."""
+    """Pipeline stage for exporting the document in hierarchical format."""
     
     def __init__(self, executor=None):
         """Initialize the export stage.
@@ -41,6 +41,7 @@ class HierarchicalExportStage(PipelineStage):
             ExportError: If export fails
         """
         document = context["document"]
+        preserve_styles = context.get("preserve_styles", False)
         logger = logging.getLogger(__name__)
         
         try:
@@ -48,6 +49,37 @@ class HierarchicalExportStage(PipelineStage):
             
             # Convert to hierarchical format
             hierarchical_document = convert_to_hierarchical(document)
+            
+            # Store content statistics
+            content_stats = {
+                "heading_count": 0,
+                "top_level_count": len(hierarchical_document.get("content", [])),
+                "total_text_length": 0
+            }
+            
+            # Count headings recursively
+            def count_headings(items):
+                count = 0
+                total_text = 0
+                
+                for item in items:
+                    if item.get("type") == "heading":
+                        count += 1
+                        
+                        # Count text length
+                        for text in item.get("content", []):
+                            total_text += len(text)
+                            
+                        # Recursively count children
+                        child_count, child_text = count_headings(item.get("children", []))
+                        count += child_count
+                        total_text += child_text
+                
+                return count, total_text
+            
+            heading_count, text_length = count_headings(hierarchical_document.get("content", []))
+            content_stats["heading_count"] = heading_count
+            content_stats["total_text_length"] = text_length
             
             # Determine output path
             if "output_path" in context and context["output_path"]:
@@ -73,6 +105,7 @@ class HierarchicalExportStage(PipelineStage):
             # Store results in context
             context["output_path"] = output_path
             context["export_time"] = elapsed
+            context["content_stats"] = content_stats
             
             # Clear document from memory after export
             clear_reference(context, "document")

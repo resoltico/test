@@ -1,7 +1,7 @@
 """
 Hierarchical converter for web2json.
 
-This module provides functions to convert the content into a hierarchical structure
+This module provides functions to convert content into a hierarchical structure
 that matches the custom JSON format with heading titles and children arrays.
 """
 from typing import List, Dict, Any, Optional, Union
@@ -56,8 +56,12 @@ def convert_to_hierarchical(document: Union[Dict[str, Any], BaseModel]) -> Dict[
         if converted:
             result["content"].append(converted)
     
-    # Add other content items at the top level if there were no sections
-    if not top_level_sections and other_content:
+    # If no top-level sections, try to find heading/paragraph groupings
+    if not top_level_sections:
+        result["content"] = _build_heading_hierarchy(content_items)
+    
+    # If still no content and we have other items, create a default section
+    if not result["content"] and other_content:
         default_section = {
             "type": "heading",
             "level": 1,
@@ -138,6 +142,63 @@ def _convert_section_to_heading(section: Dict[str, Any]) -> Optional[Dict[str, A
             hierarchical["children"] = children
     
     return hierarchical
+
+
+def _build_heading_hierarchy(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Build a hierarchical structure from a flat list of content items.
+    
+    Args:
+        items: List of content items
+        
+    Returns:
+        Hierarchical structure with headings, content, and children
+    """
+    # Track current section at each level (level -> current section)
+    current_sections = {}
+    
+    # Result will contain top-level (level 1) headings
+    result = []
+    
+    # First pass: create heading sections and build the hierarchy
+    for item in items:
+        if isinstance(item, dict) and item.get("type") == "heading":
+            level = item.get("level", 1)
+            title = item.get("text", "")
+            
+            # Create new section
+            new_section = {
+                "type": "heading",
+                "level": level,
+                "title": title,
+                "content": [],
+                "children": []
+            }
+            
+            # Store this section at its level
+            current_sections[level] = new_section
+            
+            # Add to parent or result
+            if level == 1:
+                # Top level heading, add to result
+                result.append(new_section)
+            else:
+                # Find the parent (highest level below this one)
+                parent_level = max((l for l in current_sections.keys() if l < level), default=None)
+                if parent_level:
+                    # Add to parent's children
+                    current_sections[parent_level]["children"].append(new_section)
+                else:
+                    # No parent found (shouldn't happen with well-structured content)
+                    # Add to result as a top-level item
+                    result.append(new_section)
+        
+        elif isinstance(item, dict) and item.get("type") == "paragraph":
+            # Add paragraph to the most recent section at any level
+            if current_sections:
+                latest_level = max(current_sections.keys())
+                current_sections[latest_level]["content"].append(item.get("text", ""))
+    
+    return result
 
 
 def preserve_html_formatting(text: str) -> str:
