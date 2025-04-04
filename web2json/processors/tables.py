@@ -2,14 +2,14 @@
 Processor for HTML tables.
 """
 
-from typing import Dict, List, Optional, Any, Union, Tuple, cast
+from typing import Dict, List, Any, Optional, Union, cast
 
 import structlog
 from bs4 import BeautifulSoup, Tag
 
 from web2json.models.document import Document
 from web2json.models.section import Section
-from web2json.processors.base import ElementProcessor, ContentItem
+from web2json.processors.base import ElementProcessor
 
 
 logger = structlog.get_logger(__name__)
@@ -20,7 +20,7 @@ class TableProcessor(ElementProcessor):
     Processor for HTML table elements.
     
     Extracts structured data from tables and transforms them into
-    a JSON-friendly format.
+    a JSON representation.
     """
     
     def process(self, soup: BeautifulSoup, document: Document) -> Document:
@@ -48,27 +48,21 @@ class TableProcessor(ElementProcessor):
         Args:
             section: The section to process.
         """
-        tables = []
+        processed_content = []
         
         # Find all tables in this section's raw content
         for element in section.raw_content_elements:
             if element.name == "table":
                 # Skip tables that are nested within other tables
                 if not element.find_parent("table"):
-                    tables.append(element)
+                    table_dict = self._process_table(element)
+                    processed_content.append(table_dict)
         
-        # Process each table
-        for table in tables:
-            table_dict = self._process_table(table)
-            section.add_content(table_dict)
-            
-            logger.debug(
-                "Added table to section", 
-                section_title=section.title,
-                table_id=table.get("id")
-            )
+        # Update the section's content
+        for content_item in processed_content:
+            section.add_content(content_item)
     
-    def _process_table(self, table: Tag) -> ContentItem:
+    def _process_table(self, table: Tag) -> Dict[str, Any]:
         """
         Process a single table element.
         
@@ -78,22 +72,23 @@ class TableProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the table.
         """
-        result: ContentItem = {
+        # Create a table object
+        result = {
             "type": "table",
             "headers": [],
             "rows": []
         }
         
-        # Extract table ID
+        # Extract table ID if present
         if table.get("id"):
             result["id"] = table["id"]
         
-        # Extract caption
+        # Extract caption if present
         caption = table.find("caption")
         if caption:
-            result["caption"] = self.extract_text_content(caption)
+            result["caption"] = self.parser.get_element_text_content(caption)
         
-        # Extract headers from thead
+        # Process table header rows
         thead = table.find("thead")
         if thead:
             headers = self._process_header_rows(thead.find_all("tr"))
@@ -108,7 +103,7 @@ class TableProcessor(ElementProcessor):
                 if headers:
                     result["headers"] = headers
         
-        # Extract body rows
+        # Process table body rows
         tbody = table.find("tbody") or table
         
         # Get rows that are not in thead or tfoot
@@ -126,7 +121,7 @@ class TableProcessor(ElementProcessor):
         
         result["rows"] = rows
         
-        # Extract footer
+        # Process table footer rows
         tfoot = table.find("tfoot")
         if tfoot:
             footer_rows = []
@@ -156,14 +151,21 @@ class TableProcessor(ElementProcessor):
             row = []
             for cell in tr.find_all(["th", "td"]):
                 cell_data = {
-                    "text": self.extract_text_content(cell)
+                    "text": self.parser.get_element_text_content(cell)
                 }
                 
                 # Handle colspan and rowspan
                 if cell.get("colspan"):
-                    cell_data["colspan"] = int(cell["colspan"])
+                    try:
+                        cell_data["colspan"] = int(cell["colspan"])
+                    except (ValueError, TypeError):
+                        pass
+                        
                 if cell.get("rowspan"):
-                    cell_data["rowspan"] = int(cell["rowspan"])
+                    try:
+                        cell_data["rowspan"] = int(cell["rowspan"])
+                    except (ValueError, TypeError):
+                        pass
                 
                 row.append(cell_data)
             
@@ -186,14 +188,21 @@ class TableProcessor(ElementProcessor):
         
         for cell in row.find_all(["td", "th"]):
             cell_data = {
-                "text": self.extract_text_content(cell)
+                "text": self.parser.get_element_text_content(cell)
             }
             
             # Handle colspan and rowspan
             if cell.get("colspan"):
-                cell_data["colspan"] = int(cell["colspan"])
+                try:
+                    cell_data["colspan"] = int(cell["colspan"])
+                except (ValueError, TypeError):
+                    pass
+                    
             if cell.get("rowspan"):
-                cell_data["rowspan"] = int(cell["rowspan"])
+                try:
+                    cell_data["rowspan"] = int(cell["rowspan"])
+                except (ValueError, TypeError):
+                    pass
             
             cells.append(cell_data)
         

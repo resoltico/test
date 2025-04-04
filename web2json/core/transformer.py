@@ -43,7 +43,7 @@ class Transformer:
         """
         self.config = config
         self.parser = HtmlParser(config.processing)
-        self.hierarchy_extractor = HierarchyExtractor(config.processing)
+        self.hierarchy_extractor = HierarchyExtractor(config.processing, self.parser)
         self.processors = processors or []
         
         logger.debug(
@@ -170,22 +170,16 @@ class Transformer:
         """
         from web2json.processors.text import TextProcessor
         from web2json.processors.tables import TableProcessor
-        from web2json.processors.forms import FormProcessor
-        from web2json.processors.media import MediaProcessor
-        from web2json.processors.semantic import SemanticProcessor
         from web2json.processors.lists import ListProcessor
-        from web2json.processors.inline import InlineProcessor
         
         config = config or Web2JsonConfig.create_default()
+        parser = HtmlParser(config.processing)
         
         processors = [
-            InlineProcessor(config.processing),    # Process inline elements first
-            TextProcessor(config.processing),      # Process basic text elements
-            ListProcessor(config.processing),      # Process lists
-            TableProcessor(config.processing),     # Process tables
-            FormProcessor(config.processing),      # Process forms
-            MediaProcessor(config.processing),     # Process media elements
-            SemanticProcessor(config.processing),  # Process semantic elements
+            TextProcessor(config.processing, parser),
+            ListProcessor(config.processing, parser),
+            TableProcessor(config.processing, parser),
+            # Add other processors as needed
         ]
         
         return cls(config, processors)

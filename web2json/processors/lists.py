@@ -2,14 +2,14 @@
 Processor for list elements (ul, ol, dl).
 """
 
-from typing import Dict, List, Optional, Any, cast
+from typing import Dict, List, Any, Optional
 
 import structlog
 from bs4 import BeautifulSoup, Tag
 
 from web2json.models.document import Document
 from web2json.models.section import Section
-from web2json.processors.base import ElementProcessor, ContentItem
+from web2json.processors.base import ElementProcessor
 
 
 logger = structlog.get_logger(__name__)
@@ -47,66 +47,123 @@ class ListProcessor(ElementProcessor):
         Args:
             section: The section to process.
         """
+        processed_content = []
+        
         for element in section.raw_content_elements:
             # Skip nested lists (they will be processed with their parent)
             if element.name in ["ul", "ol", "dl"] and not element.find_parent(["ul", "ol", "dl"]):
-                content_obj = None
-                
-                if element.name in ["ul", "ol"]:
-                    content_obj = self._process_list(element)
+                if element.name == "ul":
+                    content = self._process_unordered_list(element)
+                    if content:
+                        processed_content.append(content)
+                elif element.name == "ol":
+                    content = self._process_ordered_list(element)
+                    if content:
+                        processed_content.append(content)
                 elif element.name == "dl":
-                    content_obj = self._process_definition_list(element)
-                
-                # Add the processed content to the section
-                if content_obj:
-                    section.add_content(content_obj)
-                    
-    def _process_list(self, element: Tag) -> ContentItem:
+                    content = self._process_definition_list(element)
+                    if content:
+                        processed_content.append(content)
+        
+        # Update the section's content
+        for content_item in processed_content:
+            section.add_content(content_item)
+    
+    def _process_unordered_list(self, element: Tag) -> Dict[str, Any]:
         """
-        Process an ordered or unordered list.
+        Process an unordered list.
         
         Args:
-            element: The list element (ul or ol).
+            element: The ul element.
             
         Returns:
-            A dictionary representation of the list.
+            A dictionary representing the unordered list.
         """
-        list_type = "unordered_list" if element.name == "ul" else "ordered_list"
-        items = []
+        items = self._process_list_items(element)
         
-        # Process each list item
-        for li in element.find_all("li", recursive=False):
-            # Check for nested lists
-            nested_lists = li.find_all(["ul", "ol"], recursive=False)
-            
-            # Process content of the list item
-            item_content = self.extract_text_content(li, preserve_formatting=True)
-            
-            # Remove text of nested lists from the item content
-            for nested_list in nested_lists:
-                nested_text = nested_list.get_text()
-                if nested_text in item_content:
-                    item_content = item_content.replace(nested_text, "").strip()
-            
-            if nested_lists:
-                # Create an item with nested lists
-                item_obj = {
-                    "text": item_content,
-                    "children": [self._process_list(nested) for nested in nested_lists]
-                }
-                items.append(item_obj)
-            else:
-                # Simple item
-                items.append(item_content)
-        
-        # Create a list content object
-        return self.create_content_object(
-            element_type=list_type,
+        return self.create_content_item(
+            element_type="unordered_list",
             content={"items": items},
             element_id=element.get("id")
         )
     
-    def _process_definition_list(self, element: Tag) -> ContentItem:
+    def _process_ordered_list(self, element: Tag) -> Dict[str, Any]:
+        """
+        Process an ordered list.
+        
+        Args:
+            element: The ol element.
+            
+        Returns:
+            A dictionary representing the ordered list.
+        """
+        items = self._process_list_items(element)
+        
+        result = self.create_content_item(
+            element_type="ordered_list",
+            content={"items": items},
+            element_id=element.get("id")
+        )
+        
+        # Add additional attributes
+        for attr in ["start", "reversed", "type"]:
+            if element.has_attr(attr):
+                if attr == "reversed" and element[attr] is True:
+                    result[attr] = True
+                else:
+                    result[attr] = element[attr]
+        
+        return result
+    
+    def _process_list_items(self, element: Tag) -> List[Any]:
+        """
+        Process list items from a ul or ol element.
+        
+        Args:
+            element: The list element.
+            
+        Returns:
+            A list of items.
+        """
+        items = []
+        
+        for li in element.find_all("li", recursive=False):
+            # Check for nested lists
+            nested_lists = li.find_all(["ul", "ol"], recursive=False)
+            
+            if nested_lists:
+                # Item with nested lists
+                item_content = self.parser.get_element_text_content(li)
+                
+                # Clean the item content by removing text from nested lists
+                for nested in nested_lists:
+                    nested_text = nested.get_text()
+                    if nested_text in item_content:
+                        item_content = item_content.replace(nested_text, "").strip()
+                
+                # Process nested lists
+                children = []
+                for nested in nested_lists:
+                    if nested.name == "ul":
+                        children.append(self._process_unordered_list(nested))
+                    else:  # ol
+                        children.append(self._process_ordered_list(nested))
+                
+                # Create item with children
+                if children:
+                    items.append({
+                        "text": item_content,
+                        "children": children
+                    })
+                else:
+                    items.append(item_content)
+            else:
+                # Simple item
+                items.append(self.parser.get_element_text_content(li))
+        
+        return items
+    
+    def _process_definition_list(self, element: Tag) -> Dict[str, Any]:
         """
         Process a definition list.
         
@@ -114,44 +171,42 @@ class ListProcessor(ElementProcessor):
             element: The dl element.
             
         Returns:
-            A dictionary representation of the definition list.
+            A dictionary representing the definition list.
         """
         items = []
-        current_term = None
         current_terms = []
         
-        # Process each child element (dt or dd)
+        # Process all children
         for child in element.children:
             if not isinstance(child, Tag):
                 continue
                 
             if child.name == "dt":
-                # Start a new term
-                term_text = self.extract_text_content(child)
-                if current_term is not None and current_terms:
-                    # Add the previous term(s) with empty definition
-                    for term in current_terms:
-                        items.append({"term": term, "definition": ""})
-                    current_terms = []
-                
-                current_term = term_text
+                # A term
+                term_text = self.parser.get_element_text_content(child)
                 current_terms.append(term_text)
             elif child.name == "dd" and current_terms:
-                # Add definition for the current term(s)
-                definition = self.extract_text_content(child, preserve_formatting=True)
+                # A definition for the current term(s)
+                definition = self.parser.get_element_text_content(child)
                 
+                # Add an entry for each term
                 for term in current_terms:
-                    items.append({"term": term, "definition": definition})
+                    items.append({
+                        "term": term,
+                        "definition": definition
+                    })
                 
+                # Reset terms
                 current_terms = []
-                current_term = None
         
-        # Add any remaining terms with empty definitions
+        # Handle any remaining terms with empty definitions
         for term in current_terms:
-            items.append({"term": term, "definition": ""})
+            items.append({
+                "term": term,
+                "definition": ""
+            })
         
-        # Create a definition list content object
-        return self.create_content_object(
+        return self.create_content_item(
             element_type="definition_list",
             content={"items": items},
             element_id=element.get("id")

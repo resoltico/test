@@ -2,11 +2,12 @@
 Module for parsing HTML content.
 """
 
+import re
 from typing import Dict, Optional, TypeAlias, Any, cast, List
 from urllib.parse import urljoin
 
 import structlog
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup, Tag, NavigableString
 
 from web2json.models.config import ProcessingConfig
 
@@ -179,6 +180,20 @@ class HtmlParser:
             return cast(str, meta_title["content"]).strip()
         
         return "Untitled Document"
+    
+    def get_inner_html(self, element: Tag) -> str:
+        """
+        Get the inner HTML of an element as a string.
+        
+        This preserves all HTML tags inside the element.
+        
+        Args:
+            element: The HTML element.
+            
+        Returns:
+            The inner HTML as a string.
+        """
+        return ''.join(str(child) for child in element.children)
     
     def get_element_text_content(self, element: Tag) -> str:
         """

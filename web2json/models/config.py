@@ -25,13 +25,13 @@ class ProcessingConfig(BaseModel):
         description="HTML tags to process as content elements"
     )
     
-    block_tags: Set[str] = Field(
+    semantic_tags: Set[str] = Field(
         default={
-            "div", "p", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "dl", "dt", "dd",
-            "table", "tr", "td", "th", "section", "article", "aside", "header", "footer", "nav",
-            "form", "fieldset", "pre", "blockquote"
+            "article", "aside", "details", "dialog", "summary", "figure", "figcaption",
+            "footer", "header", "main", "mark", "nav", "section", "time", "meter",
+            "progress", "output", "menu", "address", "blockquote"
         },
-        description="HTML tags that represent block-level elements"
+        description="HTML tags with semantic meaning"
     )
     
     inline_tags: Set[str] = Field(
@@ -43,24 +43,15 @@ class ProcessingConfig(BaseModel):
         description="HTML tags that represent inline-level elements"
     )
     
-    semantic_tags: Set[str] = Field(
-        default={
-            "article", "aside", "details", "dialog", "summary", "figure", "figcaption",
-            "footer", "header", "main", "mark", "nav", "section", "time", "meter",
-            "progress", "output", "menu", "address", "blockquote"
-        },
-        description="HTML tags with semantic meaning"
-    )
-    
     ignore_tags: Set[str] = Field(
         default={"script", "style", "noscript", "template", "iframe", "meta", "link", "base"},
         description="HTML tags to ignore completely during processing"
     )
     
     # Content processing options
-    preserve_html_formatting: bool = Field(
+    preserve_html: bool = Field(
         default=True,
-        description="Whether to preserve HTML formatting in text content"
+        description="Whether to preserve HTML content in the output"
     )
     
     extract_metadata: bool = Field(
@@ -68,13 +59,12 @@ class ProcessingConfig(BaseModel):
         description="Whether to extract metadata from the page"
     )
     
-    preserve_inline_formatting: bool = Field(
+    normalize_whitespace: bool = Field(
         default=True,
-        description="Whether to preserve inline HTML formatting in the output"
+        description="Whether to normalize whitespace in text content"
     )
     
-    @field_validator("heading_tags", "content_tags", "ignore_tags", "semantic_tags", 
-                   "block_tags", "inline_tags", mode="before")
+    @field_validator("heading_tags", "content_tags", "ignore_tags", "semantic_tags", "inline_tags")
     @classmethod
     def ensure_lowercase(cls, value: Set[str]) -> Set[str]:
         """Ensure all tag names are lowercase."""

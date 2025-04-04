@@ -33,10 +33,7 @@ class Section:
         Args:
             content_item: The content item to add, could be a string or dictionary.
         """
-        if isinstance(content_item, dict) and content_item.get("type"):
-            self.content.append(content_item)
-        elif isinstance(content_item, str) and content_item.strip():
-            self.content.append(content_item.strip())
+        self.content.append(content_item)
     
     def add_child(self, child: Self) -> None:
         """
@@ -88,3 +85,12 @@ class Section:
             level=level,
             id=element_id,
         )
+
+    def set_type(self, type_name: str) -> None:
+        """
+        Set the type of this section.
+        
+        Args:
+            type_name: The type name to set.
+        """
+        self.type = type_name

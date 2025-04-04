@@ -16,7 +16,6 @@ from web2json.core.fetcher import WebFetcher
 from web2json.core.serializer import JsonSerializer
 from web2json.core.transformer import Transformer
 from web2json.models.config import Web2JsonConfig
-from web2json.utils.logging_setup import setup_logging
 
 
 app = typer.Typer(
@@ -57,9 +56,8 @@ def convert(
     """
     Convert web pages to structured JSON files.
     """
-    # Setup logging
+    # Configure logging
     log_level = "DEBUG" if verbose else "INFO"
-    setup_logging(log_level=log_level)
     
     # Load default configuration
     config = Web2JsonConfig.create_default()

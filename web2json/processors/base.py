@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup, Tag, NavigableString
 from web2json.models.config import ProcessingConfig
 from web2json.models.document import Document
 from web2json.models.section import Section
+from web2json.core.parser import HtmlParser
 
 
 # Type alias for BeautifulSoup for better readability
@@ -29,14 +30,16 @@ class ElementProcessor(ABC):
     them into structured JSON representations.
     """
     
-    def __init__(self, config: ProcessingConfig) -> None:
+    def __init__(self, config: ProcessingConfig, parser: HtmlParser) -> None:
         """
         Initialize the processor with the given configuration.
         
         Args:
             config: The processing configuration.
+            parser: The HTML parser to use.
         """
         self.config = config
+        self.parser = parser
     
     @abstractmethod
     def process(self, soup: Soup, document: Document) -> Document:
@@ -76,185 +79,87 @@ class ElementProcessor(ABC):
         """
         # This method should be overridden by specific processors
         pass
-
-    def find_section_for_element(self, document: Document, element: Tag) -> Optional[Section]:
+    
+    def preserve_html(self, element: Tag) -> str:
         """
-        Find the appropriate section for an element based on document structure.
+        Preserve the HTML content of an element, including tags.
         
         Args:
-            document: The Document object.
-            element: The HTML element to find a section for.
+            element: The HTML element.
             
         Returns:
-            The appropriate Section object, or None if not found.
+            A string representation of the element with HTML tags preserved.
         """
-        # Get all sections in a flattened list
-        all_sections: List[Section] = []
+        # Get the inner HTML
+        return self.parser.get_inner_html(element)
+    
+    def create_paragraph(self, content: str, element_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Create a paragraph content item.
         
-        def _collect_sections(sections: List[Section]) -> None:
-            for section in sections:
-                all_sections.append(section)
-                if section.children:
-                    _collect_sections(section.children)
-        
-        _collect_sections(document.content)
-        
-        # If the element is already assigned to a section's raw_content_elements,
-        # return that section
-        for section in all_sections:
-            if hasattr(section, 'raw_content_elements') and element in section.raw_content_elements:
-                return section
-        
-        # Find the nearest heading
-        current_element = element
-        while current_element:
-            if current_element.name in ["h1", "h2", "h3", "h4", "h5", "h6"]:
-                heading_level = int(current_element.name[1])
-                heading_text = current_element.get_text().strip()
-                
-                # Try to find a matching section
-                for section in all_sections:
-                    if section.title == heading_text and section.level == heading_level:
-                        return section
-                
-                # If no exact match, find sections with a lower level
-                valid_sections = [s for s in all_sections if s.level < heading_level]
-                if valid_sections:
-                    # Sort by level (descending) to get the closest parent
-                    valid_sections.sort(key=lambda s: -s.level)
-                    return valid_sections[0]
+        Args:
+            content: The paragraph content.
+            element_id: Optional ID for the element.
             
-            # Move to the previous sibling or parent
-            prev = current_element.previous_sibling
-            while prev and (not isinstance(prev, Tag) or prev.name not in ["h1", "h2", "h3", "h4", "h5", "h6"]):
-                prev = prev.previous_sibling
-            
-            if prev:
-                current_element = prev
-            else:
-                current_element = current_element.parent
+        Returns:
+            A paragraph content item.
+        """
+        result = {
+            "type": "paragraph",
+            "text": content
+        }
         
-        # If no section found, use the first one
-        return all_sections[0] if all_sections else None
-
-    def create_content_object(
+        if element_id:
+            result["id"] = element_id
+            
+        return result
+    
+    def create_content_item(
         self, 
         element_type: str, 
         content: Any = None,
-        additional_fields: Optional[Dict[str, Any]] = None,
+        additional_props: Optional[Dict[str, Any]] = None,
         element_id: Optional[str] = None
-    ) -> ContentItem:
+    ) -> Dict[str, Any]:
         """
-        Create a standardized content object.
+        Create a generic content item.
         
         Args:
-            element_type: The type of content.
-            content: The content value.
-            additional_fields: Additional fields to include.
-            element_id: Optional ID for the content object.
+            element_type: The type of the content item.
+            content: The content of the item.
+            additional_props: Additional properties to include.
+            element_id: Optional ID for the element.
             
         Returns:
-            A dictionary representing the content object.
+            A content item dictionary.
         """
-        result: ContentItem = {"type": element_type}
+        result = {"type": element_type}
         
-        # Add element ID if present
-        if element_id:
-            result["id"] = element_id
-        
-        # Add content
         if content is not None:
             if isinstance(content, dict):
-                # Merge content dictionary with result
                 result.update(content)
             elif isinstance(content, list):
                 result["content"] = content
             else:
-                # For simple types like strings
-                if element_type in ["text", "paragraph", "code", "blockquote"]:
-                    result["text"] = content
-                else:
-                    result["content"] = content
+                result["text"] = content
         
-        # Add additional fields
-        if additional_fields:
-            result.update(additional_fields)
+        if additional_props:
+            result.update(additional_props)
+            
+        if element_id:
+            result["id"] = element_id
             
         return result
     
-    def extract_text_content(self, element: Tag, preserve_formatting: bool = False) -> str:
+    def process_inline_elements(self, text: str) -> str:
         """
-        Extract text content from an element, with optional formatting.
+        Process inline HTML elements in text.
         
         Args:
-            element: The HTML element.
-            preserve_formatting: Whether to preserve basic formatting.
+            text: The text containing inline HTML elements.
             
         Returns:
-            The extracted text content.
+            The processed text with inline HTML preserved.
         """
-        if preserve_formatting and self.config.preserve_html_formatting:
-            # Get basic formatted text (preserving some whitespace)
-            text = ""
-            for child in element.children:
-                if isinstance(child, NavigableString):
-                    text += str(child)
-                elif isinstance(child, Tag):
-                    if child.name in ['br']:
-                        text += "\n"
-                    elif child.name in ['p', 'div', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
-                        text += "\n" + child.get_text() + "\n"
-                    else:
-                        text += child.get_text()
-            
-            # Normalize whitespace but preserve newlines
-            text = re.sub(r'[ \t]+', ' ', text)  # Collapse spaces and tabs
-            text = re.sub(r'\n{3,}', '\n\n', text)  # Collapse multiple newlines
-            return text.strip()
-        else:
-            # Simple text extraction
-            text = element.get_text(" ", strip=True)
-            # Normalize whitespace
-            return " ".join(text.split())
-    
-    def extract_element_attributes(self, element: Tag, whitelist: Optional[Set[str]] = None) -> Dict[str, Any]:
-        """
-        Extract attributes from an element, optionally filtered by a whitelist.
-        
-        Args:
-            element: The HTML element.
-            whitelist: Optional set of attribute names to include.
-            
-        Returns:
-            A dictionary of attributes.
-        """
-        attributes = {}
-        
-        for name, value in element.attrs.items():
-            if whitelist and name not in whitelist:
-                continue
-                
-            if isinstance(value, list):
-                # Handle list-type attributes like class
-                attributes[name] = " ".join(str(v) for v in value)
-            elif value is True:
-                # Handle boolean attributes
-                attributes[name] = True
-            elif value is not None:
-                # Handle regular attributes
-                attributes[name] = str(value)
-                
-        return attributes
-    
-    def process_inline_elements(self, element: Tag) -> str:
-        """
-        Process inline elements to a text representation.
-        
-        Args:
-            element: The HTML element containing inline elements.
-            
-        Returns:
-            A string representation of the element with inline elements.
-        """
-        # Default implementation just returns the text
-        return self.extract_text_content(element)
+        # In our case, we want to preserve inline HTML, so return as is
+        return text

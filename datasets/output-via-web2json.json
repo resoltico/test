@@ -3,139 +3,124 @@
   "content": [
     {
       "type": "section",
-      "title": "The Coder's Comedy Catastrophe",
-      "level": 1,
+      "title": "Syntax Pickle: When Code Betrays You",
+      "level": 2,
       "content": [
         {
           "type": "paragraph",
-          "text": "Welcome to the Buggle Struggle of modern software development, where programmers wrestle with undefined behaviors and Ctrl+Z becomes a spiritual practice. According to IPPA, the average developer spends thirty hours coding and fifty hours explaining why it doesn't work."
+          "text": "Every programmer knows the <samp>NullPointerException</samp> horror that strikes at <u>deployment time</u>. This leads to what psychologists call <em>cursor cursor</em> syndrome—helplessly moving your cursor around while hoping for divine <mark>inspiration</mark>. Remember when you tried using <ruby>RegEx<rt>Regular Expressions</rt></ruby> to parse <s>HTML</s>? That's called <cite>Programmer's Folly</cite> in academic circles."
         },
         {
           "type": "paragraph",
-          "text": "In the realm of x = y + headache, our research at Noodle Coogle University has discovered that 92% of bugs occur in code written on April Fool's Day. As one developer put it: My code doesn't have bugs, it has undocumented features. (Results may vary based on caffeine intake)."
-        },
-        {
-          "type": "time",
-          "content": "April Fool's Day",
-          "datetime": "2042-04-01"
-        },
-        {
-          "type": "time",
-          "content": "April Fool's Day",
-          "datetime": "2042-04-01"
-        },
-        {
-          "type": "article",
-          "id": "main-content",
-          "content": [
-            {
-              "type": "paragraph",
-              "text": "Every programmer knows the NullPointerException horror that strikes at deployment time . This leads to what psychologists call cursor cursor syndrome—helplessly moving your cursor around while hoping for divine inspiration . Remember when you tried using RegEx to parse HTML ? That's called Programmer's Folly in academic circles."
-            },
-            {
-              "type": "paragraph",
-              "text": "The syntax error often appears in the most obvious places, yet remains invisible until a code review by a colleague who simply points at your screen and says There. Studies show that programmers experience five stages of debugging: denial, anger, stack -trace searching, despair, and Stack Overflow ."
-            },
-            {
-              "type": "paragraph",
-              "text": "Error messages exist on a spectrum from somewhat helpful to what the Programmer's Dictionary of Pain calls cryptic manic . The feared undefined is not a function has been known to cause router pouter syndrome—the irresistible urge to unplug networking equipment while sobbing quietly ."
-            },
-            {
-              "type": "paragraph",
-              "text": "Advanced debuggers practice what SDZM call breakpoint joint meditation—sitting motionless for hours contemplating why their loop is infinite . The enlightened achieve a state called 無バグ (buglessness), where they intuitively know which line contains the off-by-one error before running the code."
-            },
-            {
-              "type": "paragraph",
-              "text": "DevOps engineers have mastered the art of docker shocker —the ability to containerize applications while maintaining a straight face. The infamous works on my machine defense has been officially recognized as stage one of the denial file grieving process, followed by git blame and eventual resignation ."
-            },
-            {
-              "type": "paragraph",
-              "text": "Cloud platforms offer 99.9% uptime guarantees, which DevOps Psychology Quarterly calls the server fervor constant—the exact percentage at which operations teams develop a religious devotion to status dashboards. Studies confirm that pipeline compile anxiety affects 95% of engineers during their first production deployment, often manifesting as tab hoarding ."
-            }
-          ],
-          "title": "Syntax Pickle: When Code Betrays You"
+          "text": "The <bdo dir=\"rtl\">syntax error</bdo> often appears in the most <kbd>obvious</kbd> places, yet remains invisible until a <bdi>code review</bdi> by a colleague who simply points at your screen and says <q>There.</q> <br/>Studies show that programmers experience five stages of debugging: denial, anger, <var>stack</var>-trace searching, despair, and <em>Stack<wbr>Overflow</wbr></em>."
         }
       ],
       "children": [
         {
           "type": "section",
-          "title": "Syntax Pickle: When Code Betrays You",
-          "level": 2,
+          "title": "Function Junction: Where Methods Meet Madness",
+          "level": 3,
           "content": [
             {
               "type": "paragraph",
-              "text": "Every programmer knows the NullPointerException horror that strikes at deployment time. This leads to what psychologists call cursor cursor syndrome—helplessly moving your cursor around while hoping for divine inspiration. Remember when you tried using RegEx to parse HTML? That's called Programmer's Folly in academic circles."
+              "text": "Modern frameworks have evolved from simple tools to what experts call <strong>bloated beasties</strong> that consume memory faster than a <var>n</var><sup>2</sup> algorithm at scale. Junior developers often mistake <em>Redux Seduce</em> for a dating app, only to discover it's just another state management solution with <sub>existential</sub> complexity."
             },
             {
               "type": "paragraph",
-              "text": "The syntax error often appears in the most obvious places, yet remains invisible until a code review by a colleague who simply points at your screen and says There. \nStudies show that programmers experience five stages of debugging: denial, anger, stack-trace searching, despair, and StackOverflow."
+              "text": "The principle of <u>moose loose</u> programming suggests variables should <mark>roam free</mark> across scopes, though most senior developers prefer <samp>strict mode</samp> discipline. <abbr title=\"Document Object Model\">DOM</abbr> manipulation without a framework is now considered a <ruby>古い<rt>furui</rt></ruby> practice, roughly translated as <q>career-limiting move</q>."
+            },
+            {
+              "type": "paragraph",
+              "text": "<a href=\"https://resoltico.com/hello/you/there/\" target=\"_blank\">Engineers</a> assigned to legacy systems develop what psychiatrists term <dfn>COBOL gobble</dfn> syndrome—the compulsive consumption of outdated programming manuals in <a href=\"https://hopesanddreamsalwaysdielast.org\">hopes</a> of understanding <i>ancestral code</i>. The <kbd>comment lament</kbd> occurs upon discovering critical business logic explained by <small>// fixes the thing</small>."
+            },
+            {
+              "type": "paragraph",
+              "text": "<a href=\"#legacy\">Archaeological code studies</a> have identified <u>mainframe brain-drain</u> as a cognitive condition affecting those who maintain systems older than themselves. Companies implement what <cite>The Journal of Technical Debt</cite> calls <var>zombie lobby</var> protocols, where <sup>undead</sup> projects receive minimal funding despite multiple termination attempts."
+            },
+            {
+              "type": "paragraph",
+              "text": "Optimization specialists suffer from <strong>algorithm rhythm</strong> disorder—involuntarily tapping out <code>O(log n)</code> beats with their fingers. The <b>cache stash</b> compulsion drives engineers to store unnecessary <data value=\"10GB\">10 gigabytes of</data> data in memory <q>just in case</q> while muttering about <time datetime=\"PT0.001S\">millisecond</time> performance gains."
+            },
+            {
+              "type": "paragraph",
+              "text": "Junior developers can be identified by their <mark>loop droop</mark> fatigue when someone explains why we don't use <var>O(n<sup>4</sup>)</var> algorithms in production. The <samp>benchmark henchman</samp> phenomenon describes team members who obsessively measure performance without contributing fixes<wbr>—a form of technical procrastination.</wbr>"
+            },
+            {
+              "type": "paragraph",
+              "text": "C programmers develop <dfn>pointer pouter</dfn> syndrome, becoming irrationally upset when someone suggests garbage collection. Studies show that <data value=\"93\">93%</data> of low-level coders unconsciously make <kbd>malloc</kbd>/<kbd>free</kbd> gestures while discussing memory allocation—a behavior <abbr title=\"Computer Science Psychological Association\">CSPA</abbr> calls <em>manual memory mimicry</em>."
+            },
+            {
+              "type": "paragraph",
+              "text": "Memory leak investigators exhibit symptoms of <u>fragment flagrant</u> disorder, characterized by an obsessive need to defragment not only their hard drives but also their <sub>refrigerators</sub>, sock drawers, and social relationships. <s>Deallocating pointers twice</s> is now recognized as a cry for <sup>help</sup>."
             }
           ],
           "children": [
             {
               "type": "section",
-              "title": "Function Junction: Where Methods Meet Madness",
-              "level": 3,
+              "title": "Legacy Wedgacy: Maintaining Ancient Codebases",
+              "level": 4,
               "content": [
                 {
                   "type": "paragraph",
-                  "text": "Modern frameworks have evolved from simple tools to what experts call bloated beasties that consume memory faster than a n2 algorithm at scale. Junior developers often mistake Redux Seduce for a dating app, only to discover it's just another state management solution with existential complexity."
+                  "text": "<a href=\"https://resoltico.com/hello/you/there/\" target=\"_blank\">Engineers</a> assigned to legacy systems develop what psychiatrists term <dfn>COBOL gobble</dfn> syndrome—the compulsive consumption of outdated programming manuals in <a href=\"https://hopesanddreamsalwaysdielast.org\">hopes</a> of understanding <i>ancestral code</i>. The <kbd>comment lament</kbd> occurs upon discovering critical business logic explained by <small>// fixes the thing</small>."
                 },
                 {
                   "type": "paragraph",
-                  "text": "The principle of moose loose programming suggests variables should roam free across scopes, though most senior developers prefer strict mode discipline. DOM manipulation without a framework is now considered a 古い practice, roughly translated as career-limiting move."
+                  "text": "<a href=\"#legacy\">Archaeological code studies</a> have identified <u>mainframe brain-drain</u> as a cognitive condition affecting those who maintain systems older than themselves. Companies implement what <cite>The Journal of Technical Debt</cite> calls <var>zombie lobby</var> protocols, where <sup>undead</sup> projects receive minimal funding despite multiple termination attempts."
+                },
+                {
+                  "type": "paragraph",
+                  "text": "Optimization specialists suffer from <strong>algorithm rhythm</strong> disorder—involuntarily tapping out <code>O(log n)</code> beats with their fingers. The <b>cache stash</b> compulsion drives engineers to store unnecessary <data value=\"10GB\">10 gigabytes of</data> data in memory <q>just in case</q> while muttering about <time datetime=\"PT0.001S\">millisecond</time> performance gains."
+                },
+                {
+                  "type": "paragraph",
+                  "text": "Junior developers can be identified by their <mark>loop droop</mark> fatigue when someone explains why we don't use <var>O(n<sup>4</sup>)</var> algorithms in production. The <samp>benchmark henchman</samp> phenomenon describes team members who obsessively measure performance without contributing fixes<wbr>—a form of technical procrastination.</wbr>"
+                },
+                {
+                  "type": "paragraph",
+                  "text": "C programmers develop <dfn>pointer pouter</dfn> syndrome, becoming irrationally upset when someone suggests garbage collection. Studies show that <data value=\"93\">93%</data> of low-level coders unconsciously make <kbd>malloc</kbd>/<kbd>free</kbd> gestures while discussing memory allocation—a behavior <abbr title=\"Computer Science Psychological Association\">CSPA</abbr> calls <em>manual memory mimicry</em>."
+                },
+                {
+                  "type": "paragraph",
+                  "text": "Memory leak investigators exhibit symptoms of <u>fragment flagrant</u> disorder, characterized by an obsessive need to defragment not only their hard drives but also their <sub>refrigerators</sub>, sock drawers, and social relationships. <s>Deallocating pointers twice</s> is now recognized as a cry for <sup>help</sup>."
                 }
               ],
               "children": [
                 {
                   "type": "section",
-                  "title": "Legacy Wedgacy: Maintaining Ancient Codebases",
-                  "level": 4,
+                  "title": "Performance Conformance: Making Slow Code Acceptable",
+                  "level": 5,
                   "content": [
                     {
                       "type": "paragraph",
-                      "text": "Engineers assigned to legacy systems develop what psychiatrists term COBOL gobble syndrome—the compulsive consumption of outdated programming manuals in hopes of understanding ancestral code. The comment lament occurs upon discovering critical business logic explained by // fixes the thing."
+                      "text": "Optimization specialists suffer from <strong>algorithm rhythm</strong> disorder—involuntarily tapping out <code>O(log n)</code> beats with their fingers. The <b>cache stash</b> compulsion drives engineers to store unnecessary <data value=\"10GB\">10 gigabytes of</data> data in memory <q>just in case</q> while muttering about <time datetime=\"PT0.001S\">millisecond</time> performance gains."
                     },
                     {
                       "type": "paragraph",
-                      "text": "Archaeological code studies have identified mainframe brain-drain as a cognitive condition affecting those who maintain systems older than themselves. Companies implement what The Journal of Technical Debt calls zombie lobby protocols, where undead projects receive minimal funding despite multiple termination attempts."
+                      "text": "Junior developers can be identified by their <mark>loop droop</mark> fatigue when someone explains why we don't use <var>O(n<sup>4</sup>)</var> algorithms in production. The <samp>benchmark henchman</samp> phenomenon describes team members who obsessively measure performance without contributing fixes<wbr>—a form of technical procrastination.</wbr>"
+                    },
+                    {
+                      "type": "paragraph",
+                      "text": "C programmers develop <dfn>pointer pouter</dfn> syndrome, becoming irrationally upset when someone suggests garbage collection. Studies show that <data value=\"93\">93%</data> of low-level coders unconsciously make <kbd>malloc</kbd>/<kbd>free</kbd> gestures while discussing memory allocation—a behavior <abbr title=\"Computer Science Psychological Association\">CSPA</abbr> calls <em>manual memory mimicry</em>."
+                    },
+                    {
+                      "type": "paragraph",
+                      "text": "Memory leak investigators exhibit symptoms of <u>fragment flagrant</u> disorder, characterized by an obsessive need to defragment not only their hard drives but also their <sub>refrigerators</sub>, sock drawers, and social relationships. <s>Deallocating pointers twice</s> is now recognized as a cry for <sup>help</sup>."
                     }
                   ],
                   "children": [
                     {
                       "type": "section",
-                      "title": "Performance Conformance: Making Slow Code Acceptable",
-                      "level": 5,
+                      "title": "Memory Mammary: The Art of Heap Management",
+                      "level": 6,
                       "content": [
                         {
                           "type": "paragraph",
-                          "text": "Optimization specialists suffer from algorithm rhythm disorder—involuntarily tapping out O(log n) beats with their fingers. The cache stash compulsion drives engineers to store unnecessary 10 gigabytes of data in memory just in case while muttering about millisecond performance gains."
-                        },
-                        {
-                          "type": "time",
-                          "content": "millisecond",
-                          "datetime": "PT0.001S"
+                          "text": "C programmers develop <dfn>pointer pouter</dfn> syndrome, becoming irrationally upset when someone suggests garbage collection. Studies show that <data value=\"93\">93%</data> of low-level coders unconsciously make <kbd>malloc</kbd>/<kbd>free</kbd> gestures while discussing memory allocation—a behavior <abbr title=\"Computer Science Psychological Association\">CSPA</abbr> calls <em>manual memory mimicry</em>."
                         },
                         {
                           "type": "paragraph",
-                          "text": "Junior developers can be identified by their loop droop fatigue when someone explains why we don't use O(n4) algorithms in production. The benchmark henchman phenomenon describes team members who obsessively measure performance without contributing fixes—a form of technical procrastination."
-                        }
-                      ],
-                      "children": [
-                        {
-                          "type": "section",
-                          "title": "Memory Mammary: The Art of Heap Management",
-                          "level": 6,
-                          "content": [
-                            {
-                              "type": "paragraph",
-                              "text": "C programmers develop pointer pouter syndrome, becoming irrationally upset when someone suggests garbage collection. Studies show that 93% of low-level coders unconsciously make malloc/free gestures while discussing memory allocation—a behavior CSPA calls manual memory mimicry."
-                            },
-                            {
-                              "type": "paragraph",
-                              "text": "Memory leak investigators exhibit symptoms of fragment flagrant disorder, characterized by an obsessive need to defragment not only their hard drives but also their refrigerators, sock drawers, and social relationships. Deallocating pointers twice is now recognized as a cry for help."
-                            }
-                          ]
+                          "text": "Memory leak investigators exhibit symptoms of <u>fragment flagrant</u> disorder, characterized by an obsessive need to defragment not only their hard drives but also their <sub>refrigerators</sub>, sock drawers, and social relationships. <s>Deallocating pointers twice</s> is now recognized as a cry for <sup>help</sup>."
                         }
                       ]
                     }
@@ -144,91 +129,129 @@
               ]
             }
           ]
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "title": "Debugging Hugging: Embracing Error Messages",
+      "level": 2,
+      "content": [
+        {
+          "type": "paragraph",
+          "text": "Error messages exist on a spectrum from <i>somewhat helpful</i> to what the <cite>Programmer's Dictionary of Pain</cite> calls <strong>cryptic manic</strong>. The feared <samp>undefined is not a function</samp> has been known to cause <var>router pouter</var> syndrome—the irresistible urge to unplug networking equipment while <mark>sobbing quietly</mark>."
         },
         {
+          "type": "paragraph",
+          "text": "Advanced debuggers practice what <abbr title=\"Software Development Zen Masters\">SDZM</abbr> call <u>breakpoint joint</u> meditation—sitting motionless for hours contemplating why their <sub>loop</sub> is <sup>infinite</sup>. The enlightened achieve a state called <ruby>無バグ<rt>mu-bagu</rt></ruby> (buglessness), where they <em>intuitively</em> know which line contains the off-by-one error <wbr>before running the code.</wbr>"
+        }
+      ],
+      "children": [
+        {
           "type": "section",
-          "title": "Debugging Hugging: Embracing Error Messages",
-          "level": 2,
+          "title": "Security Purity: Protecting Code From Inevitable Compromise",
+          "level": 3,
           "content": [
             {
               "type": "paragraph",
-              "text": "Error messages exist on a spectrum from somewhat helpful to what the Programmer's Dictionary of Pain calls cryptic manic. The feared undefined is not a function has been known to cause router pouter syndrome—the irresistible urge to unplug networking equipment while sobbing quietly."
+              "text": "Penetration testers exhibit behavior known as <strong>hack snack</strong>—consuming <data value=\"1000\">1000mg</data> of caffeine while attempting to breach systems. Security engineers develop <kbd>patch scratch</kbd>—a nervous tic triggered by reading <time datetime=\"2023\">2023</time> <mark>CVE reports</mark> that directly affect their production systems."
             },
             {
               "type": "paragraph",
-              "text": "Advanced debuggers practice what SDZM call breakpoint joint meditation—sitting motionless for hours contemplating why their loop is infinite. The enlightened achieve a state called 無バグ (buglessness), where they intuitively know which line contains the off-by-one error before running the code."
+              "text": "Password policies create what <cite>Journal of Authentication Torture</cite> terms <dfn>mnemonic demonic</dfn> possession, where users must remember increasingly complex strings like <samp>P@$$w0rd123!</samp>. The most secure systems implement <em>firewall crawl</em> architecture, where data moves so slowly through <var>n</var> security layers that attackers <s>give up</s> from <sub>boredom</sub>."
+            },
+            {
+              "type": "paragraph",
+              "text": "Data scientists exhibit <b>tensor pretensor</b> behavior, acting as if they understand the mathematical foundations of libraries they import. The <code>neural churral</code> effect occurs when developers convince themselves that adding <var>n+1</var> layers will definitely solve the problem, despite <small>evidence to the contrary</small>."
+            },
+            {
+              "type": "paragraph",
+              "text": "AI researchers have identified <sup>overfitting</sup> <sub>spitting</sub>—the reflexive disgust reaction when a model achieves <data value=\"100\">100%</data> accuracy on training data. Machine learning engineers practice <ruby>過学習<rt>kagakushū</rt></ruby> prevention, also known as <u>hyperparameter humility</u>, acknowledging that their model isn't <bdi>actually</bdi> omniscient."
+            },
+            {
+              "type": "paragraph",
+              "text": "Machine learning engineers experience <mark>bias crisis</mark> episodes, waking up in cold sweats worried that their recommender system is secretly plotting to overthrow democracy. The <kbd>stochastic stock-astic</kbd> delusion affects <abbr title=\"Data Science Professionals\">DSPs</abbr> who believe they can predict financial markets despite <em>overwhelming</em> evidence to the contrary."
+            },
+            {
+              "type": "paragraph",
+              "text": "Deep learning practitioners suffer from <dfn>epoch epic</dfn> distortion—the belief that waiting just <time datetime=\"PT1H\">one more hour</time> of training will magically fix all model inaccuracies. <var>Senior</var> researchers have documented the <strong>parameter pamper</strong> effect, where engineers add <sup>more</sup> variables primarily to justify <sub>larger</sub> computing budgets."
+            },
+            {
+              "type": "paragraph",
+              "text": "Data engineers develop <u>column solemn</u> syndrome, becoming unnaturally attached to specific dataset attributes. In severe cases, they exhibit <em>normalize normal-lies</em> behavior—insisting on data standardization in inappropriate contexts, like <b>family dinner</b> conversations about <s>income</s> or <i>political beliefs</i>."
+            },
+            {
+              "type": "paragraph",
+              "text": "The <code>outlier boiler</code> disorder manifests as <samp>irrational rage</samp> toward statistical anomalies, with affected individuals spending hours hunting down perfectly valid data points. Advanced practitioners develop <var>dimension diminish</var> tendencies, reducing complex real-world phenomena to <small>absurdly simplified</small> numerical <mark>representations</mark> while maintaining a <abbr title=\"Straight Face\">SF</abbr>."
             }
           ],
           "children": [
             {
               "type": "section",
-              "title": "Security Purity: Protecting Code From Inevitable Compromise",
-              "level": 3,
+              "title": "Machine Lean-ing: AI Development for the Confused",
+              "level": 4,
               "content": [
                 {
                   "type": "paragraph",
-                  "text": "Penetration testers exhibit behavior known as hack snack—consuming 1000mg of caffeine while attempting to breach systems. Security engineers develop patch scratch—a nervous tic triggered by reading 2023 CVE reports that directly affect their production systems."
-                },
-                {
-                  "type": "time",
-                  "content": "2023",
-                  "datetime": "2023"
+                  "text": "Data scientists exhibit <b>tensor pretensor</b> behavior, acting as if they understand the mathematical foundations of libraries they import. The <code>neural churral</code> effect occurs when developers convince themselves that adding <var>n+1</var> layers will definitely solve the problem, despite <small>evidence to the contrary</small>."
                 },
                 {
                   "type": "paragraph",
-                  "text": "Password policies create what Journal of Authentication Torture terms mnemonic demonic possession, where users must remember increasingly complex strings like P@$$w0rd123!. The most secure systems implement firewall crawl architecture, where data moves so slowly through n security layers that attackers give up from boredom."
+                  "text": "AI researchers have identified <sup>overfitting</sup> <sub>spitting</sub>—the reflexive disgust reaction when a model achieves <data value=\"100\">100%</data> accuracy on training data. Machine learning engineers practice <ruby>過学習<rt>kagakushū</rt></ruby> prevention, also known as <u>hyperparameter humility</u>, acknowledging that their model isn't <bdi>actually</bdi> omniscient."
+                },
+                {
+                  "type": "paragraph",
+                  "text": "Machine learning engineers experience <mark>bias crisis</mark> episodes, waking up in cold sweats worried that their recommender system is secretly plotting to overthrow democracy. The <kbd>stochastic stock-astic</kbd> delusion affects <abbr title=\"Data Science Professionals\">DSPs</abbr> who believe they can predict financial markets despite <em>overwhelming</em> evidence to the contrary."
+                },
+                {
+                  "type": "paragraph",
+                  "text": "Deep learning practitioners suffer from <dfn>epoch epic</dfn> distortion—the belief that waiting just <time datetime=\"PT1H\">one more hour</time> of training will magically fix all model inaccuracies. <var>Senior</var> researchers have documented the <strong>parameter pamper</strong> effect, where engineers add <sup>more</sup> variables primarily to justify <sub>larger</sub> computing budgets."
+                },
+                {
+                  "type": "paragraph",
+                  "text": "Data engineers develop <u>column solemn</u> syndrome, becoming unnaturally attached to specific dataset attributes. In severe cases, they exhibit <em>normalize normal-lies</em> behavior—insisting on data standardization in inappropriate contexts, like <b>family dinner</b> conversations about <s>income</s> or <i>political beliefs</i>."
+                },
+                {
+                  "type": "paragraph",
+                  "text": "The <code>outlier boiler</code> disorder manifests as <samp>irrational rage</samp> toward statistical anomalies, with affected individuals spending hours hunting down perfectly valid data points. Advanced practitioners develop <var>dimension diminish</var> tendencies, reducing complex real-world phenomena to <small>absurdly simplified</small> numerical <mark>representations</mark> while maintaining a <abbr title=\"Straight Face\">SF</abbr>."
                 }
               ],
               "children": [
                 {
                   "type": "section",
-                  "title": "Machine Lean-ing: AI Development for the Confused",
-                  "level": 4,
+                  "title": "Gradient Accident: When Models Learn The Wrong Lessons",
+                  "level": 5,
                   "content": [
                     {
                       "type": "paragraph",
-                      "text": "Data scientists exhibit tensor pretensor behavior, acting as if they understand the mathematical foundations of libraries they import. The neural churral effect occurs when developers convince themselves that adding n+1 layers will definitely solve the problem, despite evidence to the contrary."
+                      "text": "Machine learning engineers experience <mark>bias crisis</mark> episodes, waking up in cold sweats worried that their recommender system is secretly plotting to overthrow democracy. The <kbd>stochastic stock-astic</kbd> delusion affects <abbr title=\"Data Science Professionals\">DSPs</abbr> who believe they can predict financial markets despite <em>overwhelming</em> evidence to the contrary."
                     },
                     {
                       "type": "paragraph",
-                      "text": "AI researchers have identified overfitting spitting—the reflexive disgust reaction when a model achieves 100% accuracy on training data. Machine learning engineers practice 過学習 prevention, also known as hyperparameter humility, acknowledging that their model isn't actually omniscient."
+                      "text": "Deep learning practitioners suffer from <dfn>epoch epic</dfn> distortion—the belief that waiting just <time datetime=\"PT1H\">one more hour</time> of training will magically fix all model inaccuracies. <var>Senior</var> researchers have documented the <strong>parameter pamper</strong> effect, where engineers add <sup>more</sup> variables primarily to justify <sub>larger</sub> computing budgets."
+                    },
+                    {
+                      "type": "paragraph",
+                      "text": "Data engineers develop <u>column solemn</u> syndrome, becoming unnaturally attached to specific dataset attributes. In severe cases, they exhibit <em>normalize normal-lies</em> behavior—insisting on data standardization in inappropriate contexts, like <b>family dinner</b> conversations about <s>income</s> or <i>political beliefs</i>."
+                    },
+                    {
+                      "type": "paragraph",
+                      "text": "The <code>outlier boiler</code> disorder manifests as <samp>irrational rage</samp> toward statistical anomalies, with affected individuals spending hours hunting down perfectly valid data points. Advanced practitioners develop <var>dimension diminish</var> tendencies, reducing complex real-world phenomena to <small>absurdly simplified</small> numerical <mark>representations</mark> while maintaining a <abbr title=\"Straight Face\">SF</abbr>."
                     }
                   ],
                   "children": [
                     {
                       "type": "section",
-                      "title": "Gradient Accident: When Models Learn The Wrong Lessons",
-                      "level": 5,
+                      "title": "Feature Creature: The Quest for Better Inputs",
+                      "level": 6,
                       "content": [
                         {
                           "type": "paragraph",
-                          "text": "Machine learning engineers experience bias crisis episodes, waking up in cold sweats worried that their recommender system is secretly plotting to overthrow democracy. The stochastic stock-astic delusion affects DSPs who believe they can predict financial markets despite overwhelming evidence to the contrary."
+                          "text": "Data engineers develop <u>column solemn</u> syndrome, becoming unnaturally attached to specific dataset attributes. In severe cases, they exhibit <em>normalize normal-lies</em> behavior—insisting on data standardization in inappropriate contexts, like <b>family dinner</b> conversations about <s>income</s> or <i>political beliefs</i>."
                         },
                         {
                           "type": "paragraph",
-                          "text": "Deep learning practitioners suffer from epoch epic distortion—the belief that waiting just one more hour of training will magically fix all model inaccuracies. Senior researchers have documented the parameter pamper effect, where engineers add more variables primarily to justify larger computing budgets."
-                        },
-                        {
-                          "type": "time",
-                          "content": "one more hour",
-                          "datetime": "PT1H"
-                        }
-                      ],
-                      "children": [
-                        {
-                          "type": "section",
-                          "title": "Feature Creature: The Quest for Better Inputs",
-                          "level": 6,
-                          "content": [
-                            {
-                              "type": "paragraph",
-                              "text": "Data engineers develop column solemn syndrome, becoming unnaturally attached to specific dataset attributes. In severe cases, they exhibit normalize normal-lies behavior—insisting on data standardization in inappropriate contexts, like family dinner conversations about income or political beliefs."
-                            },
-                            {
-                              "type": "paragraph",
-                              "text": "The outlier boiler disorder manifests as irrational rage toward statistical anomalies, with affected individuals spending hours hunting down perfectly valid data points. Advanced practitioners develop dimension diminish tendencies, reducing complex real-world phenomena to absurdly simplified numerical representations while maintaining a SF."
-                            }
-                          ]
+                          "text": "The <code>outlier boiler</code> disorder manifests as <samp>irrational rage</samp> toward statistical anomalies, with affected individuals spending hours hunting down perfectly valid data points. Advanced practitioners develop <var>dimension diminish</var> tendencies, reducing complex real-world phenomena to <small>absurdly simplified</small> numerical <mark>representations</mark> while maintaining a <abbr title=\"Straight Face\">SF</abbr>."
                         }
                       ]
                     }
@@ -237,337 +260,204 @@
               ]
             }
           ]
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "title": "Deployment Enjoyment: From Localhost to Production Horror",
+      "level": 2,
+      "content": [
+        {
+          "type": "paragraph",
+          "text": "DevOps engineers have mastered the art of <strong>docker shocker</strong>—the ability to containerize applications while maintaining a straight face. The infamous <q>works on my machine</q> defense has been officially recognized as stage one of the <dfn>denial file</dfn> grieving process, followed by <kbd>git blame</kbd> and eventual <b>resignation</b>."
         },
         {
-          "type": "section",
-          "title": "Deployment Enjoyment: From Localhost to Production Horror",
-          "level": 2,
-          "content": [
-            {
-              "type": "paragraph",
-              "text": "DevOps engineers have mastered the art of docker shocker—the ability to containerize applications while maintaining a straight face. The infamous works on my machine defense has been officially recognized as stage one of the denial file grieving process, followed by git blame and eventual resignation."
-            },
-            {
-              "type": "paragraph",
-              "text": "Cloud platforms offer 99.9% uptime guarantees, which DevOps Psychology Quarterly calls the server fervor constant—the exact percentage at which operations teams develop a religious devotion to status dashboards. Studies confirm that pipeline compile anxiety affects 95% of engineers during their first production deployment, often manifesting as tab hoarding."
-            }
-          ]
+          "type": "paragraph",
+          "text": "Cloud platforms offer <data value=\"99.9\">99.9%</data> uptime guarantees, which <cite>DevOps Psychology Quarterly</cite> calls the <em>server fervor</em> constant—the exact percentage at which operations teams develop a religious devotion to status dashboards. Studies confirm that <mark>pipeline compile</mark> anxiety affects <sub>95%</sub> of engineers during their <sup>first</sup> production deployment, often manifesting as <bdo dir=\"rtl\">tab hoarding</bdo>."
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "title": "Framework Flamework: The JavaScript Library Explosion",
+      "level": 2,
+      "content": [
+        {
+          "type": "paragraph",
+          "text": "The JavaScript ecosystem experiences what experts call <abbr title=\"Framework Acceleration Syndrome\">FAS</abbr>—the <u>exponential proliferation</u> of libraries solving identical problems in slightly different ways. Senior developers suffer from <dfn>import fatigue</dfn>, a condition where <samp>yarn add</samp> triggers involuntary <cite>sighing</cite> and <em>nostalgic reminiscence</em> about the days of <code>&lt;script&gt;</code> tags."
         },
         {
-          "type": "section",
-          "title": "Framework Flamework: The JavaScript Library Explosion",
-          "level": 2,
-          "content": [
-            {
-              "type": "paragraph",
-              "text": "The JavaScript ecosystem experiences what experts call FAS—the exponential proliferation of libraries solving identical problems in slightly different ways. Senior developers suffer from import fatigue, a condition where yarn add triggers involuntary sighing and nostalgic reminiscence about the days of <script> tags."
-            },
-            {
-              "type": "paragraph",
-              "text": "The framework lifecycle follows a predictable pattern: hype, adoption, stack overflow questions, stability, and eventual 枯れる (abandonment). This creates what psychologists term dependency dread—the fear that by the time you npm install a package, it's already deprecated. Frontend developers experience chronic fatigue from implementing the same login form in seventeen different frameworks."
-            },
-            {
-              "type": "figure",
-              "caption": "The Framework Lifecycle Visualized",
-              "content": [
-                {
-                  "type": "svg",
-                  "width": "300",
-                  "height": "150",
-                  "elements": {
-                    "rect": 5,
-                    "text": 5
-                  }
-                }
-              ]
-            }
-          ]
+          "type": "paragraph",
+          "text": "The <mark>framework lifecycle</mark> follows a predictable pattern: hype, adoption, <b>stack overflow questions</b>, stability, and eventual <ruby>枯れる<rt>kareru</rt></ruby> (abandonment). This creates what psychologists term <i>dependency dread</i>—the fear that by the time you <kbd>npm install</kbd> a package, it's already <s>deprecated</s>. <sub>Frontend</sub> <sup>developers</sup> experience <small>chronic fatigue</small> from implementing the same login form in seventeen different frameworks."
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "title": "Bug Taxonomy: Classification of Digital Phenomena",
+      "level": 2,
+      "content": [
+        {
+          "type": "paragraph",
+          "text": "The following table, compiled by the <cite>International Bug Research Institute</cite>, categorizes common programming errors according to their <mark>natural habitat</mark>, typical symptoms, and developer reaction. Note that <var>severity</var> is measured on the <abbr title=\"Developer Emotional Response Scale\">DERS</abbr>, ranging from <sub>mild annoyance</sub> to <sup>keyboard violence</sup>."
         },
         {
-          "type": "section",
-          "title": "Bug Taxonomy: Classification of Digital Phenomena",
-          "level": 2,
-          "content": [
-            {
-              "type": "paragraph",
-              "text": "The following table, compiled by the International Bug Research Institute, categorizes common programming errors according to their natural habitat, typical symptoms, and developer reaction. Note that severity is measured on the DERS, ranging from mild annoyance to keyboard violence."
-            },
-            {
-              "type": "paragraph",
-              "text": "Researchers have observed that production bugs trigger what psychiatrists call deadline delirium—a state where developers become convinced they can fix critical issues through sheer force of will rather than actual debugging. The most dangerous species is the heisenbug, which disappears when observed, causing existential uncertainty among even senior engineers."
-            },
-            {
-              "type": "table",
-              "headers": [
-                [
-                  {
-                    "text": "Bug Type"
-                  },
-                  {
-                    "text": "Habitat"
-                  },
-                  {
-                    "text": "Symptoms"
-                  },
-                  {
-                    "text": "Developer Reaction"
-                  },
-                  {
-                    "text": "Severity (DERS)"
-                  }
-                ]
-              ],
-              "rows": [
-                [
-                  {
-                    "text": "Heisenbug"
-                  },
-                  {
-                    "text": "Concurrent code"
-                  },
-                  {
-                    "text": "Disappears when debugging"
-                  },
-                  {
-                    "text": "Existential crisis"
-                  },
-                  {
-                    "text": "9.8/10"
-                  }
-                ],
-                [
-                  {
-                    "text": "Bohr Bug"
-                  },
-                  {
-                    "text": "Legacy systems"
-                  },
-                  {
-                    "text": "Reproducible but incomprehensible"
-                  },
-                  {
-                    "text": "Resignation"
-                  },
-                  {
-                    "text": "7.5/10"
-                  }
-                ],
-                [
-                  {
-                    "text": "Schrödinbug"
-                  },
-                  {
-                    "text": "Production systems"
-                  },
-                  {
-                    "text": "Functions correctly until observed"
-                  },
-                  {
-                    "text": "Denial"
-                  },
-                  {
-                    "text": "8.7/10"
-                  }
-                ]
-              ],
-              "caption": "Comprehensive Taxonomy of Programming Bugs",
-              "footer": [
-                [
-                  {
-                    "text": "Data compiled from stackoverflow trauma reports",
-                    "colspan": 5
-                  }
-                ]
-              ]
-            }
-          ]
+          "type": "paragraph",
+          "text": "Researchers have observed that <b>production bugs</b> trigger what psychiatrists call <dfn>deadline delirium</dfn>—a state where developers become convinced they can fix critical issues through <i>sheer force of will</i> rather than actual <code>debugging</code>. The most dangerous species is the <em>heisenbug</em>, which disappears when observed, causing <strong>existential uncertainty</strong> among even senior engineers."
         },
         {
-          "type": "section",
-          "title": "Developer Satisfaction Survey: Quantifying Despair",
-          "level": 2,
-          "content": [
-            {
-              "type": "paragraph",
-              "text": "Our annual Developer Happiness Index measures the psychological wellbeing of programmers exposed to various technologies. The IDWO uses this data to issue burnout warnings for particularly toxic combinations of deadlines, legacy code, and managerial expectations."
-            },
-            {
-              "type": "paragraph",
-              "text": "The Satisfaction Paradox describes the phenomenon where developers simultaneously love and hate their chosen profession. As noted in Keyboard Psychology Quarterly, programmers experience n moments of joy followed by n+1 moments of frustration, yet continue to insist they wouldn't choose any other career despite evidence of widespread disillusionment."
-            },
-            {
-              "type": "quote",
-              "content": "\"Programming today is a race between software engineers striving to build bigger and better idiot-proof programs, and the universe trying to produce bigger and better idiots. So far, the universe is winning.\"\n\n— Rick Cook, The Wizardry Compiled",
-              "source": "Rick Cook, The Wizardry Compiled"
-            },
-            {
-              "type": "paragraph",
-              "text": "\"Programming today is a race between software engineers striving to build bigger and better idiot-proof programs, and the universe trying to produce bigger and better idiots. So far, the universe is winning.\""
-            },
-            {
-              "type": "form",
-              "attributes": {
-                "action": "/submit-survey",
-                "method": "post"
+          "type": "table",
+          "headers": [
+            [
+              {
+                "text": "Bug Type"
               },
-              "fields": [
-                {
-                  "type": "fieldset",
-                  "fields": [
-                    {
-                      "type": "input",
-                      "input_type": "text",
-                      "id": "name",
-                      "name": "name",
-                      "required": true,
-                      "label": "Your Name:"
-                    },
-                    {
-                      "type": "input",
-                      "input_type": "text",
-                      "id": "language",
-                      "name": "language",
-                      "label": "Primary Programming Language:"
-                    },
-                    {
-                      "type": "input",
-                      "input_type": "number",
-                      "id": "years",
-                      "name": "years",
-                      "min": "0",
-                      "max": "50",
-                      "label": "Years of Experience:"
-                    },
-                    {
-                      "type": "select",
-                      "options": [
-                        {
-                          "type": "optgroup",
-                          "options": [
-                            {
-                              "text": "Mysterious Bugs",
-                              "value": "bugs"
-                            },
-                            {
-                              "text": "Legacy Code",
-                              "value": "legacy"
-                            }
-                          ],
-                          "label": "Technical"
-                        },
-                        {
-                          "type": "optgroup",
-                          "options": [
-                            {
-                              "text": "Unrealistic Deadlines",
-                              "value": "deadlines"
-                            },
-                            {
-                              "text": "Too Many Meetings",
-                              "value": "meetings"
-                            }
-                          ],
-                          "label": "Human"
-                        }
-                      ],
-                      "id": "frustrations",
-                      "name": "frustrations",
-                      "multiple": true,
-                      "label": "Top Frustrations:"
-                    },
-                    {
-                      "type": "textarea",
-                      "value": "",
-                      "id": "comments",
-                      "name": "comments",
-                      "rows": "4",
-                      "cols": "50",
-                      "label": "Additional Comments:"
-                    },
-                    {
-                      "type": "button",
-                      "button_type": "submit",
-                      "text": "Submit Survey"
-                    }
-                  ],
-                  "legend": "Developer Satisfaction Survey"
-                }
-              ]
+              {
+                "text": "Habitat"
+              },
+              {
+                "text": "Symptoms"
+              },
+              {
+                "text": "Developer Reaction"
+              },
+              {
+                "text": "Severity (DERS)"
+              }
+            ]
+          ],
+          "rows": [
+            [
+              {
+                "text": "Heisenbug"
+              },
+              {
+                "text": "Concurrent code"
+              },
+              {
+                "text": "Disappears when debugging"
+              },
+              {
+                "text": "Existential crisis"
+              },
+              {
+                "text": "9.8/10"
+              }
+            ],
+            [
+              {
+                "text": "Bohr Bug"
+              },
+              {
+                "text": "Legacy systems"
+              },
+              {
+                "text": "Reproducible but incomprehensible"
+              },
+              {
+                "text": "Resignation"
+              },
+              {
+                "text": "7.5/10"
+              }
+            ],
+            [
+              {
+                "text": "Schrödinbug"
+              },
+              {
+                "text": "Production systems"
+              },
+              {
+                "text": "Functions correctly until observed"
+              },
+              {
+                "text": "Denial"
+              },
+              {
+                "text": "8.7/10"
+              }
+            ]
+          ],
+          "caption": "Comprehensive Taxonomy of Programming Bugs",
+          "footer": [
+            [
+              {
+                "text": "Data compiled from stackoverflow trauma reports",
+                "colspan": 5
+              }
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "title": "Developer Satisfaction Survey: Quantifying Despair",
+      "level": 2,
+      "content": [
+        {
+          "type": "paragraph",
+          "text": "Our annual <mark>Developer Happiness Index</mark> measures the psychological wellbeing of programmers exposed to various technologies. The <abbr title=\"International Developer Wellness Organization\">IDWO</abbr> uses this data to issue <dfn>burnout warnings</dfn> for particularly toxic combinations of deadlines, legacy code, and <strong>managerial expectations</strong>."
+        },
+        {
+          "type": "paragraph",
+          "text": "The <b>Satisfaction Paradox</b> describes the phenomenon where developers simultaneously love and hate their chosen profession. As noted in <cite>Keyboard Psychology Quarterly</cite>, programmers experience <var>n</var> moments of joy followed by <var>n+1</var> moments of <i>frustration</i>, yet continue to insist they <u>wouldn't choose any other career</u> <wbr>despite evidence of <em>widespread disillusionment</em>.</wbr>"
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "title": "Mathematical Humor: The Complexity of Developer Jokes",
+      "level": 2,
+      "content": [
+        {
+          "type": "paragraph",
+          "text": "Computer scientists have developed a mathematical model for developer humor, expressed as the <dfn>Absurdity Function</dfn>. According to <cite>Computational Humor Theory</cite>, joke effectiveness (<var>J</var>) can be calculated based on technical accuracy (<var>T</var>), shared suffering (<var>S</var>), and <abbr title=\"Pun Quality Coefficient\">PQC</abbr> (<var>P</var>)."
+        },
+        {
+          "type": "paragraph",
+          "text": "The <b>Programmer Humor Formula</b> demonstrates that the <kbd>funny</kbd> value of a coding joke increases logarithmically with the obscurity of the reference, peaks at a specific threshold, then rapidly <mark>decreases</mark> as the joke becomes <u>incomprehensible</u> to all but the most specialized audience. This explains why <i>SQL injection jokes</i> are <small>hilarious</small> to <em>backend developers</em> but cause <strong>blank stares</strong> among <bdi>general audiences</bdi>."
+        },
+        {
+          "type": "code_block",
+          "text": "// Pseudocode implementation of the Absurdity Function\nfunction calculateHumor(technicalAccuracy, sharedSuffering, punQuality, audienceSize) {\n    if (audienceSize === 0) return Infinity; // Inside joke\n    return technicalAccuracy * Math.sqrt(sharedSuffering) * (punQuality / Math.log(audienceSize));\n}"
+        },
+        {
+          "type": "definition_list",
+          "items": [
+            {
+              "term": "Absurdity Function",
+              "definition": "A mathematical model predicting humor based on technical references"
             },
             {
-              "type": "search",
-              "content": "Find Help",
-              "placeholder": "Search for developer coping mechanisms...",
-              "button": "Find Help"
+              "term": "Pun Quality Coefficient",
+              "definition": "The objective measure of wordplay sophistication in developer jokes"
             },
             {
-              "type": "quote",
-              "content": "\"Programming today is a race between software engineers striving to build bigger and better idiot-proof programs, and the universe trying to produce bigger and better idiots. So far, the universe is winning.\"\n\n— Rick Cook, The Wizardry Compiled",
-              "source": "— Rick Cook, The Wizardry Compiled"
+              "term": "Humor Decay Rate",
+              "definition": "The speed at which a programming joke becomes obsolete as technology evolves"
             }
           ]
         },
         {
-          "type": "section",
-          "title": "Mathematical Humor: The Complexity of Developer Jokes",
-          "level": 2,
-          "content": [
-            {
-              "type": "paragraph",
-              "text": "Computer scientists have developed a mathematical model for developer humor, expressed as the Absurdity Function. According to Computational Humor Theory, joke effectiveness (J) can be calculated based on technical accuracy (T), shared suffering (S), and PQC (P)."
-            },
-            {
-              "type": "paragraph",
-              "text": "The Programmer Humor Formula demonstrates that the funny value of a coding joke increases logarithmically with the obscurity of the reference, peaks at a specific threshold, then rapidly decreases as the joke becomes incomprehensible to all but the most specialized audience. This explains why SQL injection jokes are hilarious to backend developers but cause blank stares among general audiences."
-            },
-            {
-              "type": "code_block",
-              "content": "// Pseudocode implementation of the Absurdity Function\nfunction calculateHumor(technicalAccuracy, sharedSuffering, punQuality, audienceSize) {\n    if (audienceSize === 0) return Infinity; // Inside joke\n    return technicalAccuracy * Math.sqrt(sharedSuffering) * (punQuality / Math.log(audienceSize));\n}"
-            },
-            {
-              "type": "paragraph",
-              "text": "© 2042 The Institute for Computational Humor Research. No rights reserved because good luck enforcing intellectual property on jokes."
-            },
-            {
-              "type": "definition_list",
-              "items": [
-                {
-                  "term": "Absurdity Function",
-                  "definition": "A mathematical model predicting humor based on technical references"
-                },
-                {
-                  "term": "Pun Quality Coefficient",
-                  "definition": "The objective measure of wordplay sophistication in developer jokes"
-                },
-                {
-                  "term": "Humor Decay Rate",
-                  "definition": "The speed at which a programming joke becomes obsolete as technology evolves"
-                }
-              ]
-            },
-            {
-              "type": "ordered_list",
-              "items": [
-                "Determine technical accuracy (0-1)",
-                "Quantify shared suffering (0-10)",
-                "Calculate pun quality coefficient (-5 to 5)",
-                "Divide by logarithm of audience size",
-                "Product is the objective humor rating"
-              ]
-            },
-            {
-              "type": "unordered_list",
-              "items": [
-                "High technical accuracy increases humor",
-                "Greater shared suffering amplifies relatability",
-                "Pun quality affects overall reception",
-                "Larger audiences dilute specialized humor"
-              ]
-            },
-            {
-              "type": "footer",
-              "content": "Contact the Humor Research Department\n International Institute of Programmer Psychology\n 123 Binary Road, Null Island\n \n\n© 2042 The Institute for Computational Humor Research. No rights reserved because good luck enforcing intellectual property on jokes."
-            }
+          "type": "ordered_list",
+          "items": [
+            "Determine technical accuracy (0-1)",
+            "Quantify shared suffering (0-10)",
+            "Calculate pun quality coefficient (-5 to 5)",
+            "Divide by logarithm of audience size",
+            "Product is the objective humor rating"
+          ]
+        },
+        {
+          "type": "unordered_list",
+          "items": [
+            "High technical accuracy increases humor",
+            "Greater shared suffering amplifies relatability",
+            "Pun quality affects overall reception",
+            "Larger audiences dilute specialized humor"
           ]
         }
       ]

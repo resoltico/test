@@ -3,14 +3,15 @@ Processor for text content elements.
 """
 
 import re
-from typing import Dict, List, Optional, Set, Union, Any
+from typing import Dict, List, Optional, Any, Union
 
 import structlog
-from bs4 import BeautifulSoup, NavigableString, Tag
+from bs4 import BeautifulSoup, Tag, NavigableString
 
 from web2json.models.document import Document
 from web2json.models.section import Section
-from web2json.processors.base import ElementProcessor, ContentItem
+from web2json.processors.base import ElementProcessor
+from web2json.core.parser import HtmlParser
 
 
 logger = structlog.get_logger(__name__)
@@ -20,16 +21,12 @@ class TextProcessor(ElementProcessor):
     """
     Processor for text-based HTML elements.
     
-    Handles paragraphs, blockquotes, and other text containers,
-    preserving inline formatting and structure.
+    Handles paragraphs, blockquotes, and other text content.
     """
     
     def process(self, soup: BeautifulSoup, document: Document) -> Document:
         """
         Process text elements in the document.
-        
-        This processor handles common text elements like paragraphs and blockquotes,
-        preserving their structure and inline formatting.
         
         Args:
             soup: The BeautifulSoup object containing the parsed HTML.
@@ -40,73 +37,49 @@ class TextProcessor(ElementProcessor):
         """
         logger.info("Processing text elements")
         
-        # Process each section's raw content elements for text content
+        # Process each section's raw content for text elements
         self.process_sections(document.content)
         
         return document
     
     def process_section_content(self, section: Section) -> None:
         """
-        Process content elements for a single section.
+        Process text elements for a single section.
         
         Args:
             section: The section to process.
         """
+        processed_content = []
+        
         for element in section.raw_content_elements:
-            # Skip elements that should be handled by other processors
-            if self._should_skip_element(element):
+            # Skip if it's a heading (already processed in the hierarchy)
+            if element.name in self.config.heading_tags:
                 continue
                 
             # Process different types of text elements
-            content_obj = None
-            
             if element.name == "p":
-                content_obj = self._process_paragraph(element)
+                content = self._process_paragraph(element)
+                if content:
+                    processed_content.append(content)
             elif element.name == "blockquote":
-                content_obj = self._process_blockquote(element)
+                content = self._process_blockquote(element)
+                if content:
+                    processed_content.append(content)
             elif element.name == "pre":
-                content_obj = self._process_preformatted(element)
-            elif element.name == "code":
-                content_obj = self._process_code(element)
+                content = self._process_preformatted(element)
+                if content:
+                    processed_content.append(content)
             elif element.name == "time":
-                content_obj = self._process_time(element)
-                
-            # Add the processed content to the section
-            if content_obj:
-                section.add_content(content_obj)
-                
-    def _should_skip_element(self, element: Tag) -> bool:
-        """
-        Determine if an element should be skipped (processed by another processor).
+                content = self._process_time(element)
+                if content:
+                    processed_content.append(content)
+            # Add more specialized element processors as needed
         
-        Args:
-            element: The element to check.
+        # Update the section's content
+        for content_item in processed_content:
+            section.add_content(content_item)
             
-        Returns:
-            True if the element should be skipped, False otherwise.
-        """
-        # Skip elements that are handled by other processors
-        skip_elements = {
-            "ul", "ol", "dl", "table", "form", "figure", "img", 
-            "video", "audio", "iframe", "canvas", "svg", "math",
-            "nav", "header", "footer", "section", "article", "aside"
-        }
-        
-        if element.name in skip_elements:
-            return True
-            
-        # Skip elements inside certain containers
-        skip_containers = {"table", "form", "figure", "nav", "ul", "ol", "dl"}
-        
-        parent = element.parent
-        while parent and parent.name != "body":
-            if parent.name in skip_containers:
-                return True
-            parent = parent.parent
-            
-        return False
-    
-    def _process_paragraph(self, element: Tag) -> ContentItem:
+    def _process_paragraph(self, element: Tag) -> Dict[str, Any]:
         """
         Process a paragraph element.
         
@@ -114,18 +87,15 @@ class TextProcessor(ElementProcessor):
             element: The paragraph element.
             
         Returns:
-            A dictionary representation of the paragraph.
+            A dictionary representing the paragraph.
         """
-        text = self.extract_text_content(element, preserve_formatting=True)
+        # Extract the text content with HTML preserved
+        content = self.parser.get_inner_html(element)
         
-        # Create a paragraph content object
-        return self.create_content_object(
-            element_type="paragraph",
-            content=text,
-            element_id=element.get("id")
-        )
+        # Create a paragraph object
+        return self.create_paragraph(content, element.get("id"))
     
-    def _process_blockquote(self, element: Tag) -> ContentItem:
+    def _process_blockquote(self, element: Tag) -> Dict[str, Any]:
         """
         Process a blockquote element.
         
@@ -133,35 +103,34 @@ class TextProcessor(ElementProcessor):
             element: The blockquote element.
             
         Returns:
-            A dictionary representation of the blockquote.
+            A dictionary representing the blockquote.
         """
-        # Extract the main content
-        content = self.extract_text_content(element, preserve_formatting=True)
+        # Extract the blockquote content
+        content = self.parser.get_inner_html(element)
         
-        # Create a blockquote content object
-        result = self.create_content_object(
+        # Create a blockquote object
+        result = self.create_content_item(
             element_type="quote",
             content=content,
             element_id=element.get("id")
         )
         
-        # Check for citation
-        cite_url = element.get("cite")
-        if cite_url:
-            result["cite"] = cite_url
+        # Add citation if present
+        if element.get("cite"):
+            result["cite"] = element["cite"]
         
-        # Look for cite element or footer for attribution
-        cite_element = element.find("cite")
-        if cite_element:
-            result["source"] = self.extract_text_content(cite_element)
+        # Check for footer or citation element
+        footer = element.find("footer")
+        if footer:
+            result["source"] = self.parser.get_element_text_content(footer)
         else:
-            footer = element.find("footer")
-            if footer:
-                result["source"] = self.extract_text_content(footer)
+            cite = element.find("cite")
+            if cite:
+                result["source"] = self.parser.get_element_text_content(cite)
         
         return result
     
-    def _process_preformatted(self, element: Tag) -> ContentItem:
+    def _process_preformatted(self, element: Tag) -> Dict[str, Any]:
         """
         Process a preformatted text element.
         
@@ -169,45 +138,39 @@ class TextProcessor(ElementProcessor):
             element: The pre element.
             
         Returns:
-            A dictionary representation of the preformatted text.
+            A dictionary representing the preformatted text.
         """
         # Check if this is a code block
         code = element.find("code")
         if code:
+            # Process as code block
             return self._process_code_block(code, element)
-        else:
-            # Regular preformatted text
-            text = element.get_text()
-            
-            # Preserve original formatting but normalize line endings
-            text = re.sub(r'\r\n', '\n', text)
-            text = re.sub(r'\r', '\n', text)
-            
-            return self.create_content_object(
-                element_type="preformatted",
-                content=text,
-                element_id=element.get("id")
-            )
+        
+        # Regular preformatted text
+        content = element.get_text()
+        
+        # Preserve original whitespace
+        return self.create_content_item(
+            element_type="preformatted",
+            content=content,
+            element_id=element.get("id")
+        )
     
-    def _process_code_block(self, code: Tag, parent: Optional[Tag] = None) -> ContentItem:
+    def _process_code_block(self, code: Tag, parent: Optional[Tag] = None) -> Dict[str, Any]:
         """
-        Process a code block element.
+        Process a code block.
         
         Args:
             code: The code element.
-            parent: Optional parent element (pre).
+            parent: The parent pre element, if any.
             
         Returns:
-            A dictionary representation of the code block.
+            A dictionary representing the code block.
         """
-        # Get the code content
-        code_text = code.get_text()
+        # Get content
+        content = code.get_text()
         
-        # Preserve original formatting but normalize line endings
-        code_text = re.sub(r'\r\n', '\n', code_text)
-        code_text = re.sub(r'\r', '\n', code_text)
-        
-        # Try to determine the language
+        # Determine language from class
         language = None
         classes = code.get("class", [])
         
@@ -216,10 +179,10 @@ class TextProcessor(ElementProcessor):
                 language = cls.split("-", 1)[1]
                 break
         
-        # Create the code block content object
-        result = self.create_content_object(
+        # Create code block object
+        result = self.create_content_item(
             element_type="code_block",
-            content=code_text,
+            content=content,
             element_id=code.get("id") or (parent.get("id") if parent else None)
         )
         
@@ -228,30 +191,7 @@ class TextProcessor(ElementProcessor):
             
         return result
     
-    def _process_code(self, element: Tag) -> Optional[ContentItem]:
-        """
-        Process a code element.
-        
-        Args:
-            element: The code element.
-            
-        Returns:
-            A dictionary representation of the code, or None if inside pre.
-        """
-        # Skip if inside a pre element (handled by _process_preformatted)
-        if element.find_parent("pre"):
-            return None
-            
-        # Inline code element
-        code_text = element.get_text()
-        
-        return self.create_content_object(
-            element_type="code",
-            content=code_text,
-            element_id=element.get("id")
-        )
-    
-    def _process_time(self, element: Tag) -> ContentItem:
+    def _process_time(self, element: Tag) -> Dict[str, Any]:
         """
         Process a time element.
         
@@ -259,15 +199,15 @@ class TextProcessor(ElementProcessor):
             element: The time element.
             
         Returns:
-            A dictionary representation of the time.
+            A dictionary representing the time.
         """
-        # Extract text content
-        text = self.extract_text_content(element)
+        # Get content
+        content = self.parser.get_element_text_content(element)
         
-        # Create the time content object
-        result = self.create_content_object(
+        # Create time object
+        result = self.create_content_item(
             element_type="time",
-            content=text,
+            content=content,
             element_id=element.get("id")
         )
         
