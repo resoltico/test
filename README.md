@@ -1,12 +1,12 @@
 # Web2JSON
 
-A modern Python tool for transforming web pages into structured JSON.
+A modern Python tool for transforming web pages into structured JSON with semantic preservation.
 
 ## Features
 
 - **Hierarchical Structure**: Transforms flat HTML heading structures (`h1-h6`) into nested JSON hierarchies
-- **Semantic Preservation**: Maintains the semantic meaning of HTML elements
-- **Specialized Processors**: Custom handlers for tables, forms, media, and semantic elements
+- **Semantic Preservation**: Maintains the semantic meaning of HTML elements in the output JSON
+- **Specialized Processors**: Custom handlers for tables, forms, media, lists, and semantic elements
 - **Efficient Fetching**: Asynchronous fetching with caching and retry support
 - **Customizable**: Configurable processing and output options
 - **Command-Line Interface**: Easy-to-use CLI for batch processing
@@ -43,21 +43,9 @@ web2json convert https://example.com https://another-site.com
 
 # Specify an output directory
 web2json convert https://example.com --output-dir ./json-output
-```
 
-### Configuration
-
-You can configure the tool using the `config` command:
-
-```bash
-# Show current configuration
-web2json config --show
-
-# Set a configuration value
-web2json config --set "output.indent=4"
-
-# Reset to default configuration
-web2json config --reset
+# Display output in the console
+web2json convert https://example.com --display
 ```
 
 ### Python API
@@ -101,14 +89,16 @@ The output JSON has a hierarchical structure that preserves the semantic meaning
 ```json
 {
   "title": "Example Website",
-  "url": "https://example.com",
   "content": [
     {
       "type": "section",
       "title": "Introduction",
       "level": 1,
       "content": [
-        "Welcome to the example website.",
+        {
+          "type": "paragraph",
+          "text": "Welcome to the example website."
+        },
         {
           "type": "paragraph",
           "text": "This is an example paragraph."
@@ -137,10 +127,32 @@ The output JSON has a hierarchical structure that preserves the semantic meaning
   ],
   "metadata": {
     "title": "Example Website",
-    "description": "An example website for demonstration"
-  }
+    "description": "An example website for demonstration",
+    "url": "https://example.com"
+  },
+  "url": "https://example.com"
 }
 ```
+
+## Architecture
+
+Web2JSON is built with a modular architecture:
+
+- **Core Components**:
+  - `Transformer`: Orchestrates the entire transformation process
+  - `HtmlParser`: Parses HTML into BeautifulSoup objects
+  - `HierarchyExtractor`: Extracts hierarchical structure from headings
+  - `WebFetcher`: Fetches HTML content from URLs
+  - `JsonSerializer`: Serializes documents to JSON files
+
+- **Element Processors**:
+  - `TextProcessor`: Handles paragraphs and other text containers
+  - `ListProcessor`: Processes ordered, unordered, and definition lists
+  - `TableProcessor`: Extracts structured data from tables
+  - `FormProcessor`: Processes form elements and their fields
+  - `MediaProcessor`: Handles images, videos, and audio elements
+  - `SemanticProcessor`: Processes semantic HTML5 elements
+  - `InlineProcessor`: Handles inline HTML elements and formatting
 
 ## Development
 

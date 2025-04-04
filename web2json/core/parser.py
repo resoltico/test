@@ -2,7 +2,7 @@
 Module for parsing HTML content.
 """
 
-from typing import Dict, Optional, TypeAlias, Any, cast
+from typing import Dict, Optional, TypeAlias, Any, cast, List
 from urllib.parse import urljoin
 
 import structlog
@@ -23,7 +23,12 @@ class HtmlParser:
     """
     
     def __init__(self, config: ProcessingConfig) -> None:
-        """Initialize the parser with the given configuration."""
+        """
+        Initialize the parser with the given configuration.
+        
+        Args:
+            config: The processing configuration.
+        """
         self.config = config
     
     def parse(self, html: str, base_url: str) -> Soup:
@@ -66,8 +71,14 @@ class HtmlParser:
             # Update relative URLs in the document
             for tag in soup.find_all(["a", "img", "link", "script"]):
                 for attr in ["href", "src"]:
-                    if tag.has_attr(attr) and not tag[attr].startswith(("http://", "https://", "data:", "#")):
+                    if tag.has_attr(attr) and not tag[attr].startswith(("http://", "https://", "data:", "#", "mailto:")):
                         tag[attr] = urljoin(new_base, tag[attr])
+        else:
+            # No base tag, use the provided base URL directly
+            for tag in soup.find_all(["a", "img", "link", "script"]):
+                for attr in ["href", "src"]:
+                    if tag.has_attr(attr) and not tag[attr].startswith(("http://", "https://", "data:", "#", "mailto:")):
+                        tag[attr] = urljoin(base_url, tag[attr])
     
     def _remove_ignored_tags(self, soup: Soup) -> None:
         """
@@ -94,7 +105,7 @@ class HtmlParser:
         if not self.config.extract_metadata:
             return {}
         
-        metadata = {}
+        metadata: Dict[str, Any] = {}
         
         # Extract title
         title_tag = soup.find("title")
@@ -120,13 +131,19 @@ class HtmlParser:
                 metadata[f"http-equiv:{meta['http-equiv']}"] = meta["content"]
         
         # Extract other important head elements
-        if soup.find("link", rel="canonical"):
-            metadata["canonical"] = soup.find("link", rel="canonical")["href"]
+        canonical = soup.find("link", rel="canonical")
+        if canonical and canonical.get("href"):
+            metadata["canonical"] = canonical["href"]
         
         # Extract viewport
         viewport = soup.find("meta", attrs={"name": "viewport"})
         if viewport and viewport.get("content"):
             metadata["viewport"] = viewport["content"]
+        
+        # Extract structured data (JSON-LD)
+        json_ld_scripts = soup.find_all("script", type="application/ld+json")
+        if json_ld_scripts:
+            metadata["json_ld"] = [script.string for script in json_ld_scripts if script.string]
         
         logger.debug("Extracted metadata", count=len(metadata))
         return metadata
@@ -162,3 +179,48 @@ class HtmlParser:
             return cast(str, meta_title["content"]).strip()
         
         return "Untitled Document"
+    
+    def get_element_text_content(self, element: Tag) -> str:
+        """
+        Extract clean text content from an element.
+        
+        Args:
+            element: The HTML element.
+            
+        Returns:
+            The clean text content.
+        """
+        if not element:
+            return ""
+            
+        # Get the text content
+        text = element.get_text(" ", strip=True)
+        
+        # Normalize whitespace
+        text = " ".join(text.split())
+        
+        return text
+    
+    def get_element_attributes(self, element: Tag) -> Dict[str, str]:
+        """
+        Extract attributes from an element.
+        
+        Args:
+            element: The HTML element.
+            
+        Returns:
+            A dictionary of attributes.
+        """
+        if not element:
+            return {}
+            
+        attributes = {}
+        for attr, value in element.attrs.items():
+            if isinstance(value, list):
+                attributes[attr] = " ".join(value)
+            elif value is True:  # Boolean attribute
+                attributes[attr] = ""
+            elif value is not None:
+                attributes[attr] = str(value)
+                
+        return attributes

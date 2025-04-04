@@ -11,6 +11,8 @@ from web2json.processors.media import MediaProcessor
 from web2json.processors.semantic import SemanticProcessor
 from web2json.processors.tables import TableProcessor
 from web2json.processors.text import TextProcessor
+from web2json.processors.lists import ListProcessor
+from web2json.processors.inline import InlineProcessor
 
 __all__ = [
     "ElementProcessor",
@@ -19,4 +21,6 @@ __all__ = [
     "SemanticProcessor",
     "TableProcessor",
     "TextProcessor",
+    "ListProcessor",
+    "InlineProcessor",
 ]

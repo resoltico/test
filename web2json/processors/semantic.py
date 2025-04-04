@@ -2,13 +2,14 @@
 Processor for semantic HTML5 elements.
 """
 
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union, cast
 
 import structlog
 from bs4 import BeautifulSoup, Tag
 
 from web2json.models.document import Document
-from web2json.processors.base import ElementProcessor
+from web2json.models.section import Section
+from web2json.processors.base import ElementProcessor, ContentItem
 
 
 logger = structlog.get_logger(__name__)
@@ -43,26 +44,11 @@ class SemanticProcessor(ElementProcessor):
         logger.info("Processing semantic elements")
         
         # Process semantic elements in each section
-        self._process_sections(document.content)
+        self.process_sections(document.content)
         
         return document
     
-    def _process_sections(self, sections: List) -> None:
-        """
-        Process all sections recursively.
-        
-        Args:
-            sections: List of sections to process.
-        """
-        for section in sections:
-            # Process semantic elements in this section
-            self._process_section_semantics(section)
-            
-            # Process child sections recursively
-            if section.children:
-                self._process_sections(section.children)
-    
-    def _process_section_semantics(self, section) -> None:
+    def process_section_content(self, section: Section) -> None:
         """
         Process semantic elements for a single section.
         
@@ -106,7 +92,7 @@ class SemanticProcessor(ElementProcessor):
             
         return False
     
-    def _process_element(self, element: Tag) -> Optional[Dict[str, Any]]:
+    def _process_element(self, element: Tag) -> Optional[ContentItem]:
         """
         Process a semantic element based on its type.
         
@@ -127,8 +113,6 @@ class SemanticProcessor(ElementProcessor):
             return self._process_details(element)
         elif element_type == "nav":
             return self._process_nav(element)
-        elif element_type == "header" or element_type == "footer":
-            return self._process_generic_semantic(element)
         elif element_type == "blockquote":
             return self._process_blockquote(element)
         elif element_type == "address":
@@ -145,7 +129,7 @@ class SemanticProcessor(ElementProcessor):
             # Generic handler for other semantic elements
             return self._process_generic_semantic(element)
     
-    def _process_article(self, element: Tag) -> Dict[str, Any]:
+    def _process_article(self, element: Tag) -> ContentItem:
         """
         Process an article element.
         
@@ -155,35 +139,41 @@ class SemanticProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the article.
         """
-        result = {
-            "type": "article",
-            "content": []
-        }
-        
-        # Extract article ID
-        if element.has_attr("id"):
-            result["id"] = element["id"]
-        
         # Extract heading if present
         heading = element.find(["h1", "h2", "h3", "h4", "h5", "h6"])
-        if heading:
-            result["title"] = heading.get_text().strip()
+        title = heading.get_text().strip() if heading else None
         
         # Extract text content
-        text = element.get_text().strip()
+        content = []
         
-        # Remove heading text if present
-        if heading:
-            heading_text = heading.get_text().strip()
-            if heading_text in text:
-                text = text.replace(heading_text, "", 1).strip()
+        # Extract paragraphs
+        for p in element.find_all("p", recursive=False):
+            content.append({"type": "paragraph", "text": self.extract_text_content(p)})
         
-        if text:
-            result["content"].append({"type": "text", "text": text})
+        # If no paragraphs found, use the whole text
+        if not content:
+            text = self.extract_text_content(element, preserve_formatting=True)
+            
+            # Remove heading text if present
+            if heading and title:
+                text = text.replace(title, "", 1).strip()
+                
+            if text:
+                content.append({"type": "text", "text": text})
+        
+        # Return article content object
+        result = self.create_content_object(
+            element_type="article",
+            content={"content": content},
+            element_id=element.get("id")
+        )
+        
+        if title:
+            result["title"] = title
         
         return result
     
-    def _process_aside(self, element: Tag) -> Dict[str, Any]:
+    def _process_aside(self, element: Tag) -> ContentItem:
         """
         Process an aside element.
         
@@ -193,35 +183,41 @@ class SemanticProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the aside.
         """
-        result = {
-            "type": "aside",
-            "content": []
-        }
-        
-        # Extract aside ID
-        if element.has_attr("id"):
-            result["id"] = element["id"]
-        
         # Extract heading if present
         heading = element.find(["h1", "h2", "h3", "h4", "h5", "h6"])
-        if heading:
-            result["title"] = heading.get_text().strip()
+        title = heading.get_text().strip() if heading else None
         
         # Extract text content
-        text = element.get_text().strip()
+        content = []
         
-        # Remove heading text if present
-        if heading:
-            heading_text = heading.get_text().strip()
-            if heading_text in text:
-                text = text.replace(heading_text, "", 1).strip()
+        # Extract paragraphs
+        for p in element.find_all("p", recursive=False):
+            content.append({"type": "paragraph", "text": self.extract_text_content(p)})
         
-        if text:
-            result["content"].append({"type": "text", "text": text})
+        # If no paragraphs found, use the whole text
+        if not content:
+            text = self.extract_text_content(element, preserve_formatting=True)
+            
+            # Remove heading text if present
+            if heading and title:
+                text = text.replace(title, "", 1).strip()
+                
+            if text:
+                content.append({"type": "text", "text": text})
+        
+        # Return aside content object
+        result = self.create_content_object(
+            element_type="aside",
+            content={"content": content},
+            element_id=element.get("id")
+        )
+        
+        if title:
+            result["title"] = title
         
         return result
     
-    def _process_details(self, element: Tag) -> Dict[str, Any]:
+    def _process_details(self, element: Tag) -> ContentItem:
         """
         Process a details element.
         
@@ -231,39 +227,54 @@ class SemanticProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the details.
         """
-        result = {
-            "type": "details",
-            "content": []
-        }
+        # Extract summary
+        summary_elem = element.find("summary")
+        summary = summary_elem.get_text().strip() if summary_elem else None
         
-        # Extract element ID
-        if element.has_attr("id"):
-            result["id"] = element["id"]
+        # Extract content
+        content = []
         
-        # Extract open state
+        # Extract all content after the summary
+        if summary_elem:
+            # Get all content after the summary
+            next_elem = summary_elem.next_sibling
+            while next_elem:
+                if hasattr(next_elem, "name") and next_elem.name:
+                    if next_elem.name == "p":
+                        content.append({"type": "paragraph", "text": self.extract_text_content(next_elem)})
+                    else:
+                        text = self.extract_text_content(next_elem)
+                        if text:
+                            content.append({"type": "text", "text": text})
+                next_elem = next_elem.next_sibling
+        
+        # If no content found, use the whole text minus summary
+        if not content:
+            text = self.extract_text_content(element, preserve_formatting=True)
+            
+            # Remove summary text if present
+            if summary_elem and summary:
+                text = text.replace(summary, "", 1).strip()
+                
+            if text:
+                content.append({"type": "text", "text": text})
+        
+        # Return details content object
+        result = self.create_content_object(
+            element_type="details",
+            content={"content": content},
+            element_id=element.get("id")
+        )
+        
+        if summary:
+            result["summary"] = summary
+        
         if element.has_attr("open"):
             result["open"] = True
         
-        # Extract summary
-        summary = element.find("summary")
-        if summary:
-            result["summary"] = summary.get_text().strip()
-        
-        # Extract content
-        text = element.get_text().strip()
-        
-        # Remove summary text if present
-        if summary:
-            summary_text = summary.get_text().strip()
-            if summary_text in text:
-                text = text.replace(summary_text, "", 1).strip()
-        
-        if text:
-            result["content"].append({"type": "text", "text": text})
-        
         return result
     
-    def _process_nav(self, element: Tag) -> Dict[str, Any]:
+    def _process_nav(self, element: Tag) -> ContentItem:
         """
         Process a nav element.
         
@@ -273,14 +284,7 @@ class SemanticProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the navigation.
         """
-        result = {
-            "type": "navigation",
-            "links": []
-        }
-        
-        # Extract element ID
-        if element.has_attr("id"):
-            result["id"] = element["id"]
+        links = []
         
         # Extract links
         for a in element.find_all("a"):
@@ -293,45 +297,16 @@ class SemanticProcessor(ElementProcessor):
                 if a.has_attr("title"):
                     link["title"] = a["title"]
                 
-                result["links"].append(link)
-        
-        return result
-    
-    def _process_address(self, element: Tag) -> Dict[str, Any]:
-        """
-        Process an address element.
-        
-        Args:
-            element: The address element.
-            
-        Returns:
-            A dictionary representation of the address.
-        """
-        result = {
-            "type": "address",
-            "text": element.get_text().strip()
-        }
-        
-        # Extract element ID
-        if element.has_attr("id"):
-            result["id"] = element["id"]
-        
-        # Extract any links (emails, websites)
-        links = []
-        for a in element.find_all("a"):
-            if a.has_attr("href"):
-                link = {
-                    "text": a.get_text().strip(),
-                    "href": a["href"]
-                }
                 links.append(link)
         
-        if links:
-            result["links"] = links
-        
-        return result
+        # Return navigation content object
+        return self.create_content_object(
+            element_type="navigation",
+            content={"links": links},
+            element_id=element.get("id")
+        )
     
-    def _process_blockquote(self, element: Tag) -> Dict[str, Any]:
+    def _process_blockquote(self, element: Tag) -> ContentItem:
         """
         Process a blockquote element.
         
@@ -341,27 +316,71 @@ class SemanticProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the blockquote.
         """
-        result = {
-            "type": "quote",
-            "content": element.get_text().strip()
-        }
+        # Extract the main content
+        content = self.extract_text_content(element, preserve_formatting=True)
+        
+        # Create a result object
+        result = self.create_content_object(
+            element_type="quote",
+            content=content,
+            element_id=element.get("id")
+        )
         
         # Extract citation URL
         if element.has_attr("cite"):
             result["cite"] = element["cite"]
         
-        # Look for citation in footer or cite element
-        cite_element = element.find("cite")
-        if cite_element:
-            result["source"] = cite_element.get_text().strip()
+        # Look for source in footer or cite element
+        footer = element.find("footer")
+        if footer:
+            result["source"] = self.extract_text_content(footer)
         else:
-            footer = element.find("footer")
-            if footer:
-                result["source"] = footer.get_text().strip()
+            cite = element.find("cite")
+            if cite:
+                result["source"] = self.extract_text_content(cite)
         
         return result
     
-    def _process_time(self, element: Tag) -> Dict[str, Any]:
+    def _process_address(self, element: Tag) -> ContentItem:
+        """
+        Process an address element.
+        
+        Args:
+            element: The address element.
+            
+        Returns:
+            A dictionary representation of the address.
+        """
+        # Extract text content
+        text = self.extract_text_content(element, preserve_formatting=True)
+        
+        # Create result object
+        result = self.create_content_object(
+            element_type="address",
+            content=text,
+            element_id=element.get("id")
+        )
+        
+        # Extract links
+        links = []
+        for a in element.find_all("a"):
+            if a.has_attr("href"):
+                link = {
+                    "text": a.get_text().strip(),
+                    "href": a["href"]
+                }
+                
+                if a.has_attr("title"):
+                    link["title"] = a["title"]
+                
+                links.append(link)
+        
+        if links:
+            result["links"] = links
+        
+        return result
+    
+    def _process_time(self, element: Tag) -> ContentItem:
         """
         Process a time element.
         
@@ -371,18 +390,23 @@ class SemanticProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the time.
         """
-        result = {
-            "type": "time",
-            "text": element.get_text().strip()
-        }
+        # Extract text content
+        text = self.extract_text_content(element)
         
-        # Extract datetime attribute
+        # Create result object
+        result = self.create_content_object(
+            element_type="time",
+            content=text,
+            element_id=element.get("id")
+        )
+        
+        # Add datetime attribute if present
         if element.has_attr("datetime"):
             result["datetime"] = element["datetime"]
         
         return result
     
-    def _process_mark(self, element: Tag) -> Dict[str, Any]:
+    def _process_mark(self, element: Tag) -> ContentItem:
         """
         Process a mark element.
         
@@ -392,12 +416,17 @@ class SemanticProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the marked text.
         """
-        return {
-            "type": "marked_text",
-            "text": element.get_text().strip()
-        }
+        # Extract text content
+        text = self.extract_text_content(element)
+        
+        # Create result object
+        return self.create_content_object(
+            element_type="marked_text",
+            content=text,
+            element_id=element.get("id")
+        )
     
-    def _process_measurement(self, element: Tag) -> Dict[str, Any]:
+    def _process_measurement(self, element: Tag) -> ContentItem:
         """
         Process a progress or meter element.
         
@@ -407,10 +436,15 @@ class SemanticProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the measurement.
         """
-        result = {
-            "type": element.name,
-            "text": element.get_text().strip()
-        }
+        # Extract text content
+        text = self.extract_text_content(element)
+        
+        # Create result object
+        result = self.create_content_object(
+            element_type=element.name,
+            content=text,
+            element_id=element.get("id")
+        )
         
         # Extract common attributes
         for attr in ["value", "max", "min"]:
@@ -425,7 +459,7 @@ class SemanticProcessor(ElementProcessor):
         
         return result
     
-    def _process_search(self, element: Tag) -> Dict[str, Any]:
+    def _process_search(self, element: Tag) -> ContentItem:
         """
         Process a search element.
         
@@ -435,25 +469,30 @@ class SemanticProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the search.
         """
-        result = {
-            "type": "search",
-            "content": element.get_text().strip()
-        }
+        # Extract text content
+        content = self.extract_text_content(element)
         
-        # Check for search input
+        # Create result object
+        result = self.create_content_object(
+            element_type="search",
+            content=content,
+            element_id=element.get("id")
+        )
+        
+        # Find search input
         search_input = element.find("input", {"type": "search"})
         if search_input:
             if search_input.has_attr("placeholder"):
                 result["placeholder"] = search_input["placeholder"]
         
-        # Check for search button
-        search_button = element.find("button")
-        if search_button:
-            result["button"] = search_button.get_text().strip()
+        # Find search button
+        button = element.find("button")
+        if button:
+            result["button"] = button.get_text().strip()
         
         return result
     
-    def _process_generic_semantic(self, element: Tag) -> Dict[str, Any]:
+    def _process_generic_semantic(self, element: Tag) -> ContentItem:
         """
         Process a generic semantic element.
         
@@ -463,18 +502,12 @@ class SemanticProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the element.
         """
-        result = {
-            "type": element.name,
-            "content": []
-        }
-        
-        # Extract element ID
-        if element.has_attr("id"):
-            result["id"] = element["id"]
-        
         # Extract text content
-        text = element.get_text().strip()
-        if text:
-            result["content"].append({"type": "text", "text": text})
+        text = self.extract_text_content(element, preserve_formatting=True)
         
-        return result
+        # Create result object
+        return self.create_content_object(
+            element_type=element.name,
+            content=text,
+            element_id=element.get("id")
+        )

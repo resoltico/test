@@ -23,7 +23,12 @@ class WebFetcher:
     """
     
     def __init__(self, config: FetchConfig) -> None:
-        """Initialize the fetcher with the given configuration."""
+        """
+        Initialize the fetcher with the given configuration.
+        
+        Args:
+            config: The fetch configuration.
+        """
         self.config = config
         self.session: Optional[aiohttp.ClientSession] = None
         self.cache: LRUCache[str, str] = LRUCache(maxsize=100)
@@ -31,6 +36,11 @@ class WebFetcher:
     async def __aenter__(self) -> Self:
         """Set up the HTTP session when used as a context manager."""
         headers = {"User-Agent": self.config.user_agent}
+        
+        # Add any additional headers from config
+        if self.config.additional_headers:
+            headers.update(self.config.additional_headers)
+            
         self.session = aiohttp.ClientSession(headers=headers)
         return self
     

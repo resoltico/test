@@ -23,22 +23,18 @@ class Document:
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert the document to a dictionary representation for JSON serialization."""
-        # For compatibility with expected format, we'll include url and metadata
-        # as they're useful metadata, but the focus is on title and content
         result = {
             "title": self.title,
             "content": [section.to_dict() for section in self.content],
         }
         
-        # Include metadata and URL as separate properties
+        # Include metadata as separate object
         if self.metadata:
             result["metadata"] = self.metadata.copy()
-        
-        # Include URL in metadata if it's not already there
-        if "url" not in result.get("metadata", {}):
-            if not "metadata" in result:
-                result["metadata"] = {}
-            result["metadata"]["url"] = self.url
+            
+        # Include URL in result
+        if "url" not in result:
+            result["url"] = self.url
             
         return result
     

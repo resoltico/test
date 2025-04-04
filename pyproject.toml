@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "web2json"
-version = "0.1.0"
+version = "0.3.0"
 description = "A tool to transform web pages into structured JSON"
 authors = ["Your Name <your.email@example.com>"]
 readme = "README.md"

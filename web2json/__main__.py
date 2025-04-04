@@ -38,15 +38,20 @@ def convert(
         "--output-dir", "-o",
         help="Directory to save output files (default: ./output)",
     ),
-    format_output: bool = typer.Option(
+    pretty: bool = typer.Option(
         True,
-        "--format/--no-format",
+        "--pretty/--compact",
         help="Format output JSON for readability",
     ),
     verbose: bool = typer.Option(
         False,
         "--verbose", "-v",
         help="Enable verbose output",
+    ),
+    display: bool = typer.Option(
+        False,
+        "--display", "-d",
+        help="Display the output in the console",
     ),
 ):
     """
@@ -64,7 +69,7 @@ def convert(
         config.output.output_directory = output_dir
     
     # Set indentation for JSON output
-    if not format_output:
+    if not pretty:
         config.output.indent = None
     
     # Create transformer and serializer
@@ -72,7 +77,7 @@ def convert(
     serializer = JsonSerializer(config.output)
     
     # Process each URL
-    asyncio.run(_process_urls(urls, transformer, serializer, config))
+    asyncio.run(_process_urls(urls, transformer, serializer, config, display))
 
 
 @app.command()
@@ -88,6 +93,7 @@ async def _process_urls(
     transformer: Transformer,
     serializer: JsonSerializer,
     config: Web2JsonConfig,
+    display: bool = False,
 ) -> None:
     """
     Process a list of URLs, transforming them to JSON.
@@ -97,6 +103,7 @@ async def _process_urls(
         transformer: The transformer to use.
         serializer: The serializer to use.
         config: The application configuration.
+        display: Whether to display the output in the console.
     """
     # Show progress
     with Progress(
@@ -121,6 +128,12 @@ async def _process_urls(
                     
                     progress.update(task, description=f"✅ Processed {url}")
                     console.print(f"Output saved to: [green]{output_path}[/green]")
+                    
+                    # Display the document if requested
+                    if display:
+                        console.print()
+                        serializer.pretty_print_document(document)
+                        console.print()
                     
                 except Exception as e:
                     progress.update(task, description=f"❌ Failed {url}")

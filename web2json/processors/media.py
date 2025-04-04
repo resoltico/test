@@ -2,13 +2,14 @@
 Processor for media elements (images, videos, audio).
 """
 
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union, cast 
 
 import structlog
 from bs4 import BeautifulSoup, Tag
 
 from web2json.models.document import Document
-from web2json.processors.base import ElementProcessor
+from web2json.models.section import Section
+from web2json.processors.base import ElementProcessor, ContentItem
 
 
 logger = structlog.get_logger(__name__)
@@ -36,26 +37,11 @@ class MediaProcessor(ElementProcessor):
         logger.info("Processing media elements")
         
         # Process media elements in each section
-        self._process_sections(document.content)
+        self.process_sections(document.content)
         
         return document
     
-    def _process_sections(self, sections: List) -> None:
-        """
-        Process all sections recursively.
-        
-        Args:
-            sections: List of sections to process.
-        """
-        for section in sections:
-            # Process media in this section
-            self._process_section_media(section)
-            
-            # Process child sections recursively
-            if section.children:
-                self._process_sections(section.children)
-    
-    def _process_section_media(self, section) -> None:
+    def process_section_content(self, section: Section) -> None:
         """
         Process media elements for a single section.
         
@@ -111,6 +97,20 @@ class MediaProcessor(ElementProcessor):
                         section_title=section.title,
                         media_type=element.name
                     )
+            
+            # Process SVG elements
+            elif element.name == "svg" and not element.find_parent("figure"):
+                if self._should_skip_element(element):
+                    continue
+                    
+                svg_dict = self._process_svg(element)
+                if svg_dict:
+                    section.add_content(svg_dict)
+                    
+                    logger.debug(
+                        "Added SVG to section",
+                        section_title=section.title
+                    )
     
     def _should_skip_element(self, element: Tag) -> bool:
         """
@@ -133,7 +133,7 @@ class MediaProcessor(ElementProcessor):
             
         return False
     
-    def _process_image(self, img: Tag) -> Optional[Dict[str, Any]]:
+    def _process_image(self, img: Tag) -> ContentItem:
         """
         Process an image element.
         
@@ -141,16 +141,24 @@ class MediaProcessor(ElementProcessor):
             img: The image element to process.
             
         Returns:
-            A dictionary representation of the image, or None if it's invalid.
+            A dictionary representation of the image.
         """
         if not img.get("src"):
             logger.warning("Image without src attribute", element=str(img)[:100])
-            return None
+            return self.create_content_object(
+                element_type="image",
+                content="Missing source",
+                element_id=img.get("id")
+            )
         
-        result = {
-            "type": "image",
-            "src": img["src"]
-        }
+        # Create an image content object
+        result = self.create_content_object(
+            element_type="image",
+            element_id=img.get("id")
+        )
+        
+        # Add the src attribute
+        result["src"] = img["src"]
         
         # Extract common attributes
         for attr in ["alt", "title", "width", "height"]:
@@ -161,6 +169,9 @@ class MediaProcessor(ElementProcessor):
         if img.has_attr("srcset"):
             result["srcset"] = img["srcset"]
         
+        if img.has_attr("sizes"):
+            result["sizes"] = img["sizes"]
+        
         # Check for an enclosing link
         parent_link = img.find_parent("a")
         if parent_link and parent_link.has_attr("href"):
@@ -168,7 +179,7 @@ class MediaProcessor(ElementProcessor):
         
         return result
     
-    def _process_figure(self, figure: Tag) -> Dict[str, Any]:
+    def _process_figure(self, figure: Tag) -> ContentItem:
         """
         Process a figure element.
         
@@ -178,61 +189,58 @@ class MediaProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the figure.
         """
-        result = {
-            "type": "figure",
-            "content": []
-        }
-        
-        # Extract figure ID
-        if figure.has_attr("id"):
-            result["id"] = figure["id"]
+        # Create a figure content object
+        result = self.create_content_object(
+            element_type="figure",
+            element_id=figure.get("id")
+        )
         
         # Extract figcaption
         figcaption = figure.find("figcaption")
         if figcaption:
-            result["caption"] = figcaption.get_text().strip()
+            result["caption"] = self.extract_text_content(figcaption)
+        
+        # Process content elements
+        content = []
         
         # Process contained images
         for img in figure.find_all("img", recursive=True):
             image_dict = self._process_image(img)
-            if image_dict:
-                result["content"].append(image_dict)
+            content.append(image_dict)
         
         # Process contained videos
         for video in figure.find_all("video", recursive=True):
             video_dict = self._process_video(video)
-            if video_dict:
-                result["content"].append(video_dict)
+            content.append(video_dict)
         
         # Process contained audio
         for audio in figure.find_all("audio", recursive=True):
             audio_dict = self._process_audio(audio)
-            if audio_dict:
-                result["content"].append(audio_dict)
+            content.append(audio_dict)
         
         # Process SVG elements
         svg = figure.find("svg")
         if svg:
             svg_dict = self._process_svg(svg)
-            if svg_dict:
-                result["content"].append(svg_dict)
+            content.append(svg_dict)
         
-        # If no media content found, extract text
-        if not result["content"]:
-            text = figure.get_text().strip()
+        # If no media content found, extract text (excluding figcaption)
+        if not content:
+            text = self.extract_text_content(figure, preserve_formatting=True)
             
             # Remove figcaption text if present
             if figcaption:
-                caption_text = figcaption.get_text().strip()
-                if caption_text in text:
-                    text = text.replace(caption_text, "").strip()
+                caption_text = self.extract_text_content(figcaption)
+                text = text.replace(caption_text, "").strip()
             
             if text:
-                result["content"].append({"type": "text", "text": text})
+                content.append({"type": "text", "text": text})
+        
+        result["content"] = content
         
         return result
     
-    def _process_video(self, video: Tag) -> Dict[str, Any]:
+    def _process_video(self, video: Tag) -> ContentItem:
         """
         Process a video element.
         
@@ -242,19 +250,21 @@ class MediaProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the video.
         """
-        result = {
-            "type": "video",
-            "sources": []
-        }
+        # Create a video content object
+        result = self.create_content_object(
+            element_type="video",
+            element_id=video.get("id")
+        )
         
         # Extract common attributes
-        for attr in ["width", "height", "poster", "controls", "autoplay", "loop", "muted"]:
+        for attr in ["width", "height", "poster"]:
             if video.has_attr(attr):
-                # Convert boolean attributes
-                if attr in ["controls", "autoplay", "loop", "muted"]:
-                    result[attr] = True
-                else:
-                    result[attr] = video[attr]
+                result[attr] = video[attr]
+        
+        # Handle boolean attributes
+        for attr in ["controls", "autoplay", "loop", "muted"]:
+            if video.has_attr(attr):
+                result[attr] = True
         
         # Extract source elements
         sources = []
@@ -298,7 +308,7 @@ class MediaProcessor(ElementProcessor):
         
         return result
     
-    def _process_audio(self, audio: Tag) -> Dict[str, Any]:
+    def _process_audio(self, audio: Tag) -> ContentItem:
         """
         Process an audio element.
         
@@ -308,12 +318,13 @@ class MediaProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the audio.
         """
-        result = {
-            "type": "audio",
-            "sources": []
-        }
+        # Create an audio content object
+        result = self.create_content_object(
+            element_type="audio",
+            element_id=audio.get("id")
+        )
         
-        # Extract common attributes
+        # Handle boolean attributes
         for attr in ["controls", "autoplay", "loop", "muted"]:
             if audio.has_attr(attr):
                 result[attr] = True
@@ -340,7 +351,7 @@ class MediaProcessor(ElementProcessor):
         
         return result
     
-    def _process_svg(self, svg: Tag) -> Dict[str, Any]:
+    def _process_svg(self, svg: Tag) -> ContentItem:
         """
         Process an SVG element.
         
@@ -350,11 +361,13 @@ class MediaProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the SVG.
         """
-        result = {
-            "type": "svg"
-        }
+        # Create an SVG content object
+        result = self.create_content_object(
+            element_type="svg",
+            element_id=svg.get("id")
+        )
         
-        # Extract viewBox
+        # Extract viewBox attribute
         if svg.has_attr("viewBox"):
             result["viewBox"] = svg["viewBox"]
         

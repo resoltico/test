@@ -4,9 +4,10 @@ Module for extracting hierarchical structure from HTML documents.
 
 from typing import Dict, List, Optional, Tuple, TypeAlias, cast, Set
 import uuid
+import re
 
 import structlog
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup, Tag, NavigableString
 
 from web2json.models.config import ProcessingConfig
 from web2json.models.document import Document
@@ -28,7 +29,12 @@ class HierarchyExtractor:
     """
     
     def __init__(self, config: ProcessingConfig) -> None:
-        """Initialize the extractor with the given configuration."""
+        """
+        Initialize the extractor with the given configuration.
+        
+        Args:
+            config: The processing configuration.
+        """
         self.config = config
     
     def extract_hierarchy(self, soup: Soup, document: Document) -> Document:
@@ -54,10 +60,25 @@ class HierarchyExtractor:
         headings = body.find_all(self.config.heading_tags)
         if not headings:
             logger.warning("No headings found in document")
+            # Create a default section with the document title
+            default_section = Section.create_from_heading(
+                title=document.title,
+                level=1,
+                element_id=None
+            )
+            document.content = [default_section]
+            
+            # Collect all content elements
+            content_elements = body.find_all(self.config.content_tags)
+            default_section.raw_content_elements = content_elements
+            
             return document
         
         # Process all headings to build the section hierarchy
         document.content = self._build_section_hierarchy(headings)
+        
+        # Collect content for each section
+        document = self.collect_content_for_sections(soup, document)
         
         return document
     
@@ -85,7 +106,7 @@ class HierarchyExtractor:
         for heading in headings:
             # Get the heading level (h1 = 1, h2 = 2, etc.)
             level = int(heading.name[1])
-            title = heading.get_text().strip()
+            title = self._extract_clean_text(heading)
             element_id = heading.get("id")
             
             logger.debug(
@@ -127,8 +148,8 @@ class HierarchyExtractor:
         """
         Collect and assign content to sections based on document structure.
         
-        This method does not directly process content elements but identifies which
-        elements belong to each section, to be processed by specific processors later.
+        This method identifies which elements belong to each section by analyzing
+        the document's structure and heading hierarchy.
         
         Args:
             soup: The BeautifulSoup object containing the parsed HTML.
@@ -142,16 +163,28 @@ class HierarchyExtractor:
             return document
         
         # Create a mapping of headings to sections
-        heading_to_section = {}
+        heading_to_section: Dict[Tag, Section] = {}
         
         def _map_sections(sections: List[Section]) -> None:
             for section in sections:
-                # Find the heading element for this section
-                heading = soup.find(lambda tag: tag.name in self.config.heading_tags and 
-                                             tag.get_text().strip() == section.title and
-                                             int(tag.name[1]) == section.level)
-                if heading:
-                    heading_to_section[heading] = section
+                # Find the heading element for this section by matching title and level
+                headings = soup.find_all(
+                    lambda tag: tag.name in self.config.heading_tags and 
+                               self._extract_clean_text(tag) == section.title and
+                               int(tag.name[1]) == section.level
+                )
+                
+                # If multiple matches, try to find one with the matching ID
+                if len(headings) > 1 and section.id:
+                    for heading in headings:
+                        if heading.get("id") == section.id:
+                            heading_to_section[heading] = section
+                            break
+                    else:
+                        # No exact ID match, use the first one
+                        heading_to_section[headings[0]] = section
+                elif headings:
+                    heading_to_section[headings[0]] = section
                 
                 # Process children recursively
                 if section.children:
@@ -161,9 +194,8 @@ class HierarchyExtractor:
         _map_sections(document.content)
         
         # Now identify content elements that belong to each section
-        # Using an internal ID for each section since Section objects aren't hashable
-        section_id_map = {}
-        section_content_map = {}
+        section_id_map: Dict[str, Section] = {}
+        section_content_map: Dict[str, List[Tag]] = {}
         
         # Create a unique ID for each section
         for heading, section in heading_to_section.items():
@@ -172,11 +204,12 @@ class HierarchyExtractor:
             section_id_map[section_id] = section
             section_content_map[section_id] = []
         
-        # Get all headings and content elements in document order
+        # Get all elements in document order
         all_elements = []
-        
         for element in body.find_all(True):
-            if element.name in self.config.heading_tags or element.name in self.config.content_tags:
+            if (element.name in self.config.heading_tags or 
+                element.name in self.config.content_tags or
+                element.name in self.config.semantic_tags):
                 if element.name not in self.config.ignore_tags:
                     all_elements.append(element)
         
@@ -225,46 +258,72 @@ class HierarchyExtractor:
         _collect_sections(document.content)
         
         # Find the preceding heading
-        current = element.previous_element
+        current = element.previous_sibling
         preceding_headings = []
         
+        # Look backwards through siblings
         while current:
             if isinstance(current, Tag) and current.name in self.config.heading_tags:
                 level = int(current.name[1])
-                title = current.get_text().strip()
+                title = self._extract_clean_text(current)
                 preceding_headings.append((level, title, current))
-            current = current.previous_element
+                break
+            current = current.previous_sibling
         
-        # Reverse to get headings in document order
-        preceding_headings.reverse()
-        
+        # If no preceding sibling heading, look for parent or ancestor headings
         if not preceding_headings:
-            # If no headings found, use the first section
-            return all_sections[0] if all_sections else None
+            parent = element.parent
+            while parent:
+                # Check previous siblings of the parent
+                prev = parent.previous_sibling
+                while prev and not preceding_headings:
+                    if isinstance(prev, Tag) and prev.name in self.config.heading_tags:
+                        level = int(prev.name[1])
+                        title = self._extract_clean_text(prev)
+                        preceding_headings.append((level, title, prev))
+                        break
+                    prev = prev.previous_sibling
+                
+                # If still no heading found, move up to the parent's parent
+                if not preceding_headings:
+                    parent = parent.parent
+                else:
+                    break
         
-        # Get the nearest heading
-        _, _, nearest_heading = preceding_headings[-1]
-        
-        # Find the section corresponding to this heading
-        for section in all_sections:
-            # Try to match by heading text and level
-            if (section.title == nearest_heading.get_text().strip() and 
-                section.level == int(nearest_heading.name[1])):
-                return section
-        
-        # If no exact match found, use the closest parent heading
-        stack = []
-        for level, title, _ in preceding_headings:
-            while stack and stack[-1][0] >= level:
-                stack.pop()
-            stack.append((level, title))
-        
-        if stack:
-            # Find the section matching the closest parent heading
-            parent_level, parent_title = stack[-1]
+        # If we found preceding headings, use them
+        if preceding_headings:
+            # Get the nearest heading
+            level, title, heading = preceding_headings[0]
+            
+            # Try to find an exact match
             for section in all_sections:
-                if section.title == parent_title and section.level == parent_level:
+                if section.title == title and section.level == level:
                     return section
+                    
+            # If no exact match, find the closest section by level
+            valid_sections = [s for s in all_sections if s.level <= level]
+            if valid_sections:
+                # Sort by level (descending) to get the closest level
+                valid_sections.sort(key=lambda s: -s.level)
+                return valid_sections[0]
         
-        # Fall back to the first section
+        # If no heading found, use the first section
         return all_sections[0] if all_sections else None
+    
+    def _extract_clean_text(self, element: Tag) -> str:
+        """
+        Extract clean text from an element, removing extra whitespace.
+        
+        Args:
+            element: The HTML element.
+            
+        Returns:
+            The clean text.
+        """
+        # Get the text content
+        text = element.get_text()
+        
+        # Normalize whitespace
+        text = re.sub(r'\s+', ' ', text).strip()
+        
+        return text

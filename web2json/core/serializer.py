@@ -6,8 +6,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Any, Dict, Optional
-from urllib.parse import urlparse
+from typing import Any, Dict, Optional, Union
 
 import structlog
 
@@ -46,10 +45,6 @@ class JsonSerializer:
         
         # Convert the document to a dictionary
         doc_dict = document.to_dict()
-        
-        # Optionally include URL
-        if self.config.include_url and not "url" in doc_dict:
-            doc_dict["url"] = document.url
         
         # Convert to JSON with proper formatting
         json_str = json.dumps(
@@ -98,6 +93,8 @@ class JsonSerializer:
         Returns:
             A file path for the JSON output.
         """
+        from urllib.parse import urlparse
+        
         # Parse the URL to extract domain and path
         parsed_url = urlparse(document.url)
         domain = parsed_url.netloc
@@ -111,19 +108,15 @@ class JsonSerializer:
         if len(path) > 50:
             path = path[:50]
         
+        # Get a clean title
+        title = re.sub(r"[^\w\-]", "_", document.title[:30])
+        
         # Use the template to format the filename
-        if path:
-            filename = self.config.filename_template.format(
-                domain=domain,
-                path=path,
-                title=re.sub(r"[^\w\-]", "_", document.title[:30])
-            )
-        else:
-            filename = self.config.filename_template.format(
-                domain=domain,
-                path="home",
-                title=re.sub(r"[^\w\-]", "_", document.title[:30])
-            )
+        filename = self.config.filename_template.format(
+            domain=domain,
+            path=path or "home",
+            title=title
+        )
         
         # Ensure filename ends with .json
         if not filename.endswith(".json"):
@@ -132,3 +125,38 @@ class JsonSerializer:
         # Combine with output directory
         output_dir = Path(self.config.output_directory)
         return str(output_dir / filename)
+    
+    @staticmethod
+    def pretty_print_document(document: Document, indent: int = 2) -> None:
+        """
+        Pretty print a document to the console.
+        
+        Args:
+            document: The Document object to print.
+            indent: The indentation level for the JSON.
+        """
+        try:
+            import rich.console
+            import rich.syntax
+            
+            # Convert the document to JSON
+            doc_json = json.dumps(document.to_dict(), indent=indent)
+            
+            # Create a console
+            console = rich.console.Console()
+            
+            # Print a header
+            console.print(f"[bold green]Document:[/bold green] {document.title}")
+            console.print(f"[bold blue]URL:[/bold blue] {document.url}")
+            console.print()
+            
+            # Print the JSON
+            syntax = rich.syntax.Syntax(doc_json, "json", theme="monokai", line_numbers=True)
+            console.print(syntax)
+            
+        except ImportError:
+            # Fall back to regular printing if rich is not available
+            print(f"Document: {document.title}")
+            print(f"URL: {document.url}")
+            print()
+            print(json.dumps(document.to_dict(), indent=indent))

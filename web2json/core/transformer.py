@@ -2,15 +2,16 @@
 Module for transforming HTML documents into structured JSON.
 """
 
-from typing import Dict, List, Optional, Type, TypeAlias
+from typing import Dict, List, Optional, Type, TypeAlias, Any
 
 import structlog
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from web2json.core.hierarchy import HierarchyExtractor
 from web2json.core.parser import HtmlParser
 from web2json.models.config import ProcessingConfig, Web2JsonConfig
 from web2json.models.document import Document
+from web2json.models.section import Section
 from web2json.processors.base import ElementProcessor
 
 
@@ -77,11 +78,11 @@ class Transformer:
         # Extract the hierarchical structure based on headings
         document = self.hierarchy_extractor.extract_hierarchy(soup, document)
         
-        # Collect content elements for each section
-        document = self.hierarchy_extractor.collect_content_for_sections(soup, document)
-        
         # Apply specialized processors to extract and process content
         document = self._apply_processors(soup, document)
+        
+        # Post-process the document to ensure consistency
+        document = self._post_process_document(document)
         
         logger.info(
             "Document transformation complete", 
@@ -112,6 +113,50 @@ class Transformer:
         
         return document
     
+    def _post_process_document(self, document: Document) -> Document:
+        """
+        Perform final adjustments to ensure consistent document structure.
+        
+        Args:
+            document: The Document object to post-process.
+            
+        Returns:
+            The post-processed Document object.
+        """
+        # Process all sections recursively
+        self._post_process_sections(document.content)
+        
+        return document
+    
+    def _post_process_sections(self, sections: List[Section]) -> None:
+        """
+        Post-process all sections recursively to ensure consistent structure.
+        
+        Args:
+            sections: List of sections to process.
+        """
+        for section in sections:
+            # Process section content
+            self._post_process_content(section)
+            
+            # Process child sections recursively
+            if section.children:
+                self._post_process_sections(section.children)
+    
+    def _post_process_content(self, section: Section) -> None:
+        """
+        Post-process section content to ensure consistency.
+        
+        Args:
+            section: The section to process.
+        """
+        # Filter out empty content items
+        section.content = [
+            item for item in section.content 
+            if (isinstance(item, dict) and item) or 
+               (isinstance(item, str) and item.strip())
+        ]
+    
     @classmethod
     def create_default(cls, config: Optional[Web2JsonConfig] = None) -> "Transformer":
         """
@@ -123,20 +168,24 @@ class Transformer:
         Returns:
             A configured Transformer instance.
         """
-        from web2json.processors.forms import FormProcessor
-        from web2json.processors.tables import TableProcessor
         from web2json.processors.text import TextProcessor
+        from web2json.processors.tables import TableProcessor
+        from web2json.processors.forms import FormProcessor
         from web2json.processors.media import MediaProcessor
         from web2json.processors.semantic import SemanticProcessor
+        from web2json.processors.lists import ListProcessor
+        from web2json.processors.inline import InlineProcessor
         
         config = config or Web2JsonConfig.create_default()
         
         processors = [
-            TextProcessor(config.processing),
-            TableProcessor(config.processing),
-            FormProcessor(config.processing),
-            MediaProcessor(config.processing),
-            SemanticProcessor(config.processing),
+            InlineProcessor(config.processing),    # Process inline elements first
+            TextProcessor(config.processing),      # Process basic text elements
+            ListProcessor(config.processing),      # Process lists
+            TableProcessor(config.processing),     # Process tables
+            FormProcessor(config.processing),      # Process forms
+            MediaProcessor(config.processing),     # Process media elements
+            SemanticProcessor(config.processing),  # Process semantic elements
         ]
         
         return cls(config, processors)

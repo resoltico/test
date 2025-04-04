@@ -2,19 +2,17 @@
 Processor for HTML forms.
 """
 
-from typing import Dict, List, Optional, TypeAlias, Any
+from typing import Dict, List, Optional, Any, Union, cast
 
 import structlog
 from bs4 import BeautifulSoup, Tag
 
 from web2json.models.document import Document
-from web2json.processors.base import ElementProcessor
+from web2json.models.section import Section
+from web2json.processors.base import ElementProcessor, ContentItem
 
 
 logger = structlog.get_logger(__name__)
-
-# Type alias for form field data
-FormField: TypeAlias = Dict[str, Any]
 
 
 class FormProcessor(ElementProcessor):
@@ -38,27 +36,12 @@ class FormProcessor(ElementProcessor):
         """
         logger.info("Processing form elements")
         
-        # Process forms in each section
-        self._process_sections(document.content)
+        # Process each section's content for forms
+        self.process_sections(document.content)
         
         return document
     
-    def _process_sections(self, sections: List) -> None:
-        """
-        Process all sections recursively.
-        
-        Args:
-            sections: List of sections to process.
-        """
-        for section in sections:
-            # Process forms in this section
-            self._process_section_forms(section)
-            
-            # Process child sections recursively
-            if section.children:
-                self._process_sections(section.children)
-    
-    def _process_section_forms(self, section) -> None:
+    def process_section_content(self, section: Section) -> None:
         """
         Process forms for a single section.
         
@@ -83,7 +66,7 @@ class FormProcessor(ElementProcessor):
                 form_id=form.get("id")
             )
     
-    def _process_form(self, form: Tag) -> Dict[str, Any]:
+    def _process_form(self, form: Tag) -> ContentItem:
         """
         Process a single form element.
         
@@ -93,35 +76,41 @@ class FormProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the form.
         """
-        result = {
-            "type": "form",
-            "fields": []
-        }
+        # Create a form content object
+        result = self.create_content_object(
+            element_type="form",
+            element_id=form.get("id")
+        )
         
         # Extract form attributes
         attributes = {}
-        for attr in ["id", "name", "action", "method", "enctype", "target"]:
-            if form.get(attr):
+        for attr in ["action", "method", "enctype", "target", "name"]:
+            if form.has_attr(attr):
                 attributes[attr] = form[attr]
         
         if attributes:
             result["attributes"] = attributes
         
+        # Process form fields
+        fields = []
+        
         # Process fieldsets first
         for fieldset in form.find_all("fieldset", recursive=False):
             fieldset_data = self._process_fieldset(fieldset)
             if fieldset_data:
-                result["fields"].append(fieldset_data)
+                fields.append(fieldset_data)
         
         # Process direct form controls (not inside fieldsets)
         for field in form.find_all(["input", "select", "textarea", "button"], recursive=False):
             field_data = self._process_field(field)
             if field_data:
-                result["fields"].append(field_data)
+                fields.append(field_data)
+        
+        result["fields"] = fields
         
         return result
     
-    def _process_fieldset(self, fieldset: Tag) -> Optional[FormField]:
+    def _process_fieldset(self, fieldset: Tag) -> Optional[Dict[str, Any]]:
         """
         Process a fieldset element.
         
@@ -131,33 +120,38 @@ class FormProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the fieldset, or None if it's empty.
         """
-        fieldset_data = {
+        # Create a fieldset object
+        result = {
             "type": "fieldset",
             "fields": []
         }
         
+        # Extract fieldset ID
+        if fieldset.has_attr("id"):
+            result["id"] = fieldset["id"]
+        
         # Extract legend
         legend = fieldset.find("legend")
         if legend:
-            fieldset_data["legend"] = legend.get_text().strip()
-        
-        # Extract fieldset attributes
-        if fieldset.get("id"):
-            fieldset_data["id"] = fieldset["id"]
+            result["legend"] = self.extract_text_content(legend)
         
         # Process fields in the fieldset
-        for field in fieldset.find_all(["input", "select", "textarea", "button"], recursive=False):
+        for field in fieldset.find_all(["input", "select", "textarea", "button"]):
+            # Skip fields that are in nested fieldsets
+            if field.find_parent("fieldset") != fieldset:
+                continue
+                
             field_data = self._process_field(field)
             if field_data:
-                fieldset_data["fields"].append(field_data)
+                result["fields"].append(field_data)
         
-        # Check if we have any fields
-        if not fieldset_data["fields"]:
+        # Return None if no fields found
+        if not result["fields"]:
             return None
             
-        return fieldset_data
+        return result
     
-    def _process_field(self, field: Tag) -> Optional[FormField]:
+    def _process_field(self, field: Tag) -> Optional[Dict[str, Any]]:
         """
         Process a form field element.
         
@@ -180,7 +174,7 @@ class FormProcessor(ElementProcessor):
         
         return None
     
-    def _process_input(self, input_field: Tag) -> Optional[FormField]:
+    def _process_input(self, input_field: Tag) -> Dict[str, Any]:
         """
         Process an input element.
         
@@ -188,31 +182,39 @@ class FormProcessor(ElementProcessor):
             input_field: The input element to process.
             
         Returns:
-            A dictionary representation of the input, or None if it's invalid.
+            A dictionary representation of the input.
         """
         # Get the input type
         input_type = input_field.get("type", "text")
         
-        result: FormField = {
+        # Create an input field object
+        result = {
             "type": "input",
             "input_type": input_type
         }
         
         # Extract common attributes
-        for attr in ["id", "name", "value", "placeholder", "required"]:
+        for attr in ["id", "name", "value", "placeholder"]:
             if input_field.has_attr(attr):
-                # Convert boolean attributes
-                if attr == "required":
-                    result[attr] = True
-                else:
-                    result[attr] = input_field[attr]
+                result[attr] = input_field[attr]
+        
+        # Handle boolean attributes
+        for attr in ["required", "disabled", "readonly", "checked"]:
+            if input_field.has_attr(attr):
+                result[attr] = True
         
         # Handle specific input types
-        if input_type in ["checkbox", "radio"]:
-            if input_field.has_attr("checked"):
-                result["checked"] = True
-        elif input_type in ["number", "range"]:
+        if input_type in ["number", "range"]:
             for attr in ["min", "max", "step"]:
+                if input_field.has_attr(attr):
+                    result[attr] = input_field[attr]
+        elif input_type == "file":
+            if input_field.has_attr("accept"):
+                result["accept"] = input_field["accept"]
+            if input_field.has_attr("multiple"):
+                result["multiple"] = True
+        elif input_type == "image":
+            for attr in ["src", "alt"]:
                 if input_field.has_attr(attr):
                     result[attr] = input_field[attr]
         
@@ -223,7 +225,7 @@ class FormProcessor(ElementProcessor):
         
         return result
     
-    def _process_select(self, select: Tag) -> Optional[FormField]:
+    def _process_select(self, select: Tag) -> Dict[str, Any]:
         """
         Process a select element.
         
@@ -231,58 +233,41 @@ class FormProcessor(ElementProcessor):
             select: The select element to process.
             
         Returns:
-            A dictionary representation of the select, or None if it's invalid.
+            A dictionary representation of the select.
         """
-        result: FormField = {
+        # Create a select field object
+        result = {
             "type": "select",
             "options": []
         }
         
         # Extract common attributes
-        for attr in ["id", "name", "required", "multiple"]:
+        for attr in ["id", "name"]:
             if select.has_attr(attr):
-                # Convert boolean attributes
-                if attr in ["required", "multiple"]:
-                    result[attr] = True
-                else:
-                    result[attr] = select[attr]
+                result[attr] = select[attr]
+        
+        # Handle boolean attributes
+        for attr in ["required", "disabled", "multiple"]:
+            if select.has_attr(attr):
+                result[attr] = True
         
         # Process option groups and options
+        options = []
+        
         for child in select.children:
             if not isinstance(child, Tag):
                 continue
                 
             if child.name == "option":
-                option = {
-                    "value": child.get("value", child.get_text().strip()),
-                    "text": child.get_text().strip()
-                }
-                
-                if child.has_attr("selected"):
-                    option["selected"] = True
-                    
-                result["options"].append(option)
-                
+                option = self._process_option(child)
+                if option:
+                    options.append(option)
             elif child.name == "optgroup":
-                optgroup = {
-                    "label": child.get("label", ""),
-                    "options": []
-                }
-                
-                # Process options in the group
-                for option in child.find_all("option"):
-                    opt = {
-                        "value": option.get("value", option.get_text().strip()),
-                        "text": option.get_text().strip()
-                    }
-                    
-                    if option.has_attr("selected"):
-                        opt["selected"] = True
-                        
-                    optgroup["options"].append(opt)
-                
-                if optgroup["options"]:
-                    result["options"].append(optgroup)
+                group = self._process_optgroup(child)
+                if group:
+                    options.append(group)
+        
+        result["options"] = options
         
         # Find associated label
         label = self._find_label_for_field(select)
@@ -291,7 +276,74 @@ class FormProcessor(ElementProcessor):
         
         return result
     
-    def _process_textarea(self, textarea: Tag) -> Optional[FormField]:
+    def _process_option(self, option: Tag) -> Dict[str, Any]:
+        """
+        Process a select option.
+        
+        Args:
+            option: The option element to process.
+            
+        Returns:
+            A dictionary representation of the option.
+        """
+        # Create an option object
+        result = {
+            "text": self.extract_text_content(option)
+        }
+        
+        # Extract value attribute
+        if option.has_attr("value"):
+            result["value"] = option["value"]
+        else:
+            # Use text content as value if no value attribute
+            result["value"] = result["text"]
+        
+        # Handle selected attribute
+        if option.has_attr("selected"):
+            result["selected"] = True
+        
+        # Handle disabled attribute
+        if option.has_attr("disabled"):
+            result["disabled"] = True
+        
+        return result
+    
+    def _process_optgroup(self, optgroup: Tag) -> Dict[str, Any]:
+        """
+        Process a select optgroup.
+        
+        Args:
+            optgroup: The optgroup element to process.
+            
+        Returns:
+            A dictionary representation of the optgroup.
+        """
+        # Create an optgroup object
+        result = {
+            "type": "optgroup",
+            "options": []
+        }
+        
+        # Extract label attribute
+        if optgroup.has_attr("label"):
+            result["label"] = optgroup["label"]
+        
+        # Handle disabled attribute
+        if optgroup.has_attr("disabled"):
+            result["disabled"] = True
+        
+        # Process options in the group
+        options = []
+        for option in optgroup.find_all("option"):
+            option_data = self._process_option(option)
+            if option_data:
+                options.append(option_data)
+        
+        result["options"] = options
+        
+        return result
+    
+    def _process_textarea(self, textarea: Tag) -> Dict[str, Any]:
         """
         Process a textarea element.
         
@@ -299,23 +351,23 @@ class FormProcessor(ElementProcessor):
             textarea: The textarea element to process.
             
         Returns:
-            A dictionary representation of the textarea, or None if it's invalid.
+            A dictionary representation of the textarea.
         """
-        result: FormField = {
-            "type": "textarea"
+        # Create a textarea field object
+        result = {
+            "type": "textarea",
+            "value": textarea.get_text()
         }
         
         # Extract common attributes
-        for attr in ["id", "name", "placeholder", "rows", "cols", "required"]:
+        for attr in ["id", "name", "placeholder", "rows", "cols"]:
             if textarea.has_attr(attr):
-                # Convert boolean attributes
-                if attr == "required":
-                    result[attr] = True
-                else:
-                    result[attr] = textarea[attr]
+                result[attr] = textarea[attr]
         
-        # Get content
-        result["value"] = textarea.get_text().strip()
+        # Handle boolean attributes
+        for attr in ["required", "disabled", "readonly"]:
+            if textarea.has_attr(attr):
+                result[attr] = True
         
         # Find associated label
         label = self._find_label_for_field(textarea)
@@ -324,7 +376,7 @@ class FormProcessor(ElementProcessor):
         
         return result
     
-    def _process_button(self, button: Tag) -> Optional[FormField]:
+    def _process_button(self, button: Tag) -> Dict[str, Any]:
         """
         Process a button element.
         
@@ -332,20 +384,23 @@ class FormProcessor(ElementProcessor):
             button: The button element to process.
             
         Returns:
-            A dictionary representation of the button, or None if it's invalid.
+            A dictionary representation of the button.
         """
-        result: FormField = {
+        # Create a button field object
+        result = {
             "type": "button",
-            "button_type": button.get("type", "submit")
+            "button_type": button.get("type", "submit"),
+            "text": self.extract_text_content(button)
         }
         
         # Extract common attributes
-        for attr in ["id", "name", "value"]:
+        for attr in ["id", "name", "value", "form"]:
             if button.has_attr(attr):
                 result[attr] = button[attr]
         
-        # Get text
-        result["text"] = button.get_text().strip()
+        # Handle disabled attribute
+        if button.has_attr("disabled"):
+            result["disabled"] = True
         
         return result
     
@@ -359,24 +414,24 @@ class FormProcessor(ElementProcessor):
         Returns:
             The label text, or None if no label is found.
         """
-        field_id = field.get("id")
-        if field_id:
-            # Look for a label with a matching "for" attribute
+        # Check for a label with a matching "for" attribute
+        if field.has_attr("id"):
             form = field.find_parent("form")
             if form:
-                label = form.find("label", attrs={"for": field_id})
-                if label:
-                    return label.get_text().strip()
+                labels = form.find_all("label", attrs={"for": field["id"]})
+                if labels:
+                    return self.extract_text_content(labels[0])
         
-        # Check if field is inside a label
+        # Check if the field is inside a label
         parent_label = field.find_parent("label")
         if parent_label:
-            # Get label text excluding the field text
-            field_text = field.get_text().strip()
-            label_text = parent_label.get_text().strip()
+            # Get the label text excluding the field's own text
+            label_text = self.extract_text_content(parent_label)
+            field_text = self.extract_text_content(field)
             
+            # Remove the field's text from the label text
             if field_text and field_text in label_text:
-                return label_text.replace(field_text, "").strip()
+                label_text = label_text.replace(field_text, "").strip()
             
             return label_text
         

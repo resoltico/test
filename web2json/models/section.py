@@ -3,7 +3,7 @@ Section model representing hierarchical sections within a document.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Self, Union
+from typing import Any, Dict, List, Optional, Self, Union, cast
 from bs4 import Tag
 
 
@@ -19,20 +19,32 @@ class Section:
     level: int
     id: Optional[str] = None
     type: str = "section"
-    content: List[Dict[str, Any]] = field(default_factory=list)
+    content: List[Any] = field(default_factory=list)
     children: List[Self] = field(default_factory=list)
-    attributes: Dict[str, str] = field(default_factory=dict)
     
-    # This field is not serialized to JSON, used internally to store HTML elements
-    # belonging to this section for processing
+    # Non-serialized fields used during processing
     raw_content_elements: List[Tag] = field(default_factory=list, repr=False)
+    element_id: Optional[str] = field(default=None, repr=False)
     
-    def add_content(self, content_item: Dict[str, Any]) -> None:
-        """Add a content item to this section."""
-        self.content.append(content_item)
+    def add_content(self, content_item: Any) -> None:
+        """
+        Add a content item to this section.
+        
+        Args:
+            content_item: The content item to add, could be a string or dictionary.
+        """
+        if isinstance(content_item, dict) and content_item.get("type"):
+            self.content.append(content_item)
+        elif isinstance(content_item, str) and content_item.strip():
+            self.content.append(content_item.strip())
     
     def add_child(self, child: Self) -> None:
-        """Add a child section to this section."""
+        """
+        Add a child section to this section.
+        
+        Args:
+            child: The child section to add.
+        """
         self.children.append(child)
     
     def to_dict(self) -> Dict[str, Any]:
@@ -44,9 +56,13 @@ class Section:
             "content": self.content.copy(),
         }
         
+        # Include ID if present
         if self.id:
             result["id"] = self.id
+        elif self.element_id:
+            result["id"] = self.element_id
         
+        # Include children if present
         if self.children:
             result["children"] = [child.to_dict() for child in self.children]
             
@@ -56,7 +72,17 @@ class Section:
     def create_from_heading(
         cls, title: str, level: int, element_id: Optional[str] = None
     ) -> Self:
-        """Create a section from a heading element."""
+        """
+        Create a section from a heading element.
+        
+        Args:
+            title: The section title.
+            level: The heading level (1-6).
+            element_id: Optional element ID.
+            
+        Returns:
+            A new section instance.
+        """
         return cls(
             title=title,
             level=level,

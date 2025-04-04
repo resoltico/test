@@ -2,13 +2,14 @@
 Processor for HTML tables.
 """
 
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union, Tuple, cast
 
 import structlog
 from bs4 import BeautifulSoup, Tag
 
 from web2json.models.document import Document
-from web2json.processors.base import ElementProcessor
+from web2json.models.section import Section
+from web2json.processors.base import ElementProcessor, ContentItem
 
 
 logger = structlog.get_logger(__name__)
@@ -36,26 +37,11 @@ class TableProcessor(ElementProcessor):
         logger.info("Processing table elements")
         
         # Process each section's content for tables
-        self._process_sections(document.content)
+        self.process_sections(document.content)
         
         return document
     
-    def _process_sections(self, sections: List) -> None:
-        """
-        Process all sections recursively.
-        
-        Args:
-            sections: List of sections to process.
-        """
-        for section in sections:
-            # Process tables in this section
-            self._process_section_tables(section)
-            
-            # Process child sections recursively
-            if section.children:
-                self._process_sections(section.children)
-    
-    def _process_section_tables(self, section) -> None:
+    def process_section_content(self, section: Section) -> None:
         """
         Process tables for a single section.
         
@@ -82,7 +68,7 @@ class TableProcessor(ElementProcessor):
                 table_id=table.get("id")
             )
     
-    def _process_table(self, table: Tag) -> Dict[str, Any]:
+    def _process_table(self, table: Tag) -> ContentItem:
         """
         Process a single table element.
         
@@ -92,7 +78,7 @@ class TableProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the table.
         """
-        result = {
+        result: ContentItem = {
             "type": "table",
             "headers": [],
             "rows": []
@@ -105,43 +91,73 @@ class TableProcessor(ElementProcessor):
         # Extract caption
         caption = table.find("caption")
         if caption:
-            result["caption"] = caption.get_text().strip()
+            result["caption"] = self.extract_text_content(caption)
         
         # Extract headers from thead
         thead = table.find("thead")
         if thead:
-            header_rows = []
-            for tr in thead.find_all("tr"):
-                row = []
-                for cell in tr.find_all(["th", "td"]):
-                    cell_data = {"text": cell.get_text().strip()}
-                    
-                    # Handle colspan and rowspan
-                    if cell.get("colspan"):
-                        cell_data["colspan"] = int(cell["colspan"])
-                    if cell.get("rowspan"):
-                        cell_data["rowspan"] = int(cell["rowspan"])
-                    
-                    row.append(cell_data)
-                
-                if row:
-                    header_rows.append(row)
-            
-            if header_rows:
-                result["headers"] = header_rows
+            headers = self._process_header_rows(thead.find_all("tr"))
+            if headers:
+                result["headers"] = headers
+        
+        # If no thead, check if first row contains th elements
+        if not result["headers"]:
+            first_row = table.find("tr")
+            if first_row and first_row.find("th"):
+                headers = self._process_header_rows([first_row])
+                if headers:
+                    result["headers"] = headers
         
         # Extract body rows
         tbody = table.find("tbody") or table
-        data_rows = []
         
+        # Get rows that are not in thead or tfoot
+        rows = []
         for tr in tbody.find_all("tr", recursive=False):
-            # Skip rows that are in thead or tfoot
-            if tr.parent and tr.parent.name in ["thead", "tfoot"]:
+            # Skip rows that are already processed as headers
+            parent = tr.parent
+            if parent and parent.name == "thead":
                 continue
+                
+            # Process this row
+            row_data = self._process_row(tr)
+            if row_data:
+                rows.append(row_data)
+        
+        result["rows"] = rows
+        
+        # Extract footer
+        tfoot = table.find("tfoot")
+        if tfoot:
+            footer_rows = []
+            for tr in tfoot.find_all("tr"):
+                row_data = self._process_row(tr)
+                if row_data:
+                    footer_rows.append(row_data)
             
+            if footer_rows:
+                result["footer"] = footer_rows
+        
+        return result
+    
+    def _process_header_rows(self, rows: List[Tag]) -> List[List[Dict[str, Any]]]:
+        """
+        Process header rows from a table.
+        
+        Args:
+            rows: List of tr elements from the thead.
+            
+        Returns:
+            A list of header rows, each containing cell data.
+        """
+        header_rows = []
+        
+        for tr in rows:
             row = []
-            for cell in tr.find_all(["td", "th"]):
-                cell_data = {"text": cell.get_text().strip()}
+            for cell in tr.find_all(["th", "td"]):
+                cell_data = {
+                    "text": self.extract_text_content(cell)
+                }
                 
                 # Handle colspan and rowspan
                 if cell.get("colspan"):
@@ -152,29 +168,33 @@ class TableProcessor(ElementProcessor):
                 row.append(cell_data)
             
             if row:
-                data_rows.append(row)
+                header_rows.append(row)
         
-        result["rows"] = data_rows
+        return header_rows
+    
+    def _process_row(self, row: Tag) -> List[Dict[str, Any]]:
+        """
+        Process a table row.
         
-        # Extract footer
-        tfoot = table.find("tfoot")
-        if tfoot:
-            footer_rows = []
-            for tr in tfoot.find_all("tr"):
-                row = []
-                for cell in tr.find_all(["td", "th"]):
-                    cell_data = {"text": cell.get_text().strip()}
-                    
-                    # Handle colspan
-                    if cell.get("colspan"):
-                        cell_data["colspan"] = int(cell["colspan"])
-                    
-                    row.append(cell_data)
-                
-                if row:
-                    footer_rows.append(row)
+        Args:
+            row: The tr element.
             
-            if footer_rows:
-                result["footer"] = footer_rows
+        Returns:
+            A list of cell data for the row.
+        """
+        cells = []
         
-        return result
+        for cell in row.find_all(["td", "th"]):
+            cell_data = {
+                "text": self.extract_text_content(cell)
+            }
+            
+            # Handle colspan and rowspan
+            if cell.get("colspan"):
+                cell_data["colspan"] = int(cell["colspan"])
+            if cell.get("rowspan"):
+                cell_data["rowspan"] = int(cell["rowspan"])
+            
+            cells.append(cell_data)
+        
+        return cells
