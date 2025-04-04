@@ -1,0 +1,105 @@
+"""
+Configuration model for web2json application settings.
+"""
+
+from typing import List, Optional, Set
+
+from pydantic import BaseModel, Field, field_validator
+
+
+class ProcessingConfig(BaseModel):
+    """Processing configuration for the HTML to JSON transformation."""
+    
+    preserve_comments: bool = Field(
+        default=False, 
+        description="Whether to preserve HTML comments in the output"
+    )
+    
+    extract_metadata: bool = Field(
+        default=True, 
+        description="Whether to extract metadata from the page"
+    )
+    
+    heading_tags: Set[str] = Field(
+        default={"h1", "h2", "h3", "h4", "h5", "h6"},
+        description="HTML tags to treat as headings for structural hierarchy"
+    )
+    
+    content_tags: Set[str] = Field(
+        default={
+            "p", "ul", "ol", "dl", "pre", "blockquote", "figure", "table",
+            "form", "div", "section", "article", "aside", "main"
+        },
+        description="HTML tags to process as content elements"
+    )
+    
+    ignore_tags: Set[str] = Field(
+        default={"script", "style", "noscript", "template"},
+        description="HTML tags to ignore completely during processing"
+    )
+    
+    @field_validator("heading_tags", "content_tags", "ignore_tags", mode="before")
+    @classmethod
+    def ensure_lowercase(cls, value: Set[str]) -> Set[str]:
+        """Ensure all tag names are lowercase."""
+        return {tag.lower() for tag in value}
+
+
+class FetchConfig(BaseModel):
+    """Configuration for fetching web pages."""
+    
+    timeout: float = Field(
+        default=30.0,
+        description="Timeout in seconds for HTTP requests"
+    )
+    
+    user_agent: str = Field(
+        default=(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        ),
+        description="User-Agent header to use for HTTP requests"
+    )
+    
+    max_retries: int = Field(
+        default=3,
+        description="Maximum number of retry attempts for failed requests"
+    )
+    
+    follow_redirects: bool = Field(
+        default=True,
+        description="Whether to follow HTTP redirects"
+    )
+
+
+class OutputConfig(BaseModel):
+    """Configuration for JSON output."""
+    
+    indent: int = Field(
+        default=2,
+        description="Number of spaces for indentation in the output JSON"
+    )
+    
+    ensure_ascii: bool = Field(
+        default=False,
+        description="Whether to ensure ASCII encoding in the output JSON"
+    )
+    
+    output_directory: str = Field(
+        default="./output",
+        description="Directory where output JSON files will be saved"
+    )
+
+
+class Web2JsonConfig(BaseModel):
+    """Main configuration for the web2json application."""
+    
+    processing: ProcessingConfig = Field(default_factory=ProcessingConfig)
+    fetch: FetchConfig = Field(default_factory=FetchConfig)
+    output: OutputConfig = Field(default_factory=OutputConfig)
+    log_level: str = Field(default="INFO")
+    
+    @classmethod
+    def create_default(cls) -> "Web2JsonConfig":
+        """Create a configuration with default settings."""
+        return cls()
