@@ -7,6 +7,7 @@ import os
 import re
 from pathlib import Path
 from typing import Any, Dict, Optional
+from urllib.parse import urlparse
 
 import structlog
 
@@ -46,7 +47,11 @@ class JsonSerializer:
         # Convert the document to a dictionary
         doc_dict = document.to_dict()
         
-        # Convert to JSON
+        # Optionally include URL
+        if self.config.include_url and not "url" in doc_dict:
+            doc_dict["url"] = document.url
+        
+        # Convert to JSON with proper formatting
         json_str = json.dumps(
             doc_dict,
             indent=self.config.indent,
@@ -67,7 +72,7 @@ class JsonSerializer:
         Returns:
             The path to the saved file.
         """
-        # If no specific path is provided, generate one
+        # Generate a filename if not provided
         if not output_path:
             output_path = self._generate_filename(document)
         
@@ -93,27 +98,36 @@ class JsonSerializer:
         Returns:
             A file path for the JSON output.
         """
-        # Extract domain and path from URL
-        from urllib.parse import urlparse
+        # Parse the URL to extract domain and path
         parsed_url = urlparse(document.url)
-        
-        # Create a filename based on the domain and path
         domain = parsed_url.netloc
-        path = parsed_url.path.strip("/")
         
         # Clean up the path to be filesystem-friendly
+        path = parsed_url.path.strip("/")
         path = re.sub(r"[^\w\-]", "_", path)
         path = re.sub(r"_{2,}", "_", path)
         
-        # Combine domain and path for the filename
-        if path:
-            filename = f"{domain}_{path}.json"
-        else:
-            filename = f"{domain}.json"
+        # Limit path length
+        if len(path) > 50:
+            path = path[:50]
         
-        # Ensure no excessively long filenames
-        if len(filename) > 100:
-            filename = filename[:95] + ".json"
+        # Use the template to format the filename
+        if path:
+            filename = self.config.filename_template.format(
+                domain=domain,
+                path=path,
+                title=re.sub(r"[^\w\-]", "_", document.title[:30])
+            )
+        else:
+            filename = self.config.filename_template.format(
+                domain=domain,
+                path="home",
+                title=re.sub(r"[^\w\-]", "_", document.title[:30])
+            )
+        
+        # Ensure filename ends with .json
+        if not filename.endswith(".json"):
+            filename += ".json"
         
         # Combine with output directory
         output_dir = Path(self.config.output_directory)

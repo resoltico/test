@@ -10,16 +10,7 @@ from pydantic import BaseModel, Field, field_validator
 class ProcessingConfig(BaseModel):
     """Processing configuration for the HTML to JSON transformation."""
     
-    preserve_comments: bool = Field(
-        default=False, 
-        description="Whether to preserve HTML comments in the output"
-    )
-    
-    extract_metadata: bool = Field(
-        default=True, 
-        description="Whether to extract metadata from the page"
-    )
-    
+    # Headings and content configuration
     heading_tags: Set[str] = Field(
         default={"h1", "h2", "h3", "h4", "h5", "h6"},
         description="HTML tags to treat as headings for structural hierarchy"
@@ -28,17 +19,43 @@ class ProcessingConfig(BaseModel):
     content_tags: Set[str] = Field(
         default={
             "p", "ul", "ol", "dl", "pre", "blockquote", "figure", "table",
-            "form", "div", "section", "article", "aside", "main"
+            "form", "div", "section", "article", "aside", "main", "header",
+            "footer", "nav", "details", "time", "address", "search"
         },
         description="HTML tags to process as content elements"
     )
     
     ignore_tags: Set[str] = Field(
-        default={"script", "style", "noscript", "template"},
+        default={"script", "style", "noscript", "template", "iframe", "meta"},
         description="HTML tags to ignore completely during processing"
     )
     
-    @field_validator("heading_tags", "content_tags", "ignore_tags", mode="before")
+    # Content processing options
+    preserve_html_formatting: bool = Field(
+        default=False,
+        description="Whether to preserve HTML formatting in text content"
+    )
+    
+    extract_metadata: bool = Field(
+        default=True,
+        description="Whether to extract metadata from the page"
+    )
+    
+    preserve_comments: bool = Field(
+        default=False,
+        description="Whether to preserve HTML comments in the output"
+    )
+    
+    # Semantic processing options
+    semantic_elements: Set[str] = Field(
+        default={
+            "article", "aside", "details", "summary", "nav", "header", "footer",
+            "search", "address", "time", "mark", "dialog", "output", "progress", "meter"
+        },
+        description="HTML5 semantic elements to process specially"
+    )
+    
+    @field_validator("heading_tags", "content_tags", "ignore_tags", "semantic_elements", mode="before")
     @classmethod
     def ensure_lowercase(cls, value: Set[str]) -> Set[str]:
         """Ensure all tag names are lowercase."""
@@ -56,7 +73,7 @@ class FetchConfig(BaseModel):
     user_agent: str = Field(
         default=(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-            "(KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         ),
         description="User-Agent header to use for HTTP requests"
     )
@@ -69,6 +86,11 @@ class FetchConfig(BaseModel):
     follow_redirects: bool = Field(
         default=True,
         description="Whether to follow HTTP redirects"
+    )
+    
+    verify_ssl: bool = Field(
+        default=True,
+        description="Whether to verify SSL certificates"
     )
 
 
@@ -88,6 +110,21 @@ class OutputConfig(BaseModel):
     output_directory: str = Field(
         default="./output",
         description="Directory where output JSON files will be saved"
+    )
+    
+    filename_template: str = Field(
+        default="{domain}_{path}.json",
+        description="Template for output filenames"
+    )
+    
+    include_metadata: bool = Field(
+        default=True,
+        description="Whether to include page metadata in the output"
+    )
+    
+    include_url: bool = Field(
+        default=True,
+        description="Whether to include the source URL in the output"
     )
 
 

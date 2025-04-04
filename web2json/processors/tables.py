@@ -2,7 +2,7 @@
 Processor for HTML tables.
 """
 
-from typing import Dict, List, Optional, TypeAlias, Any
+from typing import Dict, List, Optional, Any
 
 import structlog
 from bs4 import BeautifulSoup, Tag
@@ -35,35 +35,52 @@ class TableProcessor(ElementProcessor):
         """
         logger.info("Processing table elements")
         
-        # Find all tables in the document
-        tables = soup.find_all("table")
-        if not tables:
-            logger.debug("No tables found in document")
-            return document
+        # Process each section's content for tables
+        self._process_sections(document.content)
         
-        logger.debug("Found tables", count=len(tables))
+        return document
+    
+    def _process_sections(self, sections: List) -> None:
+        """
+        Process all sections recursively.
+        
+        Args:
+            sections: List of sections to process.
+        """
+        for section in sections:
+            # Process tables in this section
+            self._process_section_tables(section)
+            
+            # Process child sections recursively
+            if section.children:
+                self._process_sections(section.children)
+    
+    def _process_section_tables(self, section) -> None:
+        """
+        Process tables for a single section.
+        
+        Args:
+            section: The section to process.
+        """
+        tables = []
+        
+        # Find all tables in this section's raw content
+        for element in section.raw_content_elements:
+            if element.name == "table":
+                # Skip tables that are nested within other tables
+                if not element.find_parent("table"):
+                    tables.append(element)
         
         # Process each table
         for table in tables:
-            # Skip tables that are nested within other tables
-            if table.find_parent("table"):
-                continue
-                
-            # Find parent section for this table
-            parent_section = self.find_parent_section(document, table)
+            table_dict = self._process_table(table)
+            section.add_content(table_dict)
             
-            if parent_section:
-                # Process the table and add to the parent section
-                table_dict = self._process_table(table)
-                parent_section.add_content(table_dict)
-                
-                logger.debug(
-                    "Added table to section", 
-                    section=parent_section.title, 
-                    table_id=table.get("id")
-                )
-        
-        return document
+            logger.debug(
+                "Added table to section", 
+                section_title=section.title,
+                table_id=table.get("id")
+            )
     
     def _process_table(self, table: Tag) -> Dict[str, Any]:
         """
@@ -82,42 +99,22 @@ class TableProcessor(ElementProcessor):
         }
         
         # Extract table ID
-        table_id = table.get("id")
-        if table_id:
-            result["id"] = table_id
+        if table.get("id"):
+            result["id"] = table["id"]
         
         # Extract caption
         caption = table.find("caption")
         if caption:
             result["caption"] = caption.get_text().strip()
         
-        # Extract column groups if present
-        colgroups = table.find_all("colgroup")
-        if colgroups:
-            col_attrs = []
-            for colgroup in colgroups:
-                cols = colgroup.find_all("col")
-                for col in cols:
-                    attrs = {k: v for k, v in col.attrs.items() if k != "class"}
-                    if attrs:
-                        col_attrs.append(attrs)
-            
-            if col_attrs:
-                result["column_attributes"] = col_attrs
-        
-        # Extract headers
+        # Extract headers from thead
         thead = table.find("thead")
         if thead:
-            header_rows = thead.find_all("tr")
-            headers = []
-            
-            for row in header_rows:
-                header_cells = []
-                
-                for cell in row.find_all(["th", "td"]):
-                    cell_data = {
-                        "text": cell.get_text().strip()
-                    }
+            header_rows = []
+            for tr in thead.find_all("tr"):
+                row = []
+                for cell in tr.find_all(["th", "td"]):
+                    cell_data = {"text": cell.get_text().strip()}
                     
                     # Handle colspan and rowspan
                     if cell.get("colspan"):
@@ -125,29 +122,26 @@ class TableProcessor(ElementProcessor):
                     if cell.get("rowspan"):
                         cell_data["rowspan"] = int(cell["rowspan"])
                     
-                    header_cells.append(cell_data)
+                    row.append(cell_data)
                 
-                if header_cells:
-                    headers.append(header_cells)
+                if row:
+                    header_rows.append(row)
             
-            if headers:
-                result["headers"] = headers
+            if header_rows:
+                result["headers"] = header_rows
         
         # Extract body rows
         tbody = table.find("tbody") or table
-        rows = []
+        data_rows = []
         
-        for tr in tbody.find_all("tr"):
+        for tr in tbody.find_all("tr", recursive=False):
             # Skip rows that are in thead or tfoot
-            if tr.parent.name in ["thead", "tfoot"]:
+            if tr.parent and tr.parent.name in ["thead", "tfoot"]:
                 continue
             
-            row_cells = []
-            
+            row = []
             for cell in tr.find_all(["td", "th"]):
-                cell_data = {
-                    "text": cell.get_text().strip()
-                }
+                cell_data = {"text": cell.get_text().strip()}
                 
                 # Handle colspan and rowspan
                 if cell.get("colspan"):
@@ -155,37 +149,30 @@ class TableProcessor(ElementProcessor):
                 if cell.get("rowspan"):
                     cell_data["rowspan"] = int(cell["rowspan"])
                 
-                row_cells.append(cell_data)
+                row.append(cell_data)
             
-            if row_cells:
-                rows.append(row_cells)
+            if row:
+                data_rows.append(row)
         
-        if rows:
-            result["rows"] = rows
+        result["rows"] = data_rows
         
         # Extract footer
         tfoot = table.find("tfoot")
         if tfoot:
             footer_rows = []
-            
             for tr in tfoot.find_all("tr"):
-                row_cells = []
-                
+                row = []
                 for cell in tr.find_all(["td", "th"]):
-                    cell_data = {
-                        "text": cell.get_text().strip()
-                    }
+                    cell_data = {"text": cell.get_text().strip()}
                     
-                    # Handle colspan and rowspan
+                    # Handle colspan
                     if cell.get("colspan"):
                         cell_data["colspan"] = int(cell["colspan"])
-                    if cell.get("rowspan"):
-                        cell_data["rowspan"] = int(cell["rowspan"])
                     
-                    row_cells.append(cell_data)
+                    row.append(cell_data)
                 
-                if row_cells:
-                    footer_rows.append(row_cells)
+                if row:
+                    footer_rows.append(row)
             
             if footer_rows:
                 result["footer"] = footer_rows

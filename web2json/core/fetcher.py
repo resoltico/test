@@ -69,6 +69,7 @@ class WebFetcher:
                     url,
                     timeout=self.config.timeout,
                     allow_redirects=self.config.follow_redirects,
+                    verify_ssl=self.config.verify_ssl,
                 ) as response:
                     response.raise_for_status()
                     html = await response.text()

@@ -4,6 +4,7 @@ Section model representing hierarchical sections within a document.
 
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Self, Union
+from bs4 import Tag
 
 
 @dataclass
@@ -21,6 +22,10 @@ class Section:
     content: List[Dict[str, Any]] = field(default_factory=list)
     children: List[Self] = field(default_factory=list)
     attributes: Dict[str, str] = field(default_factory=dict)
+    
+    # This field is not serialized to JSON, used internally to store HTML elements
+    # belonging to this section for processing
+    raw_content_elements: List[Tag] = field(default_factory=list, repr=False)
     
     def add_content(self, content_item: Dict[str, Any]) -> None:
         """Add a content item to this section."""
@@ -44,9 +49,6 @@ class Section:
         
         if self.children:
             result["children"] = [child.to_dict() for child in self.children]
-        
-        if self.attributes:
-            result["attributes"] = self.attributes.copy()
             
         return result
     

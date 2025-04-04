@@ -25,7 +25,7 @@ class SemanticProcessor(ElementProcessor):
     # Semantic elements to process
     SEMANTIC_ELEMENTS = {
         "article", "aside", "details", "summary", "nav", 
-        "main", "address", "header", "footer", "search",
+        "header", "footer", "search", "address", "blockquote",
         "time", "mark", "dialog", "output", "progress", "meter"
     }
     
@@ -42,36 +42,51 @@ class SemanticProcessor(ElementProcessor):
         """
         logger.info("Processing semantic elements")
         
-        # Process each type of semantic element
-        for element_type in self.SEMANTIC_ELEMENTS:
-            elements = [
-                elem for elem in soup.find_all(element_type)
-                if not self._is_nested_semantic(elem)
-            ]
-            
-            if not elements:
-                continue
-                
-            logger.debug(f"Found {element_type} elements", count=len(elements))
-            
-            for element in elements:
-                # Find parent section for this element
-                parent_section = self.find_parent_section(document, element)
-                
-                if parent_section:
-                    # Process the element based on its type
-                    processed = self._process_element(element)
-                    
-                    if processed:
-                        parent_section.add_content(processed)
-                        
-                        logger.debug(
-                            f"Added {element_type} to section", 
-                            section=parent_section.title, 
-                            element_id=element.get("id", "")
-                        )
+        # Process semantic elements in each section
+        self._process_sections(document.content)
         
         return document
+    
+    def _process_sections(self, sections: List) -> None:
+        """
+        Process all sections recursively.
+        
+        Args:
+            sections: List of sections to process.
+        """
+        for section in sections:
+            # Process semantic elements in this section
+            self._process_section_semantics(section)
+            
+            # Process child sections recursively
+            if section.children:
+                self._process_sections(section.children)
+    
+    def _process_section_semantics(self, section) -> None:
+        """
+        Process semantic elements for a single section.
+        
+        Args:
+            section: The section to process.
+        """
+        # Process each type of semantic element
+        for element in section.raw_content_elements:
+            if element.name in self.SEMANTIC_ELEMENTS:
+                # Skip if inside other semantic elements
+                if self._is_nested_semantic(element):
+                    continue
+                    
+                # Process the element based on its type
+                content_obj = self._process_element(element)
+                
+                if content_obj:
+                    section.add_content(content_obj)
+                    
+                    logger.debug(
+                        f"Added {element.name} to section", 
+                        section_title=section.title,
+                        element_id=element.get("id", "")
+                    )
     
     def _is_nested_semantic(self, element: Tag) -> bool:
         """
@@ -110,27 +125,22 @@ class SemanticProcessor(ElementProcessor):
             return self._process_aside(element)
         elif element_type == "details":
             return self._process_details(element)
-        elif element_type == "summary":
-            # Skip summary as it's processed as part of details
-            return None
         elif element_type == "nav":
             return self._process_nav(element)
+        elif element_type == "header" or element_type == "footer":
+            return self._process_generic_semantic(element)
+        elif element_type == "blockquote":
+            return self._process_blockquote(element)
         elif element_type == "address":
             return self._process_address(element)
-        elif element_type in ["header", "footer"]:
-            return self._process_header_footer(element)
         elif element_type == "time":
             return self._process_time(element)
         elif element_type == "mark":
             return self._process_mark(element)
         elif element_type in ["progress", "meter"]:
             return self._process_measurement(element)
-        elif element_type == "dialog":
-            return self._process_dialog(element)
         elif element_type == "search":
             return self._process_search(element)
-        elif element_type == "output":
-            return self._process_output(element)
         else:
             # Generic handler for other semantic elements
             return self._process_generic_semantic(element)
@@ -150,7 +160,7 @@ class SemanticProcessor(ElementProcessor):
             "content": []
         }
         
-        # Extract ID
+        # Extract article ID
         if element.has_attr("id"):
             result["id"] = element["id"]
         
@@ -159,17 +169,17 @@ class SemanticProcessor(ElementProcessor):
         if heading:
             result["title"] = heading.get_text().strip()
         
-        # Extract content
-        content = element.get_text().strip()
+        # Extract text content
+        text = element.get_text().strip()
         
         # Remove heading text if present
         if heading:
             heading_text = heading.get_text().strip()
-            if heading_text in content:
-                content = content.replace(heading_text, "", 1).strip()
+            if heading_text in text:
+                text = text.replace(heading_text, "", 1).strip()
         
-        if content:
-            result["content"].append({"type": "text", "text": content})
+        if text:
+            result["content"].append({"type": "text", "text": text})
         
         return result
     
@@ -188,7 +198,7 @@ class SemanticProcessor(ElementProcessor):
             "content": []
         }
         
-        # Extract ID
+        # Extract aside ID
         if element.has_attr("id"):
             result["id"] = element["id"]
         
@@ -197,17 +207,17 @@ class SemanticProcessor(ElementProcessor):
         if heading:
             result["title"] = heading.get_text().strip()
         
-        # Extract content
-        content = element.get_text().strip()
+        # Extract text content
+        text = element.get_text().strip()
         
         # Remove heading text if present
         if heading:
             heading_text = heading.get_text().strip()
-            if heading_text in content:
-                content = content.replace(heading_text, "", 1).strip()
+            if heading_text in text:
+                text = text.replace(heading_text, "", 1).strip()
         
-        if content:
-            result["content"].append({"type": "text", "text": content})
+        if text:
+            result["content"].append({"type": "text", "text": text})
         
         return result
     
@@ -226,7 +236,7 @@ class SemanticProcessor(ElementProcessor):
             "content": []
         }
         
-        # Extract ID
+        # Extract element ID
         if element.has_attr("id"):
             result["id"] = element["id"]
         
@@ -239,16 +249,17 @@ class SemanticProcessor(ElementProcessor):
         if summary:
             result["summary"] = summary.get_text().strip()
         
-        # Extract content (excluding the summary)
-        content = element.get_text().strip()
+        # Extract content
+        text = element.get_text().strip()
         
+        # Remove summary text if present
         if summary:
             summary_text = summary.get_text().strip()
-            if summary_text in content:
-                content = content.replace(summary_text, "", 1).strip()
+            if summary_text in text:
+                text = text.replace(summary_text, "", 1).strip()
         
-        if content:
-            result["content"].append({"type": "text", "text": content})
+        if text:
+            result["content"].append({"type": "text", "text": text})
         
         return result
     
@@ -267,25 +278,22 @@ class SemanticProcessor(ElementProcessor):
             "links": []
         }
         
-        # Extract ID
+        # Extract element ID
         if element.has_attr("id"):
             result["id"] = element["id"]
         
         # Extract links
-        links = []
         for a in element.find_all("a"):
-            link = {
-                "text": a.get_text().strip(),
-                "href": a.get("href", "#")
-            }
-            
-            # Extract title attribute
-            if a.has_attr("title"):
-                link["title"] = a["title"]
-            
-            links.append(link)
-        
-        result["links"] = links
+            if a.has_attr("href"):
+                link = {
+                    "text": a.get_text().strip(),
+                    "href": a["href"]
+                }
+                
+                if a.has_attr("title"):
+                    link["title"] = a["title"]
+                
+                result["links"].append(link)
         
         return result
     
@@ -304,47 +312,52 @@ class SemanticProcessor(ElementProcessor):
             "text": element.get_text().strip()
         }
         
-        # Extract ID
+        # Extract element ID
         if element.has_attr("id"):
             result["id"] = element["id"]
         
         # Extract any links (emails, websites)
         links = []
         for a in element.find_all("a"):
-            link = {
-                "text": a.get_text().strip(),
-                "href": a.get("href", "#")
-            }
-            links.append(link)
+            if a.has_attr("href"):
+                link = {
+                    "text": a.get_text().strip(),
+                    "href": a["href"]
+                }
+                links.append(link)
         
         if links:
             result["links"] = links
         
         return result
     
-    def _process_header_footer(self, element: Tag) -> Dict[str, Any]:
+    def _process_blockquote(self, element: Tag) -> Dict[str, Any]:
         """
-        Process a header or footer element.
+        Process a blockquote element.
         
         Args:
-            element: The header or footer element.
+            element: The blockquote element.
             
         Returns:
-            A dictionary representation of the header/footer.
+            A dictionary representation of the blockquote.
         """
         result = {
-            "type": element.name,
-            "content": []
+            "type": "quote",
+            "content": element.get_text().strip()
         }
         
-        # Extract ID
-        if element.has_attr("id"):
-            result["id"] = element["id"]
+        # Extract citation URL
+        if element.has_attr("cite"):
+            result["cite"] = element["cite"]
         
-        # Extract content
-        content = element.get_text().strip()
-        if content:
-            result["content"].append({"type": "text", "text": content})
+        # Look for citation in footer or cite element
+        cite_element = element.find("cite")
+        if cite_element:
+            result["source"] = cite_element.get_text().strip()
+        else:
+            footer = element.find("footer")
+            if footer:
+                result["source"] = footer.get_text().strip()
         
         return result
     
@@ -412,36 +425,6 @@ class SemanticProcessor(ElementProcessor):
         
         return result
     
-    def _process_dialog(self, element: Tag) -> Dict[str, Any]:
-        """
-        Process a dialog element.
-        
-        Args:
-            element: The dialog element.
-            
-        Returns:
-            A dictionary representation of the dialog.
-        """
-        result = {
-            "type": "dialog",
-            "content": []
-        }
-        
-        # Extract ID
-        if element.has_attr("id"):
-            result["id"] = element["id"]
-        
-        # Extract open state
-        if element.has_attr("open"):
-            result["open"] = True
-        
-        # Extract content
-        content = element.get_text().strip()
-        if content:
-            result["content"].append({"type": "text", "text": content})
-        
-        return result
-    
     def _process_search(self, element: Tag) -> Dict[str, Any]:
         """
         Process a search element.
@@ -454,57 +437,19 @@ class SemanticProcessor(ElementProcessor):
         """
         result = {
             "type": "search",
-            "content": []
+            "content": element.get_text().strip()
         }
-        
-        # Extract ID
-        if element.has_attr("id"):
-            result["id"] = element["id"]
         
         # Check for search input
         search_input = element.find("input", {"type": "search"})
         if search_input:
-            input_data = {
-                "type": "search_input"
-            }
-            
-            # Extract input attributes
-            for attr in ["name", "placeholder", "value"]:
-                if search_input.has_attr(attr):
-                    input_data[attr] = search_input[attr]
-            
-            result["input"] = input_data
+            if search_input.has_attr("placeholder"):
+                result["placeholder"] = search_input["placeholder"]
         
         # Check for search button
         search_button = element.find("button")
         if search_button:
-            result["button_text"] = search_button.get_text().strip()
-        
-        return result
-    
-    def _process_output(self, element: Tag) -> Dict[str, Any]:
-        """
-        Process an output element.
-        
-        Args:
-            element: The output element.
-            
-        Returns:
-            A dictionary representation of the output.
-        """
-        result = {
-            "type": "output",
-            "text": element.get_text().strip()
-        }
-        
-        # Extract attributes
-        for attr in ["for", "form", "name"]:
-            if element.has_attr(attr):
-                # Convert list attribute to array
-                if attr == "for" and " " in element[attr]:
-                    result[attr] = element[attr].split()
-                else:
-                    result[attr] = element[attr]
+            result["button"] = search_button.get_text().strip()
         
         return result
     
@@ -523,22 +468,13 @@ class SemanticProcessor(ElementProcessor):
             "content": []
         }
         
-        # Extract ID
+        # Extract element ID
         if element.has_attr("id"):
             result["id"] = element["id"]
         
-        # Extract attributes (excluding standard ones)
-        attrs = {}
-        for attr, value in element.attrs.items():
-            if attr not in ["id", "class", "style"]:
-                attrs[attr] = value
-        
-        if attrs:
-            result["attributes"] = attrs
-        
         # Extract text content
-        content = element.get_text().strip()
-        if content:
-            result["content"].append({"type": "text", "text": content})
+        text = element.get_text().strip()
+        if text:
+            result["content"].append({"type": "text", "text": text})
         
         return result

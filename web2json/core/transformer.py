@@ -70,19 +70,18 @@ class Transformer:
         title = self.parser.get_document_title(soup)
         metadata = self.parser.extract_metadata(soup)
         
-        # Create an empty document
+        # Create a document with the title and URL
         document = Document.create_empty(url, title)
         document.metadata = metadata
         
-        # Extract the hierarchical structure
+        # Extract the hierarchical structure based on headings
         document = self.hierarchy_extractor.extract_hierarchy(soup, document)
         
-        # Initialize content structure
-        document = self.hierarchy_extractor.extract_content_for_sections(soup, document)
+        # Collect content elements for each section
+        document = self.hierarchy_extractor.collect_content_for_sections(soup, document)
         
-        # Apply specialized processors
-        if self.processors:
-            document = self._apply_processors(soup, document)
+        # Apply specialized processors to extract and process content
+        document = self._apply_processors(soup, document)
         
         logger.info(
             "Document transformation complete", 

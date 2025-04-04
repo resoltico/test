@@ -35,143 +35,99 @@ class MediaProcessor(ElementProcessor):
         """
         logger.info("Processing media elements")
         
-        # Process figures first (they may contain other media elements)
-        self._process_figures(soup, document)
-        
-        # Process standalone images (not inside figures)
-        self._process_standalone_images(soup, document)
-        
-        # Process audio and video elements
-        self._process_audio_video(soup, document)
+        # Process media elements in each section
+        self._process_sections(document.content)
         
         return document
     
-    def _process_standalone_images(self, soup: BeautifulSoup, document: Document) -> None:
+    def _process_sections(self, sections: List) -> None:
         """
-        Process standalone images (not inside figures).
+        Process all sections recursively.
         
         Args:
-            soup: The BeautifulSoup object.
-            document: The Document object.
+            sections: List of sections to process.
         """
-        # Find all images not inside figures
-        standalone_images = [
-            img for img in soup.find_all("img") 
-            if not img.find_parent("figure") and not self._is_nested_media(img)
-        ]
-        
-        if not standalone_images:
-            logger.debug("No standalone images found")
-            return
-        
-        logger.debug("Found standalone images", count=len(standalone_images))
-        
-        for img in standalone_images:
-            # Find parent section for this image
-            parent_section = self.find_parent_section(document, img)
+        for section in sections:
+            # Process media in this section
+            self._process_section_media(section)
             
-            if parent_section:
-                # Process the image and add to the parent section
-                image_dict = self._process_image(img)
-                if image_dict:
-                    parent_section.add_content(image_dict)
-                    
-                    logger.debug(
-                        "Added image to section", 
-                        section=parent_section.title, 
-                        image_src=img.get("src", "")[-30:]
-                    )
+            # Process child sections recursively
+            if section.children:
+                self._process_sections(section.children)
     
-    def _process_figures(self, soup: BeautifulSoup, document: Document) -> None:
+    def _process_section_media(self, section) -> None:
         """
-        Process figure elements.
+        Process media elements for a single section.
         
         Args:
-            soup: The BeautifulSoup object.
-            document: The Document object.
+            section: The section to process.
         """
-        figures = soup.find_all("figure")
-        
-        if not figures:
-            logger.debug("No figures found")
-            return
-        
-        logger.debug("Found figures", count=len(figures))
-        
-        for figure in figures:
-            # Skip nested figures
-            if figure.find_parent("figure"):
-                continue
-                
-            # Find parent section for this figure
-            parent_section = self.find_parent_section(document, figure)
-            
-            if parent_section:
-                # Process the figure and add to the parent section
-                figure_dict = self._process_figure(figure)
-                parent_section.add_content(figure_dict)
+        # Process figures first (they may contain media)
+        for element in section.raw_content_elements:
+            if element.name == "figure":
+                figure_dict = self._process_figure(element)
+                section.add_content(figure_dict)
                 
                 logger.debug(
                     "Added figure to section", 
-                    section=parent_section.title, 
-                    figure_id=figure.get("id", "")
+                    section_title=section.title,
+                    figure_id=element.get("id")
                 )
-    
-    def _process_audio_video(self, soup: BeautifulSoup, document: Document) -> None:
-        """
-        Process audio and video elements.
         
-        Args:
-            soup: The BeautifulSoup object.
-            document: The Document object.
-        """
-        media_elements = [
-            media for media in soup.find_all(["audio", "video"]) 
-            if not media.find_parent("figure") and not self._is_nested_media(media)
-        ]
+        # Process standalone images (not inside figures)
+        for element in section.raw_content_elements:
+            if element.name == "img" and not element.find_parent("figure"):
+                # Skip if inside other containers that will be handled separately
+                if self._should_skip_element(element):
+                    continue
+                    
+                image_dict = self._process_image(element)
+                if image_dict:
+                    section.add_content(image_dict)
+                    
+                    logger.debug(
+                        "Added image to section", 
+                        section_title=section.title,
+                        image_src=element.get("src", "")[-30:]
+                    )
         
-        if not media_elements:
-            logger.debug("No standalone audio/video elements found")
-            return
-        
-        logger.debug("Found audio/video elements", count=len(media_elements))
-        
-        for media in media_elements:
-            # Find parent section for this media element
-            parent_section = self.find_parent_section(document, media)
-            
-            if parent_section:
-                # Process the media element based on its type
-                if media.name == "audio":
-                    media_dict = self._process_audio(media)
+        # Process audio and video elements
+        for element in section.raw_content_elements:
+            if element.name in ["audio", "video"] and not element.find_parent("figure"):
+                # Skip if inside other containers
+                if self._should_skip_element(element):
+                    continue
+                    
+                if element.name == "audio":
+                    media_dict = self._process_audio(element)
                 else:  # video
-                    media_dict = self._process_video(media)
+                    media_dict = self._process_video(element)
                 
                 if media_dict:
-                    parent_section.add_content(media_dict)
+                    section.add_content(media_dict)
                     
                     logger.debug(
                         "Added media to section", 
-                        section=parent_section.title, 
-                        media_type=media.name
+                        section_title=section.title,
+                        media_type=element.name
                     )
     
-    def _is_nested_media(self, element: Tag) -> bool:
+    def _should_skip_element(self, element: Tag) -> bool:
         """
-        Check if a media element is nested inside another media container.
+        Determine if a media element should be skipped.
         
         Args:
-            element: The media element to check.
+            element: The element to check.
             
         Returns:
-            True if the element is nested inside another media container, False otherwise.
+            True if the element should be skipped, False otherwise.
         """
-        # Check if inside audio, video, picture, or object elements
-        media_containers = ["audio", "video", "picture", "object"]
+        # Skip elements inside certain containers
+        skip_containers = {"table", "form"}
         
         parent = element.parent
         while parent:
-            if parent.name in media_containers:
+            if parent.name in skip_containers:
                 return True
             parent = parent.parent
             
@@ -185,7 +141,7 @@ class MediaProcessor(ElementProcessor):
             img: The image element to process.
             
         Returns:
-            A dictionary representation of the image, or None if it's not valid.
+            A dictionary representation of the image, or None if it's invalid.
         """
         if not img.get("src"):
             logger.warning("Image without src attribute", element=str(img)[:100])
@@ -197,16 +153,13 @@ class MediaProcessor(ElementProcessor):
         }
         
         # Extract common attributes
-        for attr in ["alt", "title", "width", "height", "id"]:
+        for attr in ["alt", "title", "width", "height"]:
             if img.has_attr(attr):
                 result[attr] = img[attr]
         
         # Handle responsive image attributes
         if img.has_attr("srcset"):
             result["srcset"] = img["srcset"]
-        
-        if img.has_attr("sizes"):
-            result["sizes"] = img["sizes"]
         
         # Check for an enclosing link
         parent_link = img.find_parent("a")
@@ -264,18 +217,18 @@ class MediaProcessor(ElementProcessor):
             if svg_dict:
                 result["content"].append(svg_dict)
         
-        # If no media content was found, extract text content
+        # If no media content found, extract text
         if not result["content"]:
-            text_content = figure.get_text().strip()
+            text = figure.get_text().strip()
             
-            # Remove figcaption text from content
+            # Remove figcaption text if present
             if figcaption:
                 caption_text = figcaption.get_text().strip()
-                if caption_text in text_content:
-                    text_content = text_content.replace(caption_text, "").strip()
+                if caption_text in text:
+                    text = text.replace(caption_text, "").strip()
             
-            if text_content:
-                result["content"].append({"type": "text", "text": text_content})
+            if text:
+                result["content"].append({"type": "text", "text": text})
         
         return result
     
@@ -295,7 +248,7 @@ class MediaProcessor(ElementProcessor):
         }
         
         # Extract common attributes
-        for attr in ["id", "width", "height", "poster", "controls", "autoplay", "loop", "muted", "preload"]:
+        for attr in ["width", "height", "poster", "controls", "autoplay", "loop", "muted"]:
             if video.has_attr(attr):
                 # Convert boolean attributes
                 if attr in ["controls", "autoplay", "loop", "muted"]:
@@ -314,12 +267,9 @@ class MediaProcessor(ElementProcessor):
                 if source.has_attr("type"):
                     source_dict["type"] = source["type"]
                     
-                if source.has_attr("media"):
-                    source_dict["media"] = source["media"]
-                    
                 sources.append(source_dict)
         
-        # Handle direct src attribute on video element
+        # Handle direct src attribute
         if not sources and video.has_attr("src"):
             sources.append({"src": video["src"]})
         
@@ -341,18 +291,10 @@ class MediaProcessor(ElementProcessor):
                 if track.has_attr("srclang"):
                     track_dict["srclang"] = track["srclang"]
                     
-                if track.has_attr("default"):
-                    track_dict["default"] = True
-                    
                 tracks.append(track_dict)
         
         if tracks:
             result["tracks"] = tracks
-        
-        # Include fallback content
-        fallback = video.get_text().strip()
-        if fallback:
-            result["fallback"] = fallback
         
         return result
     
@@ -372,13 +314,9 @@ class MediaProcessor(ElementProcessor):
         }
         
         # Extract common attributes
-        for attr in ["id", "controls", "autoplay", "loop", "muted", "preload"]:
+        for attr in ["controls", "autoplay", "loop", "muted"]:
             if audio.has_attr(attr):
-                # Convert boolean attributes
-                if attr in ["controls", "autoplay", "loop", "muted"]:
-                    result[attr] = True
-                else:
-                    result[attr] = audio[attr]
+                result[attr] = True
         
         # Extract source elements
         sources = []
@@ -393,17 +331,12 @@ class MediaProcessor(ElementProcessor):
                     
                 sources.append(source_dict)
         
-        # Handle direct src attribute on audio element
+        # Handle direct src attribute
         if not sources and audio.has_attr("src"):
             sources.append({"src": audio["src"]})
         
         if sources:
             result["sources"] = sources
-        
-        # Include fallback content
-        fallback = audio.get_text().strip()
-        if fallback:
-            result["fallback"] = fallback
         
         return result
     
@@ -417,9 +350,8 @@ class MediaProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the SVG.
         """
-        # For SVG, we'll just extract key attributes and dimensions
         result = {
-            "type": "svg",
+            "type": "svg"
         }
         
         # Extract viewBox
@@ -431,11 +363,7 @@ class MediaProcessor(ElementProcessor):
             if svg.has_attr(attr):
                 result[attr] = svg[attr]
         
-        # Extract SVG ID
-        if svg.has_attr("id"):
-            result["id"] = svg["id"]
-        
-        # Count some key elements
+        # Count SVG elements to provide a summary
         element_counts = {}
         for element_type in ["rect", "circle", "path", "line", "text", "g"]:
             count = len(svg.find_all(element_type))

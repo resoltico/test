@@ -9,7 +9,6 @@ import structlog
 from bs4 import BeautifulSoup, NavigableString, Tag
 
 from web2json.models.document import Document
-from web2json.models.section import Section
 from web2json.processors.base import ElementProcessor
 
 
@@ -23,25 +22,6 @@ class TextProcessor(ElementProcessor):
     Handles paragraphs, lists, blockquotes, and other text containers,
     preserving inline formatting and structure.
     """
-    
-    # Tags that we'll process as paragraph-like elements
-    PARAGRAPH_TAGS = {"p"}
-    
-    # List-like elements
-    LIST_TAGS = {"ul", "ol"}
-    
-    # Definition list elements
-    DL_TAGS = {"dl"}
-    
-    # Block elements
-    BLOCK_TAGS = {"blockquote", "pre"}
-    
-    # Inline semantic elements
-    INLINE_TAGS = {
-        "a", "abbr", "b", "br", "cite", "code", "data", "dfn", 
-        "em", "i", "kbd", "mark", "q", "s", "samp", "small", 
-        "span", "strong", "sub", "sup", "time", "u", "var", "wbr"
-    }
     
     def process(self, soup: BeautifulSoup, document: Document) -> Document:
         """
@@ -59,66 +39,59 @@ class TextProcessor(ElementProcessor):
         """
         logger.info("Processing text elements")
         
-        # Process paragraphs
-        self._process_elements(soup, document, self.PARAGRAPH_TAGS, self._process_paragraph)
-        
-        # Process lists
-        self._process_elements(soup, document, self.LIST_TAGS, self._process_list)
-        
-        # Process definition lists
-        self._process_elements(soup, document, self.DL_TAGS, self._process_definition_list)
-        
-        # Process blockquotes
-        self._process_elements(soup, document, {"blockquote"}, self._process_blockquote)
-        
-        # Process preformatted text and code blocks
-        self._process_elements(soup, document, {"pre"}, self._process_preformatted)
+        # Process each section's raw content elements for text content
+        self._process_sections(document.content)
         
         return document
     
-    def _process_elements(
-        self, 
-        soup: BeautifulSoup, 
-        document: Document, 
-        tags: Set[str],
-        processor_func: callable
-    ) -> None:
+    def _process_sections(self, sections: List) -> None:
         """
-        Process elements of the specified tags using the provided processor function.
+        Process all sections recursively.
         
         Args:
-            soup: The BeautifulSoup object.
-            document: The Document object.
-            tags: Set of tag names to process.
-            processor_func: Function to process each element.
+            sections: List of sections to process.
         """
-        # Find all elements of the specified tags
-        for tag_name in tags:
-            elements = soup.find_all(tag_name)
+        for section in sections:
+            # Process text content elements in this section
+            self._process_section_content(section)
             
-            for element in elements:
-                # Skip elements in certain containers that will be processed separately
-                if self._should_skip_element(element):
-                    continue
-                    
-                # Find parent section for this element
-                parent_section = self.find_parent_section(document, element)
-                
-                if parent_section:
-                    # Process the element
-                    content_obj = processor_func(element)
-                    
-                    if content_obj:
-                        # Add to the parent section
-                        parent_section.add_content(content_obj)
-                        logger.debug(
-                            f"Added {tag_name} to section", 
-                            section=parent_section.title
-                        )
+            # Process child sections recursively
+            if section.children:
+                self._process_sections(section.children)
     
+    def _process_section_content(self, section) -> None:
+        """
+        Process content elements for a single section.
+        
+        Args:
+            section: The section to process.
+        """
+        for element in section.raw_content_elements:
+            # Skip elements that should be handled by other processors
+            if self._should_skip_element(element):
+                continue
+                
+            # Process different types of text elements
+            content_obj = None
+            
+            if element.name == "p":
+                content_obj = self._process_paragraph(element)
+            elif element.name in ["ul", "ol"]:
+                content_obj = self._process_list(element)
+            elif element.name == "dl":
+                content_obj = self._process_definition_list(element)
+            elif element.name == "blockquote":
+                content_obj = self._process_blockquote(element)
+            elif element.name == "pre":
+                content_obj = self._process_preformatted(element)
+                
+            # Add the processed content to the section
+            if content_obj:
+                section.add_content(content_obj)
+                
     def _should_skip_element(self, element: Tag) -> bool:
         """
-        Determine if an element should be skipped (processed as part of another element).
+        Determine if an element should be skipped (processed by another processor).
         
         Args:
             element: The element to check.
@@ -127,7 +100,7 @@ class TextProcessor(ElementProcessor):
             True if the element should be skipped, False otherwise.
         """
         # Skip elements inside certain containers
-        skip_containers = {"table", "figure", "form"}
+        skip_containers = {"table", "form", "figure"}
         
         parent = element.parent
         while parent:
@@ -224,15 +197,14 @@ class TextProcessor(ElementProcessor):
         if cite_url:
             result["cite_url"] = cite_url
         
-        # Look for cite element
+        # Look for cite element or footer for attribution
         cite_element = element.find("cite")
         if cite_element:
             result["citation"] = self._extract_text(cite_element)
-        
-        # Look for footer element (often used for attribution)
-        footer = element.find("footer")
-        if footer and "citation" not in result:
-            result["citation"] = self._extract_text(footer)
+        else:
+            footer = element.find("footer")
+            if footer:
+                result["citation"] = self._extract_text(footer)
         
         return result
     

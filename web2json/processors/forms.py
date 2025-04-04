@@ -38,31 +38,50 @@ class FormProcessor(ElementProcessor):
         """
         logger.info("Processing form elements")
         
-        # Find all forms in the document
-        forms = soup.find_all("form")
-        if not forms:
-            logger.debug("No forms found in document")
-            return document
+        # Process forms in each section
+        self._process_sections(document.content)
         
-        logger.debug("Found forms", count=len(forms))
+        return document
+    
+    def _process_sections(self, sections: List) -> None:
+        """
+        Process all sections recursively.
+        
+        Args:
+            sections: List of sections to process.
+        """
+        for section in sections:
+            # Process forms in this section
+            self._process_section_forms(section)
+            
+            # Process child sections recursively
+            if section.children:
+                self._process_sections(section.children)
+    
+    def _process_section_forms(self, section) -> None:
+        """
+        Process forms for a single section.
+        
+        Args:
+            section: The section to process.
+        """
+        forms = []
+        
+        # Find all forms in this section's raw content
+        for element in section.raw_content_elements:
+            if element.name == "form":
+                forms.append(element)
         
         # Process each form
         for form in forms:
-            # Find parent section for this form
-            parent_section = self.find_parent_section(document, form)
+            form_dict = self._process_form(form)
+            section.add_content(form_dict)
             
-            if parent_section:
-                # Process the form and add to the parent section
-                form_dict = self._process_form(form)
-                parent_section.add_content(form_dict)
-                
-                logger.debug(
-                    "Added form to section", 
-                    section=parent_section.title, 
-                    form_id=form.get("id")
-                )
-        
-        return document
+            logger.debug(
+                "Added form to section", 
+                section_title=section.title,
+                form_id=form.get("id")
+            )
     
     def _process_form(self, form: Tag) -> Dict[str, Any]:
         """
@@ -80,34 +99,25 @@ class FormProcessor(ElementProcessor):
         }
         
         # Extract form attributes
-        form_attrs = {}
+        attributes = {}
         for attr in ["id", "name", "action", "method", "enctype", "target"]:
             if form.get(attr):
-                form_attrs[attr] = form[attr]
+                attributes[attr] = form[attr]
         
-        if form_attrs:
-            result["attributes"] = form_attrs
+        if attributes:
+            result["attributes"] = attributes
         
         # Process fieldsets first
-        fieldsets = []
-        for fieldset in form.find_all("fieldset", recursive=True):
+        for fieldset in form.find_all("fieldset", recursive=False):
             fieldset_data = self._process_fieldset(fieldset)
             if fieldset_data:
-                fieldsets.append(fieldset_data)
+                result["fields"].append(fieldset_data)
         
-        # Process standalone form controls (not inside fieldsets)
-        standalone_fields = []
-        for field in form.find_all(["input", "select", "textarea", "button"], recursive=True):
-            # Skip fields inside fieldsets (already processed)
-            if field.find_parent("fieldset") or not field.parent:
-                continue
-                
+        # Process direct form controls (not inside fieldsets)
+        for field in form.find_all(["input", "select", "textarea", "button"], recursive=False):
             field_data = self._process_field(field)
             if field_data:
-                standalone_fields.append(field_data)
-        
-        # Combine fieldsets and standalone fields
-        result["fields"] = fieldsets + standalone_fields
+                result["fields"].append(field_data)
         
         return result
     
@@ -134,23 +144,18 @@ class FormProcessor(ElementProcessor):
         # Extract fieldset attributes
         if fieldset.get("id"):
             fieldset_data["id"] = fieldset["id"]
-        if fieldset.get("name"):
-            fieldset_data["name"] = fieldset["name"]
         
         # Process fields in the fieldset
-        fields = []
-        for field in fieldset.find_all(["input", "select", "textarea", "button"], recursive=True):
-            # Skip nested elements
-            if field.parent == fieldset or field.parent.parent == fieldset:
-                field_data = self._process_field(field)
-                if field_data:
-                    fields.append(field_data)
+        for field in fieldset.find_all(["input", "select", "textarea", "button"], recursive=False):
+            field_data = self._process_field(field)
+            if field_data:
+                fieldset_data["fields"].append(field_data)
         
-        if fields:
-            fieldset_data["fields"] = fields
-            return fieldset_data
-        
-        return None
+        # Check if we have any fields
+        if not fieldset_data["fields"]:
+            return None
+            
+        return fieldset_data
     
     def _process_field(self, field: Tag) -> Optional[FormField]:
         """
@@ -160,7 +165,7 @@ class FormProcessor(ElementProcessor):
             field: The form field element to process.
             
         Returns:
-            A dictionary representation of the field, or None if it's not valid.
+            A dictionary representation of the field, or None if it's invalid.
         """
         field_type = field.name
         
@@ -183,7 +188,7 @@ class FormProcessor(ElementProcessor):
             input_field: The input element to process.
             
         Returns:
-            A dictionary representation of the input, or None if it's not valid.
+            A dictionary representation of the input, or None if it's invalid.
         """
         # Get the input type
         input_type = input_field.get("type", "text")
@@ -194,10 +199,10 @@ class FormProcessor(ElementProcessor):
         }
         
         # Extract common attributes
-        for attr in ["id", "name", "value", "placeholder", "required", "disabled", "readonly"]:
+        for attr in ["id", "name", "value", "placeholder", "required"]:
             if input_field.has_attr(attr):
                 # Convert boolean attributes
-                if attr in ["required", "disabled", "readonly"]:
+                if attr == "required":
                     result[attr] = True
                 else:
                     result[attr] = input_field[attr]
@@ -208,10 +213,6 @@ class FormProcessor(ElementProcessor):
                 result["checked"] = True
         elif input_type in ["number", "range"]:
             for attr in ["min", "max", "step"]:
-                if input_field.has_attr(attr):
-                    result[attr] = input_field[attr]
-        elif input_type in ["date", "datetime-local", "month", "week", "time"]:
-            for attr in ["min", "max"]:
                 if input_field.has_attr(attr):
                     result[attr] = input_field[attr]
         
@@ -230,7 +231,7 @@ class FormProcessor(ElementProcessor):
             select: The select element to process.
             
         Returns:
-            A dictionary representation of the select, or None if it's not valid.
+            A dictionary representation of the select, or None if it's invalid.
         """
         result: FormField = {
             "type": "select",
@@ -238,17 +239,15 @@ class FormProcessor(ElementProcessor):
         }
         
         # Extract common attributes
-        for attr in ["id", "name", "required", "disabled", "multiple"]:
+        for attr in ["id", "name", "required", "multiple"]:
             if select.has_attr(attr):
                 # Convert boolean attributes
-                if attr in ["required", "disabled", "multiple"]:
+                if attr in ["required", "multiple"]:
                     result[attr] = True
                 else:
                     result[attr] = select[attr]
         
-        # Extract options and option groups
-        options = []
-        
+        # Process option groups and options
         for child in select.children:
             if not isinstance(child, Tag):
                 continue
@@ -261,10 +260,8 @@ class FormProcessor(ElementProcessor):
                 
                 if child.has_attr("selected"):
                     option["selected"] = True
-                if child.has_attr("disabled"):
-                    option["disabled"] = True
                     
-                options.append(option)
+                result["options"].append(option)
                 
             elif child.name == "optgroup":
                 optgroup = {
@@ -272,11 +269,7 @@ class FormProcessor(ElementProcessor):
                     "options": []
                 }
                 
-                if child.has_attr("disabled"):
-                    optgroup["disabled"] = True
-                
-                # Process options in the option group
-                group_options = []
+                # Process options in the group
                 for option in child.find_all("option"):
                     opt = {
                         "value": option.get("value", option.get_text().strip()),
@@ -285,16 +278,11 @@ class FormProcessor(ElementProcessor):
                     
                     if option.has_attr("selected"):
                         opt["selected"] = True
-                    if option.has_attr("disabled"):
-                        opt["disabled"] = True
                         
-                    group_options.append(opt)
+                    optgroup["options"].append(opt)
                 
-                if group_options:
-                    optgroup["options"] = group_options
-                    options.append(optgroup)
-        
-        result["options"] = options
+                if optgroup["options"]:
+                    result["options"].append(optgroup)
         
         # Find associated label
         label = self._find_label_for_field(select)
@@ -311,22 +299,22 @@ class FormProcessor(ElementProcessor):
             textarea: The textarea element to process.
             
         Returns:
-            A dictionary representation of the textarea, or None if it's not valid.
+            A dictionary representation of the textarea, or None if it's invalid.
         """
         result: FormField = {
             "type": "textarea"
         }
         
         # Extract common attributes
-        for attr in ["id", "name", "placeholder", "rows", "cols", "required", "disabled", "readonly"]:
+        for attr in ["id", "name", "placeholder", "rows", "cols", "required"]:
             if textarea.has_attr(attr):
                 # Convert boolean attributes
-                if attr in ["required", "disabled", "readonly"]:
+                if attr == "required":
                     result[attr] = True
                 else:
                     result[attr] = textarea[attr]
         
-        # Get the default value (content)
+        # Get content
         result["value"] = textarea.get_text().strip()
         
         # Find associated label
@@ -344,7 +332,7 @@ class FormProcessor(ElementProcessor):
             button: The button element to process.
             
         Returns:
-            A dictionary representation of the button, or None if it's not valid.
+            A dictionary representation of the button, or None if it's invalid.
         """
         result: FormField = {
             "type": "button",
@@ -352,15 +340,11 @@ class FormProcessor(ElementProcessor):
         }
         
         # Extract common attributes
-        for attr in ["id", "name", "value", "disabled"]:
+        for attr in ["id", "name", "value"]:
             if button.has_attr(attr):
-                # Convert boolean attributes
-                if attr in ["disabled"]:
-                    result[attr] = True
-                else:
-                    result[attr] = button[attr]
+                result[attr] = button[attr]
         
-        # Get the button text
+        # Get text
         result["text"] = button.get_text().strip()
         
         return result
@@ -373,7 +357,7 @@ class FormProcessor(ElementProcessor):
             field: The form field element.
             
         Returns:
-            The label text, or None if no label was found.
+            The label text, or None if no label is found.
         """
         field_id = field.get("id")
         if field_id:
@@ -384,13 +368,16 @@ class FormProcessor(ElementProcessor):
                 if label:
                     return label.get_text().strip()
         
-        # Check if the field is inside a label
+        # Check if field is inside a label
         parent_label = field.find_parent("label")
         if parent_label:
-            # Extract label text excluding the field itself
-            text = parent_label.get_text().strip()
-            if field.get_text().strip():
-                text = text.replace(field.get_text().strip(), "").strip()
-            return text
+            # Get label text excluding the field text
+            field_text = field.get_text().strip()
+            label_text = parent_label.get_text().strip()
+            
+            if field_text and field_text in label_text:
+                return label_text.replace(field_text, "").strip()
+            
+            return label_text
         
         return None

@@ -1,31 +1,23 @@
 """
-Setup for structured logging.
+Setup for structured logging in the web2json application.
 """
 
 import logging
 import sys
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import structlog
 from rich.console import Console
 from rich.logging import RichHandler
 
 
-def setup_logging(
-    log_level: str = "INFO",
-    console_output: bool = True,
-    log_file: Optional[str] = None,
-    json_format: bool = False,
-) -> None:
+def setup_logging(log_level: str = "INFO") -> None:
     """
-    Set up structured logging with optional console and file outputs.
+    Set up structured logging with console output.
     
     Args:
-        log_level: The logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
-        console_output: Whether to output logs to the console.
-        log_file: Optional path to a log file.
-        json_format: Whether to use JSON format for the logs.
+        log_level: The logging level to use (DEBUG, INFO, WARNING, ERROR, CRITICAL).
     """
     # Convert string log level to numeric value
     numeric_level = getattr(logging, log_level.upper(), logging.INFO)
@@ -38,84 +30,49 @@ def setup_logging(
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
     
-    # Define processors
-    processors = [
-        # Add timestamps in a standard format
-        structlog.processors.TimeStamper(fmt="iso"),
-        
-        # Add the logger name
-        structlog.stdlib.add_logger_name,
-        
-        # Add log level
-        structlog.stdlib.add_log_level,
-        
-        # Perform %-style formatting
-        structlog.stdlib.PositionalArgumentsFormatter(),
-        
-        # Format exceptions
-        structlog.processors.ExceptionPrettyPrinter(),
-    ]
-    
-    # Add filters and formatters based on configuration
-    if json_format:
-        processors.append(structlog.processors.JSONRenderer())
-    else:
-        processors.append(
-            structlog.dev.ConsoleRenderer(
-                colors=console_output,
-                exception_formatter=structlog.dev.plain_traceback,
-            )
-        )
+    # Set up console output with rich formatting
+    console = Console()
+    console_handler = RichHandler(
+        console=console,
+        rich_tracebacks=True,
+        tracebacks_show_locals=True,
+        show_time=True,
+        show_path=False,
+    )
+    console_handler.setLevel(numeric_level)
+    root_logger.addHandler(console_handler)
     
     # Configure structlog
     structlog.configure(
-        processors=processors,
-        context_class=dict,
+        processors=[
+            # Add timestamps in ISO format
+            structlog.processors.TimeStamper(fmt="iso"),
+            
+            # Add logger name
+            structlog.stdlib.add_logger_name,
+            
+            # Add log level
+            structlog.stdlib.add_log_level,
+            
+            # Format exceptions
+            structlog.processors.ExceptionPrettyPrinter(),
+            
+            # Format with console renderer for terminal output
+            structlog.dev.ConsoleRenderer(
+                exception_formatter=structlog.dev.plain_traceback,
+                colors=True,
+            ),
+        ],
         logger_factory=structlog.stdlib.LoggerFactory(),
         wrapper_class=structlog.stdlib.BoundLogger,
         cache_logger_on_first_use=True,
     )
-    
-    # Set up console output if enabled
-    if console_output:
-        console = Console()
-        console_handler = RichHandler(
-            console=console,
-            rich_tracebacks=True,
-            tracebacks_show_locals=True,
-            log_time_format="[%X]",
-        )
-        console_handler.setLevel(numeric_level)
-        root_logger.addHandler(console_handler)
-    
-    # Set up file output if specified
-    if log_file:
-        file_handler = logging.FileHandler(log_file)
-        file_formatter = logging.Formatter(
-            "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-        )
-        file_handler.setFormatter(file_formatter)
-        file_handler.setLevel(numeric_level)
-        root_logger.addHandler(file_handler)
-
-
-def get_logger(name: str) -> structlog.stdlib.BoundLogger:
-    """
-    Get a logger with the given name.
-    
-    Args:
-        name: The logger name.
-        
-    Returns:
-        A structlog logger.
-    """
-    return structlog.get_logger(name)
 
 
 class Timer:
     """Context manager for timing code execution."""
     
-    def __init__(self, name: str, logger: Optional[structlog.stdlib.BoundLogger] = None):
+    def __init__(self, name: str, logger: Optional[structlog.BoundLogger] = None):
         """
         Initialize the timer.
         
@@ -125,8 +82,8 @@ class Timer:
         """
         self.name = name
         self.logger = logger or structlog.get_logger()
-        self.start_time: float = 0.0
-        self.end_time: float = 0.0
+        self.start_time = 0.0
+        self.end_time = 0.0
     
     def __enter__(self) -> "Timer":
         """Start the timer when entering the context."""
@@ -150,14 +107,14 @@ class Timer:
             # Log as error if there was an exception
             self.logger.error(
                 f"Failed: {self.name}",
-                duration=duration,
+                duration=f"{duration:.3f}s",
                 error=str(exc_val),
             )
         else:
             # Log as info for successful completion
             self.logger.info(
                 f"Completed: {self.name}",
-                duration=duration,
+                duration=f"{duration:.3f}s",
             )
     
     @property

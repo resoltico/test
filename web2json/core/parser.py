@@ -2,7 +2,7 @@
 Module for parsing HTML content.
 """
 
-from typing import Optional, TypeAlias, cast
+from typing import Dict, Optional, TypeAlias, Any, cast
 from urllib.parse import urljoin
 
 import structlog
@@ -41,14 +41,14 @@ class HtmlParser:
         soup = BeautifulSoup(html, "lxml")
         
         # Process base tags to handle relative URLs correctly
-        self._process_base_tags(soup, base_url)
+        self._handle_base_tag(soup, base_url)
         
         # Remove tags that should be ignored
         self._remove_ignored_tags(soup)
         
         return soup
     
-    def _process_base_tags(self, soup: Soup, base_url: str) -> None:
+    def _handle_base_tag(self, soup: Soup, base_url: str) -> None:
         """
         Process base tags in the HTML to correctly handle relative URLs.
         
@@ -57,11 +57,13 @@ class HtmlParser:
             base_url: The original base URL.
         """
         base_tag = soup.find("base")
+        
         if base_tag and base_tag.get("href"):
+            # Update base URL based on the href attribute
             new_base = urljoin(base_url, base_tag["href"])
             logger.debug("Found base tag", href=new_base)
             
-            # Update all relative URLs in the document to use the new base
+            # Update relative URLs in the document
             for tag in soup.find_all(["a", "img", "link", "script"]):
                 for attr in ["href", "src"]:
                     if tag.has_attr(attr) and not tag[attr].startswith(("http://", "https://", "data:", "#")):
@@ -79,7 +81,7 @@ class HtmlParser:
                 logger.debug("Removing ignored tag", tag=tag_name)
                 tag.decompose()
     
-    def extract_metadata(self, soup: Soup) -> dict:
+    def extract_metadata(self, soup: Soup) -> Dict[str, Any]:
         """
         Extract metadata from the HTML document.
         
@@ -101,23 +103,30 @@ class HtmlParser:
         
         # Extract meta tags
         for meta in soup.find_all("meta"):
-            # Handle common metadata
+            # Handle name/content pairs
             if meta.get("name") and meta.get("content"):
                 metadata[meta["name"]] = meta["content"]
             
-            # OpenGraph and similar protocols
-            if meta.get("property") and meta.get("content"):
+            # Handle property/content pairs (OpenGraph, etc.)
+            elif meta.get("property") and meta.get("content"):
                 metadata[meta["property"]] = meta["content"]
             
-            # Handle viewport and charset
-            if meta.get("viewport"):
-                metadata["viewport"] = meta["viewport"]
+            # Handle charset
             elif meta.get("charset"):
                 metadata["charset"] = meta["charset"]
+            
+            # Handle http-equiv
+            elif meta.get("http-equiv") and meta.get("content"):
+                metadata[f"http-equiv:{meta['http-equiv']}"] = meta["content"]
         
-        # Extract other common head elements
+        # Extract other important head elements
         if soup.find("link", rel="canonical"):
             metadata["canonical"] = soup.find("link", rel="canonical")["href"]
+        
+        # Extract viewport
+        viewport = soup.find("meta", attrs={"name": "viewport"})
+        if viewport and viewport.get("content"):
+            metadata["viewport"] = viewport["content"]
         
         logger.debug("Extracted metadata", count=len(metadata))
         return metadata
@@ -142,30 +151,14 @@ class HtmlParser:
         if h1_tag:
             return h1_tag.get_text().strip()
         
-        # Fallback to meta title
-        meta_title = soup.find("meta", property="og:title") or soup.find("meta", name="title")
+        # Check OpenGraph title
+        og_title = soup.find("meta", property="og:title")
+        if og_title and og_title.get("content"):
+            return cast(str, og_title["content"]).strip()
+        
+        # Check meta title
+        meta_title = soup.find("meta", attrs={"name": "title"})
         if meta_title and meta_title.get("content"):
             return cast(str, meta_title["content"]).strip()
         
         return "Untitled Document"
-    
-    @staticmethod
-    def get_element_id(element: Tag) -> Optional[str]:
-        """
-        Extract the ID from an HTML element.
-        
-        Args:
-            element: The HTML element (BeautifulSoup Tag).
-            
-        Returns:
-            The element ID, or None if not present.
-        """
-        # Direct id attribute
-        if element.has_attr("id"):
-            return element["id"]
-        
-        # Look for name attribute as fallback for anchors
-        if element.name == "a" and element.has_attr("name"):
-            return element["name"]
-        
-        return None
