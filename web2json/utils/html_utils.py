@@ -3,7 +3,7 @@ Utility functions for working with HTML.
 """
 
 import re
-from typing import Optional
+from typing import Dict, List, Optional, Any
 
 from bs4 import BeautifulSoup, Tag
 
@@ -18,7 +18,7 @@ def clean_html_text(text: str) -> str:
     Returns:
         The cleaned text.
     """
-    # Replace newlines and tabs with spaces
+    # Replace newlines, tabs, and carriage returns with spaces
     text = re.sub(r'[\n\t\r]+', ' ', text)
     
     # Replace multiple spaces with a single space
@@ -193,3 +193,104 @@ def extract_url_from_element(element: Tag, base_url: str) -> Optional[str]:
         return urljoin(base_url, element["data-src"])
     
     return None
+
+
+def extract_structured_content(element: Tag) -> List[Dict[str, Any]]:
+    """
+    Extract structured content from an HTML element.
+    
+    This function identifies and structures different types of content
+    within an element, such as text, links, and semantic elements.
+    
+    Args:
+        element: The HTML element.
+        
+    Returns:
+        A list of structured content items.
+    """
+    content = []
+    
+    # Process text content
+    if element.name == "p":
+        content.append({
+            "type": "paragraph",
+            "text": extract_element_text(element)
+        })
+    elif element.name in ["h1", "h2", "h3", "h4", "h5", "h6"]:
+        level = int(element.name[1])
+        content.append({
+            "type": "heading",
+            "level": level,
+            "text": extract_element_text(element)
+        })
+    elif element.name == "a" and element.has_attr("href"):
+        content.append({
+            "type": "link",
+            "text": extract_element_text(element),
+            "href": element["href"]
+        })
+    elif element.name == "img" and element.has_attr("src"):
+        img_content = {
+            "type": "image",
+            "src": element["src"]
+        }
+        if element.has_attr("alt"):
+            img_content["alt"] = element["alt"]
+        content.append(img_content)
+    elif element.name == "code":
+        content.append({
+            "type": "code",
+            "text": extract_element_text(element)
+        })
+    else:
+        # Default handling for other elements
+        if element.get_text().strip():
+            content.append({
+                "type": "text",
+                "text": extract_element_text(element)
+            })
+    
+    return content
+
+
+def find_semantic_sections(soup: BeautifulSoup) -> List[Dict[str, Any]]:
+    """
+    Find semantic sections in the document.
+    
+    Args:
+        soup: The BeautifulSoup object.
+        
+    Returns:
+        A list of section dictionaries.
+    """
+    sections = []
+    
+    # Find all headings in the document
+    headings = soup.find_all(["h1", "h2", "h3", "h4", "h5", "h6"])
+    
+    for heading in headings:
+        level = int(heading.name[1])
+        title = extract_element_text(heading)
+        
+        section = {
+            "type": "section",
+            "title": title,
+            "level": level,
+            "content": [],
+            "children": []
+        }
+        
+        # Add ID if present
+        if heading.has_attr("id"):
+            section["id"] = heading["id"]
+        
+        # Find content elements following this heading
+        current = heading.next_sibling
+        while current and current.name not in ["h1", "h2", "h3", "h4", "h5", "h6"]:
+            if current.name in ["p", "ul", "ol", "pre", "blockquote"]:
+                section["content"].extend(extract_structured_content(current))
+            current = current.next_sibling
+        
+        sections.append(section)
+    
+    return sections

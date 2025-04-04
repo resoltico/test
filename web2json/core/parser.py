@@ -108,6 +108,16 @@ class HtmlParser:
             # OpenGraph and similar protocols
             if meta.get("property") and meta.get("content"):
                 metadata[meta["property"]] = meta["content"]
+            
+            # Handle viewport and charset
+            if meta.get("viewport"):
+                metadata["viewport"] = meta["viewport"]
+            elif meta.get("charset"):
+                metadata["charset"] = meta["charset"]
+        
+        # Extract other common head elements
+        if soup.find("link", rel="canonical"):
+            metadata["canonical"] = soup.find("link", rel="canonical")["href"]
         
         logger.debug("Extracted metadata", count=len(metadata))
         return metadata
@@ -139,8 +149,8 @@ class HtmlParser:
         
         return "Untitled Document"
     
-    @classmethod
-    def get_element_id(cls, element: Tag) -> Optional[str]:
+    @staticmethod
+    def get_element_id(element: Tag) -> Optional[str]:
         """
         Extract the ID from an HTML element.
         

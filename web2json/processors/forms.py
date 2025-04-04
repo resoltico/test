@@ -2,20 +2,19 @@
 Processor for HTML forms.
 """
 
-from typing import Dict, List, Optional, TypeAlias, cast
+from typing import Dict, List, Optional, TypeAlias, Any
 
 import structlog
 from bs4 import BeautifulSoup, Tag
 
 from web2json.models.document import Document
-from web2json.models.section import Section
 from web2json.processors.base import ElementProcessor
 
 
 logger = structlog.get_logger(__name__)
 
 # Type alias for form field data
-FormField: TypeAlias = Dict[str, str | bool | List[str] | Dict]
+FormField: TypeAlias = Dict[str, Any]
 
 
 class FormProcessor(ElementProcessor):
@@ -49,24 +48,23 @@ class FormProcessor(ElementProcessor):
         
         # Process each form
         for form in forms:
-            # Extract the form data
-            form_dict = self._process_form(form)
+            # Find parent section for this form
+            parent_section = self.find_parent_section(document, form)
             
-            # Find the appropriate section to add this form to
-            section = self._find_parent_section(document, form)
-            
-            if section:
-                # Add the form to the section's content
-                section.add_content(form_dict)
+            if parent_section:
+                # Process the form and add to the parent section
+                form_dict = self._process_form(form)
+                parent_section.add_content(form_dict)
+                
                 logger.debug(
                     "Added form to section", 
-                    section=section.title, 
+                    section=parent_section.title, 
                     form_id=form.get("id")
                 )
         
         return document
     
-    def _process_form(self, form: Tag) -> Dict:
+    def _process_form(self, form: Tag) -> Dict[str, Any]:
         """
         Process a single form element.
         
@@ -76,7 +74,7 @@ class FormProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the form.
         """
-        result: Dict = {
+        result = {
             "type": "form",
             "fields": []
         }
@@ -90,26 +88,27 @@ class FormProcessor(ElementProcessor):
         if form_attrs:
             result["attributes"] = form_attrs
         
-        # Extract form fields
-        fields: List[FormField] = []
-        
-        # Process fieldsets first to maintain structure
+        # Process fieldsets first
+        fieldsets = []
         for fieldset in form.find_all("fieldset", recursive=True):
             fieldset_data = self._process_fieldset(fieldset)
             if fieldset_data:
-                fields.append(fieldset_data)
+                fieldsets.append(fieldset_data)
         
-        # Process other form controls
+        # Process standalone form controls (not inside fieldsets)
+        standalone_fields = []
         for field in form.find_all(["input", "select", "textarea", "button"], recursive=True):
             # Skip fields inside fieldsets (already processed)
-            if field.find_parent("fieldset"):
+            if field.find_parent("fieldset") or not field.parent:
                 continue
                 
             field_data = self._process_field(field)
             if field_data:
-                fields.append(field_data)
+                standalone_fields.append(field_data)
         
-        result["fields"] = fields
+        # Combine fieldsets and standalone fields
+        result["fields"] = fieldsets + standalone_fields
+        
         return result
     
     def _process_fieldset(self, fieldset: Tag) -> Optional[FormField]:
@@ -122,7 +121,7 @@ class FormProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the fieldset, or None if it's empty.
         """
-        fieldset_data: FormField = {
+        fieldset_data = {
             "type": "fieldset",
             "fields": []
         }
@@ -132,18 +131,20 @@ class FormProcessor(ElementProcessor):
         if legend:
             fieldset_data["legend"] = legend.get_text().strip()
         
-        # Extract ID and name
+        # Extract fieldset attributes
         if fieldset.get("id"):
             fieldset_data["id"] = fieldset["id"]
         if fieldset.get("name"):
             fieldset_data["name"] = fieldset["name"]
         
         # Process fields in the fieldset
-        fields: List[FormField] = []
+        fields = []
         for field in fieldset.find_all(["input", "select", "textarea", "button"], recursive=True):
-            field_data = self._process_field(field)
-            if field_data:
-                fields.append(field_data)
+            # Skip nested elements
+            if field.parent == fieldset or field.parent.parent == fieldset:
+                field_data = self._process_field(field)
+                if field_data:
+                    fields.append(field_data)
         
         if fields:
             fieldset_data["fields"] = fields
@@ -246,7 +247,7 @@ class FormProcessor(ElementProcessor):
                     result[attr] = select[attr]
         
         # Extract options and option groups
-        options: List[Dict] = []
+        options = []
         
         for child in select.children:
             if not isinstance(child, Tag):
@@ -289,8 +290,9 @@ class FormProcessor(ElementProcessor):
                         
                     group_options.append(opt)
                 
-                optgroup["options"] = group_options
-                options.append(optgroup)
+                if group_options:
+                    optgroup["options"] = group_options
+                    options.append(optgroup)
         
         result["options"] = options
         
@@ -376,86 +378,19 @@ class FormProcessor(ElementProcessor):
         field_id = field.get("id")
         if field_id:
             # Look for a label with a matching "for" attribute
-            label = field.find_parent("form").find("label", attrs={"for": field_id})
-            if label:
-                return label.get_text().strip()
+            form = field.find_parent("form")
+            if form:
+                label = form.find("label", attrs={"for": field_id})
+                if label:
+                    return label.get_text().strip()
         
         # Check if the field is inside a label
         parent_label = field.find_parent("label")
         if parent_label:
             # Extract label text excluding the field itself
-            field.extract()  # Temporarily remove the field
-            label_text = parent_label.get_text().strip()
-            parent_label.append(field)  # Put the field back
-            return label_text
-        
-        return None
-    
-    def _find_parent_section(self, document: Document, element: Tag) -> Optional[Section]:
-        """
-        Find the appropriate parent section for an element.
-        
-        This uses a heuristic approach to determine which section the element
-        belongs to based on its position in the document.
-        
-        Args:
-            document: The Document object.
-            element: The HTML element to find a parent for.
-            
-        Returns:
-            The parent Section object, or None if no suitable parent was found.
-        """
-        # This is a simplified implementation that needs to be improved
-        # in a real application to accurately place elements in the right sections
-        
-        # Get all headings that precede this element
-        preceding_headings = []
-        current = element.previous_element
-        while current:
-            if current.name and current.name in ["h1", "h2", "h3", "h4", "h5", "h6"]:
-                preceding_headings.append((current.name, current.get_text().strip()))
-            current = current.previous_element
-        
-        # Reverse the list to get them in document order
-        preceding_headings.reverse()
-        
-        if not preceding_headings:
-            # If no headings found, use the first top-level section
-            for item in document.content:
-                if isinstance(item, Section):
-                    return item
-            return None
-        
-        # Find the matching section based on the nearest heading
-        last_heading = preceding_headings[-1]
-        return self._find_section_by_title(document.content, last_heading[1])
-    
-    def _find_section_by_title(
-        self, content: List, title: str
-    ) -> Optional[Section]:
-        """
-        Find a section by its title.
-        
-        Args:
-            content: The content list to search in.
-            title: The title to match.
-            
-        Returns:
-            The matching Section object, or None if not found.
-        """
-        for item in content:
-            if isinstance(item, Section):
-                if item.title == title:
-                    return item
-                
-                # Recursively search in children
-                result = self._find_section_by_title(item.children, title)
-                if result:
-                    return result
-        
-        # If no exact match found, return the first section as a fallback
-        for item in content:
-            if isinstance(item, Section):
-                return item
+            text = parent_label.get_text().strip()
+            if field.get_text().strip():
+                text = text.replace(field.get_text().strip(), "").strip()
+            return text
         
         return None

@@ -3,7 +3,7 @@ Processor for text content elements.
 """
 
 import re
-from typing import Dict, List, Optional, Set, Union
+from typing import Dict, List, Optional, Set, Union, Any
 
 import structlog
 from bs4 import BeautifulSoup, NavigableString, Tag
@@ -24,14 +24,19 @@ class TextProcessor(ElementProcessor):
     preserving inline formatting and structure.
     """
     
-    # Tags that we'll process
-    TEXT_TAGS = {
-        "p", "blockquote", "pre", "ul", "ol", "dl",
-        "code", "q", "cite", "em", "strong", "i", "b", 
-        "mark", "small", "del", "ins", "sub", "sup"
-    }
+    # Tags that we'll process as paragraph-like elements
+    PARAGRAPH_TAGS = {"p"}
     
-    # Inline tags that should be preserved in text
+    # List-like elements
+    LIST_TAGS = {"ul", "ol"}
+    
+    # Definition list elements
+    DL_TAGS = {"dl"}
+    
+    # Block elements
+    BLOCK_TAGS = {"blockquote", "pre"}
+    
+    # Inline semantic elements
     INLINE_TAGS = {
         "a", "abbr", "b", "br", "cite", "code", "data", "dfn", 
         "em", "i", "kbd", "mark", "q", "s", "samp", "small", 
@@ -54,124 +59,85 @@ class TextProcessor(ElementProcessor):
         """
         logger.info("Processing text elements")
         
-        # Find all sections in the document (including nested ones)
-        sections = self._find_all_sections(document.content)
+        # Process paragraphs
+        self._process_elements(soup, document, self.PARAGRAPH_TAGS, self._process_paragraph)
         
-        # Process text elements in each section
-        for section in sections:
-            self._process_section_content(soup, section)
+        # Process lists
+        self._process_elements(soup, document, self.LIST_TAGS, self._process_list)
+        
+        # Process definition lists
+        self._process_elements(soup, document, self.DL_TAGS, self._process_definition_list)
+        
+        # Process blockquotes
+        self._process_elements(soup, document, {"blockquote"}, self._process_blockquote)
+        
+        # Process preformatted text and code blocks
+        self._process_elements(soup, document, {"pre"}, self._process_preformatted)
         
         return document
     
-    def _find_all_sections(self, content: List[Union[Section, Dict]]) -> List[Section]:
+    def _process_elements(
+        self, 
+        soup: BeautifulSoup, 
+        document: Document, 
+        tags: Set[str],
+        processor_func: callable
+    ) -> None:
         """
-        Recursively find all sections in the document.
-        
-        Args:
-            content: The content list to search in.
-            
-        Returns:
-            A list of all Section objects found.
-        """
-        result: List[Section] = []
-        
-        for item in content:
-            if isinstance(item, Section):
-                result.append(item)
-                # Recursively find sections in children
-                result.extend(self._find_all_sections(item.children))
-        
-        return result
-    
-    def _process_section_content(self, soup: BeautifulSoup, section: Section) -> None:
-        """
-        Process the text content in a section.
+        Process elements of the specified tags using the provided processor function.
         
         Args:
             soup: The BeautifulSoup object.
-            section: The section to process.
+            document: The Document object.
+            tags: Set of tag names to process.
+            processor_func: Function to process each element.
         """
-        # This is a simplified implementation that would need to be expanded
-        # in a real application to properly handle all text elements
-        
-        # Replace simple string content with richer representations
-        new_content = []
-        for item in section.content:
-            if isinstance(item, str):
-                # Find elements in the soup that might contain this text
-                matches = self._find_elements_with_text(soup, item)
-                if matches:
-                    for element in matches:
-                        processed = self._process_text_element(element)
-                        if processed:
-                            new_content.append(processed)
-                else:
-                    # Keep the original text if no match found
-                    new_content.append(item)
-            else:
-                # Non-string items (like tables, forms) are preserved
-                new_content.append(item)
-        
-        # Update the section's content
-        section.content = new_content
+        # Find all elements of the specified tags
+        for tag_name in tags:
+            elements = soup.find_all(tag_name)
+            
+            for element in elements:
+                # Skip elements in certain containers that will be processed separately
+                if self._should_skip_element(element):
+                    continue
+                    
+                # Find parent section for this element
+                parent_section = self.find_parent_section(document, element)
+                
+                if parent_section:
+                    # Process the element
+                    content_obj = processor_func(element)
+                    
+                    if content_obj:
+                        # Add to the parent section
+                        parent_section.add_content(content_obj)
+                        logger.debug(
+                            f"Added {tag_name} to section", 
+                            section=parent_section.title
+                        )
     
-    def _find_elements_with_text(self, soup: BeautifulSoup, text: str) -> List[Tag]:
+    def _should_skip_element(self, element: Tag) -> bool:
         """
-        Find elements in the soup that might contain this text.
+        Determine if an element should be skipped (processed as part of another element).
         
         Args:
-            soup: The BeautifulSoup object.
-            text: The text to search for.
+            element: The element to check.
             
         Returns:
-            A list of matching elements.
+            True if the element should be skipped, False otherwise.
         """
-        # This is a simplified approach - in a real application, we would
-        # need a more sophisticated matching algorithm
+        # Skip elements inside certain containers
+        skip_containers = {"table", "figure", "form"}
         
-        # Clean the text for comparison (remove extra whitespace)
-        clean_text = re.sub(r'\s+', ' ', text).strip()
-        
-        # Try to find elements containing this text
-        results = []
-        for tag_name in self.TEXT_TAGS:
-            for element in soup.find_all(tag_name):
-                element_text = re.sub(r'\s+', ' ', element.get_text()).strip()
-                if clean_text in element_text:
-                    results.append(element)
-        
-        return results
-    
-    def _process_text_element(self, element: Tag) -> Optional[Dict]:
-        """
-        Process a text element into a rich representation.
-        
-        Args:
-            element: The HTML element to process.
+        parent = element.parent
+        while parent:
+            if parent.name in skip_containers:
+                return True
+            parent = parent.parent
             
-        Returns:
-            A dictionary representation of the element, or None if it
-            could not be processed.
-        """
-        # Handle different types of text elements
-        if element.name == "p":
-            return self._process_paragraph(element)
-        elif element.name in ("ul", "ol"):
-            return self._process_list(element)
-        elif element.name == "blockquote":
-            return self._process_blockquote(element)
-        elif element.name == "pre":
-            return self._process_preformatted(element)
-        elif element.name == "dl":
-            return self._process_definition_list(element)
-        else:
-            # Default handling for other text elements
-            return {
-                "type": element.name,
-                "text": self._extract_text_with_formatting(element)
-            }
+        return False
     
-    def _process_paragraph(self, element: Tag) -> Dict:
+    def _process_paragraph(self, element: Tag) -> Dict[str, Any]:
         """
         Process a paragraph element.
         
@@ -183,10 +149,10 @@ class TextProcessor(ElementProcessor):
         """
         return {
             "type": "paragraph",
-            "text": self._extract_text_with_formatting(element)
+            "text": self._extract_text(element)
         }
     
-    def _process_list(self, element: Tag) -> Dict:
+    def _process_list(self, element: Tag) -> Dict[str, Any]:
         """
         Process a list element (ul or ol).
         
@@ -196,18 +162,49 @@ class TextProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the list.
         """
-        list_type = "unordered" if element.name == "ul" else "ordered"
+        list_type = "unordered_list" if element.name == "ul" else "ordered_list"
         items = []
         
         for li in element.find_all("li", recursive=False):
-            items.append(self._extract_text_with_formatting(li))
+            items.append(self._extract_text(li))
         
         return {
-            "type": f"{list_type}_list",
+            "type": list_type,
             "items": items
         }
     
-    def _process_blockquote(self, element: Tag) -> Dict:
+    def _process_definition_list(self, element: Tag) -> Dict[str, Any]:
+        """
+        Process a definition list element.
+        
+        Args:
+            element: The dl element.
+            
+        Returns:
+            A dictionary representation of the definition list.
+        """
+        items = []
+        current_term = None
+        
+        for child in element.children:
+            if not isinstance(child, Tag):
+                continue
+                
+            if child.name == "dt":
+                current_term = self._extract_text(child)
+            elif child.name == "dd" and current_term:
+                items.append({
+                    "term": current_term,
+                    "definition": self._extract_text(child)
+                })
+                current_term = None
+        
+        return {
+            "type": "definition_list",
+            "items": items
+        }
+    
+    def _process_blockquote(self, element: Tag) -> Dict[str, Any]:
         """
         Process a blockquote element.
         
@@ -217,25 +214,29 @@ class TextProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the blockquote.
         """
+        result = {
+            "type": "blockquote",
+            "text": self._extract_text(element)
+        }
+        
         # Check for citation
-        cite = element.get("cite")
-        citation = None
+        cite_url = element.get("cite")
+        if cite_url:
+            result["cite_url"] = cite_url
         
         # Look for cite element
         cite_element = element.find("cite")
         if cite_element:
-            citation = cite_element.get_text().strip()
-            # Remove the cite element to avoid duplicating it in the text
-            cite_element.extract()
+            result["citation"] = self._extract_text(cite_element)
         
-        return {
-            "type": "blockquote",
-            "text": self._extract_text_with_formatting(element),
-            **({"citation": citation} if citation else {}),
-            **({"cite_url": cite} if cite else {}),
-        }
+        # Look for footer element (often used for attribution)
+        footer = element.find("footer")
+        if footer and "citation" not in result:
+            result["citation"] = self._extract_text(footer)
+        
+        return result
     
-    def _process_preformatted(self, element: Tag) -> Dict:
+    def _process_preformatted(self, element: Tag) -> Dict[str, Any]:
         """
         Process a preformatted text element.
         
@@ -256,11 +257,15 @@ class TextProcessor(ElementProcessor):
                     language = cls[9:]  # Remove "language-" prefix
                     break
             
-            return {
+            result = {
                 "type": "code_block",
-                "code": code.get_text(),
-                **({"language": language} if language else {})
+                "code": code.get_text()
             }
+            
+            if language:
+                result["language"] = language
+                
+            return result
         else:
             # Regular preformatted text
             return {
@@ -268,51 +273,20 @@ class TextProcessor(ElementProcessor):
                 "text": element.get_text()
             }
     
-    def _process_definition_list(self, element: Tag) -> Dict:
+    def _extract_text(self, element: Tag) -> str:
         """
-        Process a definition list element.
-        
-        Args:
-            element: The dl element.
-            
-        Returns:
-            A dictionary representation of the definition list.
-        """
-        items = []
-        current_term = None
-        
-        for child in element.children:
-            if not isinstance(child, Tag):
-                continue
-                
-            if child.name == "dt":
-                current_term = self._extract_text_with_formatting(child)
-            elif child.name == "dd" and current_term:
-                items.append({
-                    "term": current_term,
-                    "definition": self._extract_text_with_formatting(child)
-                })
-                current_term = None
-        
-        return {
-            "type": "definition_list",
-            "items": items
-        }
-    
-    def _extract_text_with_formatting(self, element: Tag) -> str:
-        """
-        Extract text from an element, preserving inline formatting.
-        
-        This is a simplified implementation that would need to be expanded
-        in a real application to properly handle all inline elements.
+        Extract clean text from an element.
         
         Args:
             element: The HTML element.
             
         Returns:
-            The formatted text content.
+            The extracted text content.
         """
-        # In a real implementation, we would convert the HTML to a
-        # format that preserves inline formatting. For simplicity,
-        # we'll just return the text here.
-        return element.get_text().strip()
+        # Simple extraction for now
+        text = element.get_text()
+        
+        # Clean up whitespace
+        text = re.sub(r'\s+', ' ', text).strip()
+        
+        return text

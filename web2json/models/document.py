@@ -3,12 +3,9 @@ Document model representing the high-level structure of a processed HTML documen
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, TypeAlias
+from typing import Any, Dict, List, Optional
 
 from web2json.models.section import Section
-
-# Type alias for content items
-ContentItem: TypeAlias = Dict[str, Any]
 
 
 @dataclass
@@ -21,21 +18,16 @@ class Document:
     """
     title: str
     url: str
-    content: List[Section | ContentItem] = field(default_factory=list)
+    content: List[Section] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert the document to a dictionary representation for JSON serialization."""
-        sections_dict = [
-            item.to_dict() if isinstance(item, Section) else item
-            for item in self.content
-        ]
-        
         return {
             "title": self.title,
             "url": self.url,
-            "content": sections_dict,
-            "metadata": self.metadata,
+            "content": [section.to_dict() for section in self.content],
+            "metadata": self.metadata.copy() if self.metadata else {},
         }
     
     @classmethod

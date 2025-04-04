@@ -6,4 +6,25 @@ structure, and transform them into a structured JSON format that preserves
 the semantic hierarchy of the original HTML.
 """
 
-__version__ = "0.1.0"
+from importlib.metadata import version, PackageNotFoundError
+
+try:
+    __version__ = version("web2json")
+except PackageNotFoundError:
+    __version__ = "0.1.0"
+
+# Import core components for easier access
+from web2json.core.transformer import Transformer
+from web2json.core.fetcher import WebFetcher
+from web2json.models.document import Document
+from web2json.models.section import Section
+from web2json.models.config import Web2JsonConfig
+
+__all__ = [
+    "Transformer",
+    "WebFetcher",
+    "Document",
+    "Section",
+    "Web2JsonConfig",
+    "__version__",
+]

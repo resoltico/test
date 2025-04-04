@@ -3,10 +3,7 @@ Section model representing hierarchical sections within a document.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Self, TypeAlias, Union
-
-# Type alias for content items
-ContentItem: TypeAlias = Union[str, Dict[str, Any]]
+from typing import Any, Dict, List, Optional, Self, Union
 
 
 @dataclass
@@ -21,11 +18,11 @@ class Section:
     level: int
     id: Optional[str] = None
     type: str = "section"
-    content: List[ContentItem] = field(default_factory=list)
+    content: List[Dict[str, Any]] = field(default_factory=list)
     children: List[Self] = field(default_factory=list)
     attributes: Dict[str, str] = field(default_factory=dict)
     
-    def add_content(self, content_item: ContentItem) -> None:
+    def add_content(self, content_item: Dict[str, Any]) -> None:
         """Add a content item to this section."""
         self.content.append(content_item)
     
@@ -39,7 +36,7 @@ class Section:
             "type": self.type,
             "title": self.title,
             "level": self.level,
-            "content": self.content,
+            "content": self.content.copy(),
         }
         
         if self.id:
@@ -49,7 +46,7 @@ class Section:
             result["children"] = [child.to_dict() for child in self.children]
         
         if self.attributes:
-            result["attributes"] = self.attributes
+            result["attributes"] = self.attributes.copy()
             
         return result
     

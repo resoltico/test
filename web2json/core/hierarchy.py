@@ -43,112 +43,146 @@ class HierarchyExtractor:
         """
         logger.info("Extracting document hierarchy")
         
-        # Create a root section to hold content before the first heading
-        root: List[Section | Dict] = []
-        
-        # Initialize the stack with the root
-        stack: List[Tuple[int, List[Section | Dict]]] = [(0, root)]
-        
-        # Current section being processed
-        current_section: Optional[Section] = None
-        
-        # Process all elements in the document body
+        # Find the body element
         body = soup.find("body")
         if not body:
             logger.warning("No body tag found in document")
-            document.content = root
             return document
         
-        # Extract and process elements in order
-        for element in body.find_all(True):
-            # Skip elements that should be ignored
-            if element.name in self.config.ignore_tags:
-                continue
-            
-            # Process headings to create new sections
-            if element.name in self.config.heading_tags:
-                current_section = self._process_heading(element, stack)
-            
-            # Process content elements
-            elif current_section is not None and element.name in self.config.content_tags:
-                self._process_content(element, current_section)
+        # Find all heading elements in document order
+        headings = body.find_all(self.config.heading_tags)
+        if not headings:
+            logger.warning("No headings found in document")
+            return document
         
-        # Set the content on the document
-        document.content = root
+        # Process all headings to build the section hierarchy
+        document.content = self._build_section_hierarchy(headings)
+        
         return document
     
-    def _process_heading(
-        self, element: Tag, stack: List[Tuple[int, List[Section | Dict]]]
-    ) -> Section:
+    def _build_section_hierarchy(self, headings: List[Tag]) -> List[Section]:
         """
-        Process a heading element and update the section hierarchy.
+        Build a nested section hierarchy from a list of heading elements.
+        
+        This uses a stack-based approach to properly nest sections based on heading levels.
         
         Args:
-            element: The heading element (h1-h6).
-            stack: The stack of sections being built.
+            headings: List of heading elements from the document.
             
         Returns:
-            The newly created Section object.
+            A list of top-level Section objects with properly nested children.
         """
-        # Determine the heading level
-        level = int(element.name[1])  # Extract number from h1, h2, etc.
-        title = element.get_text().strip()
-        element_id = element.get("id")
+        # Create a root section level 0 (container for top-level sections)
+        root: List[Section] = []
         
-        logger.debug(
-            "Processing heading", 
-            level=level, 
-            title=title, 
-            id=element_id
-        )
+        # Initialize the stack with the root
+        # Each stack entry is a tuple of (level, list of sections)
+        stack: List[Tuple[int, List[Section]]] = [(0, root)]
         
-        # Pop the stack until we find the right parent level
-        while stack and stack[-1][0] >= level:
-            stack.pop()
+        # Process each heading to create sections
+        for heading in headings:
+            # Get the heading level (h1 = 1, h2 = 2, etc.)
+            level = int(heading.name[1])
+            title = heading.get_text().strip()
+            element_id = heading.get("id")
+            
+            logger.debug(
+                "Processing heading", 
+                level=level, 
+                title=title, 
+                id=element_id
+            )
+            
+            # Pop the stack until we find the appropriate parent level
+            while stack and stack[-1][0] >= level:
+                stack.pop()
+            
+            # Create a new section for this heading
+            section = Section.create_from_heading(
+                title=title,
+                level=level,
+                element_id=element_id,
+            )
+            
+            # Add to parent's children
+            parent_level, parent_children = stack[-1]
+            parent_children.append(section)
+            
+            # Add this section to the stack
+            stack.append((level, section.children))
         
-        if not stack:
-            # Ensure there's always at least the root level
-            logger.warning("Stack became empty, resetting to root")
-            root: List[Section | Dict] = []
-            stack.append((0, root))
-        
-        # Create a new section for this heading
-        section = Section.create_from_heading(
-            title=title,
-            level=level,
-            element_id=element_id,
-        )
-        
-        # Add to parent's children
-        parent_level, parent_children = stack[-1]
-        parent_children.append(section)
-        
-        # Add this section to the stack
-        stack.append((level, section.children))
-        
-        return section
+        return root
     
-    def _process_content(self, element: Tag, section: Section) -> None:
+    def extract_content_for_sections(self, soup: Soup, document: Document) -> Document:
         """
-        Process a content element and add it to the current section.
+        Extract and assign content to sections based on document structure.
+        
+        This processes elements between headings and assigns them to the appropriate sections.
         
         Args:
-            element: The content element to process.
-            section: The current section to add the content to.
-        """
-        # This is a simplified version - in a real implementation,
-        # we would use specialized processors for different element types
-        content_text = element.get_text().strip()
-        if content_text:
-            section.add_content(content_text)
+            soup: The BeautifulSoup object containing the parsed HTML.
+            document: The Document object with section hierarchy.
             
-            # Debug log truncated content for visibility
-            truncated = (
-                content_text[:50] + "..." 
-                if len(content_text) > 50 else content_text
-            )
-            logger.debug(
-                "Added content to section", 
-                section=section.title, 
-                content_preview=truncated
-            )
+        Returns:
+            The Document object with content assigned to sections.
+        """
+        body = soup.find("body")
+        if not body or not document.content:
+            return document
+        
+        # Find all headings and content elements in document order
+        all_elements = []
+        
+        for element in body.find_all(True):
+            if element.name in self.config.heading_tags or element.name in self.config.content_tags:
+                if element.name not in self.config.ignore_tags:
+                    all_elements.append(element)
+        
+        # Find all sections in a flattened list
+        all_sections = self._flatten_sections(document.content)
+        
+        # Map headings to sections
+        heading_to_section = {}
+        for section in all_sections:
+            # Find the heading element that created this section
+            for element in all_elements:
+                if (element.name in self.config.heading_tags and 
+                    element.get_text().strip() == section.title and
+                    int(element.name[1]) == section.level):
+                    heading_to_section[element] = section
+                    break
+        
+        # Now group elements between headings
+        current_section = None
+        current_heading = None
+        
+        for element in all_elements:
+            if element.name in self.config.heading_tags:
+                if element in heading_to_section:
+                    current_section = heading_to_section[element]
+                    current_heading = element
+            elif current_section and element.name in self.config.content_tags:
+                # We don't process content elements directly here
+                # This is handled by specialized processors
+                pass
+        
+        return document
+    
+    def _flatten_sections(self, sections: List[Section]) -> List[Section]:
+        """
+        Flatten a nested section hierarchy into a single list.
+        
+        Args:
+            sections: List of sections that may have nested children.
+            
+        Returns:
+            A flattened list of all sections.
+        """
+        result = []
+        
+        for section in sections:
+            result.append(section)
+            if section.children:
+                result.extend(self._flatten_sections(section.children))
+        
+        return result

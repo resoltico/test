@@ -2,9 +2,10 @@
 Module for transforming HTML documents into structured JSON.
 """
 
+from typing import Dict, List, Optional, Type, TypeAlias
+
 import structlog
 from bs4 import BeautifulSoup
-from typing import Dict, List, Optional, Type, TypeAlias
 
 from web2json.core.hierarchy import HierarchyExtractor
 from web2json.core.parser import HtmlParser
@@ -75,6 +76,9 @@ class Transformer:
         
         # Extract the hierarchical structure
         document = self.hierarchy_extractor.extract_hierarchy(soup, document)
+        
+        # Initialize content structure
+        document = self.hierarchy_extractor.extract_content_for_sections(soup, document)
         
         # Apply specialized processors
         if self.processors:

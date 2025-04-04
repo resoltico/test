@@ -2,27 +2,23 @@
 Processor for semantic HTML5 elements.
 """
 
-from typing import Dict, List, Optional, TypeAlias
+from typing import Dict, List, Optional, Any
 
 import structlog
 from bs4 import BeautifulSoup, Tag
 
 from web2json.models.document import Document
-from web2json.models.section import Section
 from web2json.processors.base import ElementProcessor
 
 
 logger = structlog.get_logger(__name__)
-
-# Type alias for content items
-ContentItem: TypeAlias = Dict[str, object]
 
 
 class SemanticProcessor(ElementProcessor):
     """
     Processor for semantic HTML5 elements.
     
-    Handles elements like article, aside, nav, details, etc. that provide
+    Handles elements like article, aside, nav, details, etc., that provide
     semantic structure to HTML documents.
     """
     
@@ -48,7 +44,10 @@ class SemanticProcessor(ElementProcessor):
         
         # Process each type of semantic element
         for element_type in self.SEMANTIC_ELEMENTS:
-            elements = soup.find_all(element_type)
+            elements = [
+                elem for elem in soup.find_all(element_type)
+                if not self._is_nested_semantic(elem)
+            ]
             
             if not elements:
                 continue
@@ -56,27 +55,45 @@ class SemanticProcessor(ElementProcessor):
             logger.debug(f"Found {element_type} elements", count=len(elements))
             
             for element in elements:
-                # Process the element
-                processed = self._process_element(element)
+                # Find parent section for this element
+                parent_section = self.find_parent_section(document, element)
                 
-                if processed:
-                    # Find the appropriate section to add this element to
-                    section = self._find_parent_section(document, element)
+                if parent_section:
+                    # Process the element based on its type
+                    processed = self._process_element(element)
                     
-                    if section:
-                        # Add the element to the section's content
-                        section.add_content(processed)
+                    if processed:
+                        parent_section.add_content(processed)
+                        
                         logger.debug(
                             f"Added {element_type} to section", 
-                            section=section.title, 
+                            section=parent_section.title, 
                             element_id=element.get("id", "")
                         )
         
         return document
     
-    def _process_element(self, element: Tag) -> Optional[ContentItem]:
+    def _is_nested_semantic(self, element: Tag) -> bool:
         """
-        Process a semantic element.
+        Check if a semantic element is nested inside another semantic element.
+        
+        Args:
+            element: The semantic element to check.
+            
+        Returns:
+            True if the element is nested inside another semantic element, False otherwise.
+        """
+        parent = element.parent
+        while parent:
+            if parent.name in self.SEMANTIC_ELEMENTS:
+                return True
+            parent = parent.parent
+            
+        return False
+    
+    def _process_element(self, element: Tag) -> Optional[Dict[str, Any]]:
+        """
+        Process a semantic element based on its type.
         
         Args:
             element: The semantic element to process.
@@ -91,8 +108,11 @@ class SemanticProcessor(ElementProcessor):
             return self._process_article(element)
         elif element_type == "aside":
             return self._process_aside(element)
-        elif element_type in ["details", "summary"]:
+        elif element_type == "details":
             return self._process_details(element)
+        elif element_type == "summary":
+            # Skip summary as it's processed as part of details
+            return None
         elif element_type == "nav":
             return self._process_nav(element)
         elif element_type == "address":
@@ -101,21 +121,21 @@ class SemanticProcessor(ElementProcessor):
             return self._process_header_footer(element)
         elif element_type == "time":
             return self._process_time(element)
+        elif element_type == "mark":
+            return self._process_mark(element)
         elif element_type in ["progress", "meter"]:
             return self._process_measurement(element)
         elif element_type == "dialog":
             return self._process_dialog(element)
         elif element_type == "search":
             return self._process_search(element)
-        elif element_type == "mark":
-            return self._process_mark(element)
         elif element_type == "output":
             return self._process_output(element)
         else:
             # Generic handler for other semantic elements
             return self._process_generic_semantic(element)
     
-    def _process_article(self, element: Tag) -> ContentItem:
+    def _process_article(self, element: Tag) -> Dict[str, Any]:
         """
         Process an article element.
         
@@ -125,7 +145,7 @@ class SemanticProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the article.
         """
-        result: ContentItem = {
+        result = {
             "type": "article",
             "content": []
         }
@@ -140,18 +160,20 @@ class SemanticProcessor(ElementProcessor):
             result["title"] = heading.get_text().strip()
         
         # Extract content
-        text_content = element.get_text().strip()
-        if text_content:
-            # If there's a heading, remove its text from the content
-            if heading:
-                text_content = text_content.replace(heading.get_text().strip(), "", 1).strip()
-            
-            if text_content:
-                result["content"].append({"type": "text", "text": text_content})
+        content = element.get_text().strip()
+        
+        # Remove heading text if present
+        if heading:
+            heading_text = heading.get_text().strip()
+            if heading_text in content:
+                content = content.replace(heading_text, "", 1).strip()
+        
+        if content:
+            result["content"].append({"type": "text", "text": content})
         
         return result
     
-    def _process_aside(self, element: Tag) -> ContentItem:
+    def _process_aside(self, element: Tag) -> Dict[str, Any]:
         """
         Process an aside element.
         
@@ -161,7 +183,7 @@ class SemanticProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the aside.
         """
-        result: ContentItem = {
+        result = {
             "type": "aside",
             "content": []
         }
@@ -176,37 +198,30 @@ class SemanticProcessor(ElementProcessor):
             result["title"] = heading.get_text().strip()
         
         # Extract content
-        text_content = element.get_text().strip()
-        if text_content:
-            # If there's a heading, remove its text from the content
-            if heading:
-                text_content = text_content.replace(heading.get_text().strip(), "", 1).strip()
-            
-            if text_content:
-                result["content"].append({"type": "text", "text": text_content})
+        content = element.get_text().strip()
+        
+        # Remove heading text if present
+        if heading:
+            heading_text = heading.get_text().strip()
+            if heading_text in content:
+                content = content.replace(heading_text, "", 1).strip()
+        
+        if content:
+            result["content"].append({"type": "text", "text": content})
         
         return result
     
-    def _process_details(self, element: Tag) -> Optional[ContentItem]:
+    def _process_details(self, element: Tag) -> Dict[str, Any]:
         """
-        Process a details/summary element.
+        Process a details element.
         
         Args:
-            element: The details or summary element.
+            element: The details element.
             
         Returns:
-            A dictionary representation of the details, or None if it's a summary (handled with details).
+            A dictionary representation of the details.
         """
-        # If this is a summary element that's inside a details element,
-        # we'll process it as part of the details element
-        if element.name == "summary" and element.find_parent("details"):
-            return None
-        
-        # Only process details elements
-        if element.name != "details":
-            return None
-        
-        result: ContentItem = {
+        result = {
             "type": "details",
             "content": []
         }
@@ -225,17 +240,19 @@ class SemanticProcessor(ElementProcessor):
             result["summary"] = summary.get_text().strip()
         
         # Extract content (excluding the summary)
-        content_text = element.get_text().strip()
-        if summary:
-            # Remove the summary text from the content
-            content_text = content_text.replace(summary.get_text().strip(), "", 1).strip()
+        content = element.get_text().strip()
         
-        if content_text:
-            result["content"].append({"type": "text", "text": content_text})
+        if summary:
+            summary_text = summary.get_text().strip()
+            if summary_text in content:
+                content = content.replace(summary_text, "", 1).strip()
+        
+        if content:
+            result["content"].append({"type": "text", "text": content})
         
         return result
     
-    def _process_nav(self, element: Tag) -> ContentItem:
+    def _process_nav(self, element: Tag) -> Dict[str, Any]:
         """
         Process a nav element.
         
@@ -245,7 +262,7 @@ class SemanticProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the navigation.
         """
-        result: ContentItem = {
+        result = {
             "type": "navigation",
             "links": []
         }
@@ -272,7 +289,7 @@ class SemanticProcessor(ElementProcessor):
         
         return result
     
-    def _process_address(self, element: Tag) -> ContentItem:
+    def _process_address(self, element: Tag) -> Dict[str, Any]:
         """
         Process an address element.
         
@@ -282,7 +299,7 @@ class SemanticProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the address.
         """
-        result: ContentItem = {
+        result = {
             "type": "address",
             "text": element.get_text().strip()
         }
@@ -305,7 +322,7 @@ class SemanticProcessor(ElementProcessor):
         
         return result
     
-    def _process_header_footer(self, element: Tag) -> ContentItem:
+    def _process_header_footer(self, element: Tag) -> Dict[str, Any]:
         """
         Process a header or footer element.
         
@@ -315,7 +332,7 @@ class SemanticProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the header/footer.
         """
-        result: ContentItem = {
+        result = {
             "type": element.name,
             "content": []
         }
@@ -325,13 +342,13 @@ class SemanticProcessor(ElementProcessor):
             result["id"] = element["id"]
         
         # Extract content
-        text_content = element.get_text().strip()
-        if text_content:
-            result["content"].append({"type": "text", "text": text_content})
+        content = element.get_text().strip()
+        if content:
+            result["content"].append({"type": "text", "text": content})
         
         return result
     
-    def _process_time(self, element: Tag) -> ContentItem:
+    def _process_time(self, element: Tag) -> Dict[str, Any]:
         """
         Process a time element.
         
@@ -341,7 +358,7 @@ class SemanticProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the time.
         """
-        result: ContentItem = {
+        result = {
             "type": "time",
             "text": element.get_text().strip()
         }
@@ -352,7 +369,22 @@ class SemanticProcessor(ElementProcessor):
         
         return result
     
-    def _process_measurement(self, element: Tag) -> ContentItem:
+    def _process_mark(self, element: Tag) -> Dict[str, Any]:
+        """
+        Process a mark element.
+        
+        Args:
+            element: The mark element.
+            
+        Returns:
+            A dictionary representation of the marked text.
+        """
+        return {
+            "type": "marked_text",
+            "text": element.get_text().strip()
+        }
+    
+    def _process_measurement(self, element: Tag) -> Dict[str, Any]:
         """
         Process a progress or meter element.
         
@@ -362,7 +394,7 @@ class SemanticProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the measurement.
         """
-        result: ContentItem = {
+        result = {
             "type": element.name,
             "text": element.get_text().strip()
         }
@@ -380,7 +412,7 @@ class SemanticProcessor(ElementProcessor):
         
         return result
     
-    def _process_dialog(self, element: Tag) -> ContentItem:
+    def _process_dialog(self, element: Tag) -> Dict[str, Any]:
         """
         Process a dialog element.
         
@@ -390,7 +422,7 @@ class SemanticProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the dialog.
         """
-        result: ContentItem = {
+        result = {
             "type": "dialog",
             "content": []
         }
@@ -404,13 +436,13 @@ class SemanticProcessor(ElementProcessor):
             result["open"] = True
         
         # Extract content
-        text_content = element.get_text().strip()
-        if text_content:
-            result["content"].append({"type": "text", "text": text_content})
+        content = element.get_text().strip()
+        if content:
+            result["content"].append({"type": "text", "text": content})
         
         return result
     
-    def _process_search(self, element: Tag) -> ContentItem:
+    def _process_search(self, element: Tag) -> Dict[str, Any]:
         """
         Process a search element.
         
@@ -420,7 +452,7 @@ class SemanticProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the search.
         """
-        result: ContentItem = {
+        result = {
             "type": "search",
             "content": []
         }
@@ -450,22 +482,7 @@ class SemanticProcessor(ElementProcessor):
         
         return result
     
-    def _process_mark(self, element: Tag) -> ContentItem:
-        """
-        Process a mark element.
-        
-        Args:
-            element: The mark element.
-            
-        Returns:
-            A dictionary representation of the marked text.
-        """
-        return {
-            "type": "marked_text",
-            "text": element.get_text().strip()
-        }
-    
-    def _process_output(self, element: Tag) -> ContentItem:
+    def _process_output(self, element: Tag) -> Dict[str, Any]:
         """
         Process an output element.
         
@@ -475,7 +492,7 @@ class SemanticProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the output.
         """
-        result: ContentItem = {
+        result = {
             "type": "output",
             "text": element.get_text().strip()
         }
@@ -483,11 +500,15 @@ class SemanticProcessor(ElementProcessor):
         # Extract attributes
         for attr in ["for", "form", "name"]:
             if element.has_attr(attr):
-                result[attr] = element[attr]
+                # Convert list attribute to array
+                if attr == "for" and " " in element[attr]:
+                    result[attr] = element[attr].split()
+                else:
+                    result[attr] = element[attr]
         
         return result
     
-    def _process_generic_semantic(self, element: Tag) -> ContentItem:
+    def _process_generic_semantic(self, element: Tag) -> Dict[str, Any]:
         """
         Process a generic semantic element.
         
@@ -497,7 +518,7 @@ class SemanticProcessor(ElementProcessor):
         Returns:
             A dictionary representation of the element.
         """
-        result: ContentItem = {
+        result = {
             "type": element.name,
             "content": []
         }
@@ -516,77 +537,8 @@ class SemanticProcessor(ElementProcessor):
             result["attributes"] = attrs
         
         # Extract text content
-        text_content = element.get_text().strip()
-        if text_content:
-            result["text"] = text_content
+        content = element.get_text().strip()
+        if content:
+            result["content"].append({"type": "text", "text": content})
         
         return result
-    
-    def _find_parent_section(self, document: Document, element: Tag) -> Optional[Section]:
-        """
-        Find the appropriate parent section for an element.
-        
-        This uses a heuristic approach to determine which section the element
-        belongs to based on its position in the document.
-        
-        Args:
-            document: The Document object.
-            element: The HTML element to find a parent for.
-            
-        Returns:
-            The parent Section object, or None if no suitable parent was found.
-        """
-        # This is a simplified implementation that needs to be improved
-        # in a real application to accurately place elements in the right sections
-        
-        # Get all headings that precede this element
-        preceding_headings = []
-        current = element.previous_element
-        while current:
-            if current.name and current.name in ["h1", "h2", "h3", "h4", "h5", "h6"]:
-                preceding_headings.append((current.name, current.get_text().strip()))
-            current = current.previous_element
-        
-        # Reverse the list to get them in document order
-        preceding_headings.reverse()
-        
-        if not preceding_headings:
-            # If no headings found, use the first top-level section
-            for item in document.content:
-                if isinstance(item, Section):
-                    return item
-            return None
-        
-        # Find the matching section based on the nearest heading
-        last_heading = preceding_headings[-1]
-        return self._find_section_by_title(document.content, last_heading[1])
-    
-    def _find_section_by_title(
-        self, content: List, title: str
-    ) -> Optional[Section]:
-        """
-        Find a section by its title.
-        
-        Args:
-            content: The content list to search in.
-            title: The title to match.
-            
-        Returns:
-            The matching Section object, or None if not found.
-        """
-        for item in content:
-            if isinstance(item, Section):
-                if item.title == title:
-                    return item
-                
-                # Recursively search in children
-                result = self._find_section_by_title(item.children, title)
-                if result:
-                    return result
-        
-        # If no exact match found, return the first section as a fallback
-        for item in content:
-            if isinstance(item, Section):
-                return item
-        
-        return None
