@@ -2,7 +2,7 @@
 Configuration model for web2json application settings.
 """
 
-from typing import List, Optional, Set, Dict, Any
+from typing import Dict, List, Optional, Set, Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -20,7 +20,7 @@ class ProcessingConfig(BaseModel):
         default={
             "p", "ul", "ol", "dl", "pre", "blockquote", "figure", "table",
             "form", "div", "section", "article", "aside", "main", "header",
-            "footer", "nav", "details", "time", "address", "search"
+            "footer", "nav", "details", "search", "time", "address"
         },
         description="HTML tags to process as content elements"
     )
@@ -29,9 +29,21 @@ class ProcessingConfig(BaseModel):
         default={
             "article", "aside", "details", "dialog", "summary", "figure", "figcaption",
             "footer", "header", "main", "mark", "nav", "section", "time", "meter",
-            "progress", "output", "menu", "address", "blockquote"
+            "progress", "output", "menu", "hgroup", "address", "blockquote"
         },
         description="HTML tags with semantic meaning"
+    )
+    
+    # Tags that should be preserved in text content
+    preserve_tags: Set[str] = Field(
+        default={
+            "a", "abbr", "b", "bdi", "bdo", "br", "cite", "code", "data", "dfn", 
+            "em", "i", "kbd", "mark", "q", "ruby", "rt", "s", "samp", "small", 
+            "span", "strong", "sub", "sup", "time", "u", "var", "wbr",
+            # Also preserve some structural elements when in content
+            "blockquote", "pre", "hr"
+        },
+        description="HTML tags to preserve in text content"
     )
     
     inline_tags: Set[str] = Field(
@@ -49,11 +61,6 @@ class ProcessingConfig(BaseModel):
     )
     
     # Content processing options
-    preserve_html: bool = Field(
-        default=True,
-        description="Whether to preserve HTML content in the output"
-    )
-    
     extract_metadata: bool = Field(
         default=True,
         description="Whether to extract metadata from the page"
@@ -64,19 +71,14 @@ class ProcessingConfig(BaseModel):
         description="Whether to normalize whitespace in text content"
     )
     
-    # Added special handling for pre elements
-    preserve_pre_whitespace: bool = Field(
+    # Preserve HTML tags in content text
+    preserve_html_tags: bool = Field(
         default=True,
-        description="Whether to preserve whitespace in pre elements"
+        description="Whether to preserve specified HTML tags in content text"
     )
     
-    # Direct HTML as content option
-    direct_html_content: bool = Field(
-        default=True,
-        description="Whether to use direct HTML strings for content"
-    )
-    
-    @field_validator("heading_tags", "content_tags", "ignore_tags", "semantic_tags", "inline_tags")
+    @field_validator("heading_tags", "content_tags", "ignore_tags", 
+                    "semantic_tags", "inline_tags", "preserve_tags")
     @classmethod
     def ensure_lowercase(cls, value: Set[str]) -> Set[str]:
         """Ensure all tag names are lowercase."""

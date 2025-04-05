@@ -25,7 +25,6 @@ class Section:
     # Non-serialized fields used during processing
     raw_content_elements: List[Tag] = field(default_factory=list, repr=False)
     raw_tags: List[str] = field(default_factory=list, repr=False)
-    processed: bool = field(default=False, repr=False)
     
     def add_content(self, content_item: Any) -> None:
         """

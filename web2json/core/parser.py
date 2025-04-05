@@ -164,7 +164,7 @@ class HtmlParser:
         # Then check for h1
         h1_tag = soup.find("h1")
         if h1_tag:
-            return h1_tag.get_text().strip()
+            return self._extract_element_content(h1_tag)
         
         # Check OpenGraph title
         og_title = soup.find("meta", property="og:title")
@@ -178,98 +178,37 @@ class HtmlParser:
         
         return "Untitled Document"
     
-    def get_inner_html(self, element: Tag) -> str:
+    def _extract_element_content(self, element: Tag) -> str:
         """
-        Get the inner HTML of an element as a string.
-        
-        This preserves all HTML tags inside the element.
+        Extract the content of an element, preserving specified HTML tags.
         
         Args:
             element: The HTML element.
             
         Returns:
-            The inner HTML as a string.
-        """
-        return ''.join(str(child) for child in element.children)
-    
-    def get_outer_html(self, element: Tag) -> str:
-        """
-        Get the outer HTML of an element as a string.
-        
-        This preserves the element itself and all HTML tags inside it.
-        
-        Args:
-            element: The HTML element.
-            
-        Returns:
-            The outer HTML as a string.
-        """
-        return str(element)
-    
-    def get_element_text_content(self, element: Tag) -> str:
-        """
-        Extract clean text content from an element.
-        
-        Args:
-            element: The HTML element.
-            
-        Returns:
-            The clean text content.
+            The element content with preserved HTML tags.
         """
         if not element:
             return ""
-            
-        # Get the text content
-        text = element.get_text(" ", strip=True)
         
-        # Normalize whitespace
-        text = " ".join(text.split())
-        
-        return text
-    
-    def get_element_attributes(self, element: Tag) -> Dict[str, str]:
-        """
-        Extract attributes from an element.
-        
-        Args:
-            element: The HTML element.
+        # If we want to preserve HTML tags
+        if self.config.preserve_html_tags:
+            html_content = ""
             
-        Returns:
-            A dictionary of attributes.
-        """
-        if not element:
-            return {}
+            for child in element.children:
+                if isinstance(child, NavigableString):
+                    # For text nodes, add them directly
+                    html_content += str(child)
+                elif isinstance(child, Tag):
+                    # For tag nodes, if the tag should be preserved, add it with its content
+                    if child.name in self.config.preserve_tags:
+                        html_content += str(child)
+                    else:
+                        # Otherwise, recursively process its content
+                        html_content += self._extract_element_content(child)
             
-        attributes = {}
-        for attr, value in element.attrs.items():
-            if isinstance(value, list):
-                attributes[attr] = " ".join(value)
-            elif value is True:  # Boolean attribute
-                attributes[attr] = ""
-            elif value is not None:
-                attributes[attr] = str(value)
-                
-        return attributes
-    
-    def extract_elements_between(
-        self, start_element: Tag, end_element: Optional[Tag] = None
-    ) -> List[Tag]:
-        """
-        Extract all elements between start_element and end_element.
-        
-        Args:
-            start_element: The starting element.
-            end_element: The ending element (optional).
-            
-        Returns:
-            A list of elements between start and end.
-        """
-        elements = []
-        current = start_element.next_sibling
-        
-        while current and current != end_element:
-            if isinstance(current, Tag):
-                elements.append(current)
-            current = current.next_sibling
-            
-        return elements
+            return html_content
+        else:
+            # If we don't want to preserve HTML tags, just get the text
+            text = element.get_text(" ", strip=True)
+            return " ".join(text.split()) if self.config.normalize_whitespace else text

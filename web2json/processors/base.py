@@ -3,15 +3,14 @@ Base class for element processors and common utilities.
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Optional, Dict, Any, Union
+from typing import Any, Dict, List, Optional, Set, Union
 
 import structlog
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup, Tag, NavigableString
 
 from web2json.models.config import ProcessingConfig
 from web2json.models.document import Document
 from web2json.models.section import Section
-from web2json.core.parser import HtmlParser
 
 
 logger = structlog.get_logger(__name__)
@@ -26,77 +25,112 @@ class ElementProcessor(ABC):
     them into structured JSON representations.
     """
     
-    def __init__(self, config: ProcessingConfig, parser: HtmlParser) -> None:
+    def __init__(self, config: ProcessingConfig) -> None:
         """
         Initialize the processor with the given configuration.
         
         Args:
             config: The processing configuration.
-            parser: The HTML parser to use.
         """
         self.config = config
-        self.parser = parser
     
     @abstractmethod
-    def process(self, soup: BeautifulSoup, document: Document) -> Document:
+    def process(self, element: Tag, section: Section) -> None:
         """
-        Process the specified elements in the document.
+        Process the specified element and add the result to the section.
         
         Args:
-            soup: The BeautifulSoup object containing the parsed HTML.
-            document: The Document object to enhance with processed elements.
-            
-        Returns:
-            The enhanced Document object.
+            element: The HTML element to process.
+            section: The section to add the processed content to.
         """
-        pass
-
-    def process_sections(self, sections: List[Section]) -> None:
-        """
-        Process all sections recursively.
-        
-        Args:
-            sections: List of sections to process.
-        """
-        for section in sections:
-            # Process content for this section
-            self.process_section_content(section)
-            
-            # Process child sections recursively
-            if section.children:
-                self.process_sections(section.children)
-
-    def process_section_content(self, section: Section) -> None:
-        """
-        Process content for a single section.
-        
-        Args:
-            section: The section to process.
-        """
-        # This method should be overridden by specific processors
         pass
     
-    def preserve_html(self, element: Tag) -> str:
+    def get_text_content(self, element: Tag) -> str:
         """
-        Preserve the HTML content of an element, including tags.
+        Extract text content from an element, preserving specified HTML tags.
         
         Args:
             element: The HTML element.
             
         Returns:
-            A string representation of the element with HTML tags preserved.
+            The text content with preserved HTML tags.
         """
-        # Get the outer HTML
-        return str(element)
+        # If we want to preserve HTML tags
+        if self.config.preserve_html_tags:
+            html_content = ""
+            
+            for child in element.children:
+                if isinstance(child, NavigableString):
+                    # For text nodes, add them directly
+                    html_content += str(child)
+                elif isinstance(child, Tag):
+                    # For tag nodes, if the tag should be preserved, add it with its content
+                    if child.name in self.config.preserve_tags:
+                        html_content += str(child)
+                    else:
+                        # Otherwise, recursively process its content
+                        html_content += self.get_text_content(child)
+            
+            return html_content
+        else:
+            # If we don't want to preserve HTML tags, just get the text
+            return element.get_text()
     
-    def extract_text(self, element: Tag) -> str:
+    def is_heading(self, element: Tag) -> bool:
         """
-        Extract the text content of an element.
+        Check if an element is a heading.
         
         Args:
             element: The HTML element.
             
         Returns:
-            The text content.
+            True if the element is a heading, False otherwise.
         """
-        return self.parser.get_element_text_content(element)
+        return element.name in self.config.heading_tags
+    
+    def get_heading_level(self, element: Tag) -> int:
+        """
+        Get the level of a heading element.
+        
+        Args:
+            element: The heading element.
+            
+        Returns:
+            The heading level (1-6).
+        """
+        if not self.is_heading(element):
+            return 0
+        
+        # Extract the level from the tag name (h1 -> 1, h2 -> 2, etc.)
+        return int(element.name[1])
+    
+    def get_element_id(self, element: Tag) -> Optional[str]:
+        """
+        Get the ID attribute of an element.
+        
+        Args:
+            element: The HTML element.
+            
+        Returns:
+            The ID attribute if present, None otherwise.
+        """
+        return element.get("id")
+    
+    def get_attributes(self, element: Tag) -> Dict[str, str]:
+        """
+        Get the attributes of an element.
+        
+        Args:
+            element: The HTML element.
+            
+        Returns:
+            A dictionary of attribute names and values.
+        """
+        attributes = {}
+        for name, value in element.attrs.items():
+            if isinstance(value, list):
+                attributes[name] = " ".join(value)
+            else:
+                attributes[name] = str(value)
+        
+        return attributes

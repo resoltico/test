@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "web2json"
-version = "0.3.0"
+version = "0.4.0"
 description = "A tool to transform web pages into structured JSON"
 authors = ["Your Name <your.email@example.com>"]
 readme = "README.md"
@@ -17,6 +17,8 @@ rich = "^14.0.0"
 lxml = "^5.3.1"
 structlog = "^25.2.0"
 cachetools = "^5.5.2"
+html2text = "^2024.2.26"
+html5lib = "^1.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.5"

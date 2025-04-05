@@ -3,6 +3,7 @@ Main entry point for the web2json application.
 """
 
 import asyncio
+import json
 import sys
 from typing import List, Optional
 
@@ -16,6 +17,7 @@ from web2json.core.fetcher import WebFetcher
 from web2json.core.serializer import JsonSerializer
 from web2json.core.transformer import Transformer
 from web2json.models.config import Web2JsonConfig
+from web2json.utils.logging_setup import setup_logging
 
 
 app = typer.Typer(
@@ -58,6 +60,7 @@ def convert(
     """
     # Configure logging
     log_level = "DEBUG" if verbose else "INFO"
+    setup_logging(log_level)
     
     # Load default configuration
     config = Web2JsonConfig.create_default()
@@ -76,6 +79,16 @@ def convert(
     
     # Process each URL
     asyncio.run(_process_urls(urls, transformer, serializer, config, display))
+
+
+@app.command()
+def dump_config():
+    """
+    Dump the default configuration as JSON.
+    """
+    config = Web2JsonConfig.create_default()
+    config_json = json.dumps(config.dict(), indent=2)
+    console.print(config_json)
 
 
 @app.command()
@@ -147,6 +160,7 @@ def main() -> int:
         Exit code (0 for success, non-zero for failure).
     """
     try:
+        setup_logging()
         app()
         return 0
     except Exception as e:
