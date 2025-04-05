@@ -2,23 +2,20 @@
 Module for transforming HTML documents into structured JSON.
 """
 
-from typing import Dict, List, Optional, Type, TypeAlias, Any
+from typing import Dict, List, Optional, Type, Any
 
 import structlog
 from bs4 import BeautifulSoup, Tag
 
 from web2json.core.hierarchy import HierarchyExtractor
 from web2json.core.parser import HtmlParser
-from web2json.models.config import ProcessingConfig, Web2JsonConfig
+from web2json.models.config import Web2JsonConfig
 from web2json.models.document import Document
 from web2json.models.section import Section
 from web2json.processors.base import ElementProcessor
 
 
 logger = structlog.get_logger(__name__)
-
-# Type alias for BeautifulSoup for better readability
-Soup: TypeAlias = BeautifulSoup
 
 
 class Transformer:
@@ -91,7 +88,7 @@ class Transformer:
         )
         return document
     
-    def _apply_processors(self, soup: Soup, document: Document) -> Document:
+    def _apply_processors(self, soup: BeautifulSoup, document: Document) -> Document:
         """
         Apply specialized element processors to the document.
         
@@ -168,18 +165,7 @@ class Transformer:
         Returns:
             A configured Transformer instance.
         """
-        from web2json.processors.text import TextProcessor
-        from web2json.processors.tables import TableProcessor
-        from web2json.processors.lists import ListProcessor
-        
         config = config or Web2JsonConfig.create_default()
-        parser = HtmlParser(config.processing)
         
-        processors = [
-            TextProcessor(config.processing, parser),
-            ListProcessor(config.processing, parser),
-            TableProcessor(config.processing, parser),
-            # Add other processors as needed
-        ]
-        
-        return cls(config, processors)
+        # No processors needed for our direct HTML transformation approach
+        return cls(config, [])

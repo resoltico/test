@@ -64,6 +64,18 @@ class ProcessingConfig(BaseModel):
         description="Whether to normalize whitespace in text content"
     )
     
+    # Added special handling for pre elements
+    preserve_pre_whitespace: bool = Field(
+        default=True,
+        description="Whether to preserve whitespace in pre elements"
+    )
+    
+    # Direct HTML as content option
+    direct_html_content: bool = Field(
+        default=True,
+        description="Whether to use direct HTML strings for content"
+    )
+    
     @field_validator("heading_tags", "content_tags", "ignore_tags", "semantic_tags", "inline_tags")
     @classmethod
     def ensure_lowercase(cls, value: Set[str]) -> Set[str]:

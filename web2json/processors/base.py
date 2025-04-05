@@ -2,12 +2,11 @@
 Base class for element processors and common utilities.
 """
 
-import re
 from abc import ABC, abstractmethod
-from typing import List, Optional, TypeAlias, Dict, Any, Union, Set, Tuple
+from typing import List, Optional, Dict, Any, Union
 
 import structlog
-from bs4 import BeautifulSoup, Tag, NavigableString
+from bs4 import BeautifulSoup, Tag
 
 from web2json.models.config import ProcessingConfig
 from web2json.models.document import Document
@@ -15,9 +14,6 @@ from web2json.models.section import Section
 from web2json.core.parser import HtmlParser
 
 
-# Type alias for BeautifulSoup for better readability
-Soup: TypeAlias = BeautifulSoup
-ContentItem: TypeAlias = Dict[str, Any]
 logger = structlog.get_logger(__name__)
 
 
@@ -42,7 +38,7 @@ class ElementProcessor(ABC):
         self.parser = parser
     
     @abstractmethod
-    def process(self, soup: Soup, document: Document) -> Document:
+    def process(self, soup: BeautifulSoup, document: Document) -> Document:
         """
         Process the specified elements in the document.
         
@@ -90,76 +86,17 @@ class ElementProcessor(ABC):
         Returns:
             A string representation of the element with HTML tags preserved.
         """
-        # Get the inner HTML
-        return self.parser.get_inner_html(element)
+        # Get the outer HTML
+        return str(element)
     
-    def create_paragraph(self, content: str, element_id: Optional[str] = None) -> Dict[str, Any]:
+    def extract_text(self, element: Tag) -> str:
         """
-        Create a paragraph content item.
+        Extract the text content of an element.
         
         Args:
-            content: The paragraph content.
-            element_id: Optional ID for the element.
+            element: The HTML element.
             
         Returns:
-            A paragraph content item.
+            The text content.
         """
-        result = {
-            "type": "paragraph",
-            "text": content
-        }
-        
-        if element_id:
-            result["id"] = element_id
-            
-        return result
-    
-    def create_content_item(
-        self, 
-        element_type: str, 
-        content: Any = None,
-        additional_props: Optional[Dict[str, Any]] = None,
-        element_id: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """
-        Create a generic content item.
-        
-        Args:
-            element_type: The type of the content item.
-            content: The content of the item.
-            additional_props: Additional properties to include.
-            element_id: Optional ID for the element.
-            
-        Returns:
-            A content item dictionary.
-        """
-        result = {"type": element_type}
-        
-        if content is not None:
-            if isinstance(content, dict):
-                result.update(content)
-            elif isinstance(content, list):
-                result["content"] = content
-            else:
-                result["text"] = content
-        
-        if additional_props:
-            result.update(additional_props)
-            
-        if element_id:
-            result["id"] = element_id
-            
-        return result
-    
-    def process_inline_elements(self, text: str) -> str:
-        """
-        Process inline HTML elements in text.
-        
-        Args:
-            text: The text containing inline HTML elements.
-            
-        Returns:
-            The processed text with inline HTML preserved.
-        """
-        # In our case, we want to preserve inline HTML, so return as is
-        return text
+        return self.parser.get_element_text_content(element)

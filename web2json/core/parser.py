@@ -3,7 +3,7 @@ Module for parsing HTML content.
 """
 
 import re
-from typing import Dict, Optional, TypeAlias, Any, cast, List
+from typing import Dict, Optional, Any, List
 from urllib.parse import urljoin
 
 import structlog
@@ -13,9 +13,6 @@ from web2json.models.config import ProcessingConfig
 
 
 logger = structlog.get_logger(__name__)
-
-# Type alias for BeautifulSoup for better readability
-Soup: TypeAlias = BeautifulSoup
 
 
 class HtmlParser:
@@ -32,7 +29,7 @@ class HtmlParser:
         """
         self.config = config
     
-    def parse(self, html: str, base_url: str) -> Soup:
+    def parse(self, html: str, base_url: str) -> BeautifulSoup:
         """
         Parse HTML content into a BeautifulSoup object.
         
@@ -54,7 +51,7 @@ class HtmlParser:
         
         return soup
     
-    def _handle_base_tag(self, soup: Soup, base_url: str) -> None:
+    def _handle_base_tag(self, soup: BeautifulSoup, base_url: str) -> None:
         """
         Process base tags in the HTML to correctly handle relative URLs.
         
@@ -81,7 +78,7 @@ class HtmlParser:
                     if tag.has_attr(attr) and not tag[attr].startswith(("http://", "https://", "data:", "#", "mailto:")):
                         tag[attr] = urljoin(base_url, tag[attr])
     
-    def _remove_ignored_tags(self, soup: Soup) -> None:
+    def _remove_ignored_tags(self, soup: BeautifulSoup) -> None:
         """
         Remove tags that should be ignored from the BeautifulSoup object.
         
@@ -93,7 +90,7 @@ class HtmlParser:
                 logger.debug("Removing ignored tag", tag=tag_name)
                 tag.decompose()
     
-    def extract_metadata(self, soup: Soup) -> Dict[str, Any]:
+    def extract_metadata(self, soup: BeautifulSoup) -> Dict[str, Any]:
         """
         Extract metadata from the HTML document.
         
@@ -149,7 +146,7 @@ class HtmlParser:
         logger.debug("Extracted metadata", count=len(metadata))
         return metadata
     
-    def get_document_title(self, soup: Soup) -> str:
+    def get_document_title(self, soup: BeautifulSoup) -> str:
         """
         Extract the document title from the HTML.
         
@@ -172,12 +169,12 @@ class HtmlParser:
         # Check OpenGraph title
         og_title = soup.find("meta", property="og:title")
         if og_title and og_title.get("content"):
-            return cast(str, og_title["content"]).strip()
+            return og_title["content"].strip()
         
         # Check meta title
         meta_title = soup.find("meta", attrs={"name": "title"})
         if meta_title and meta_title.get("content"):
-            return cast(str, meta_title["content"]).strip()
+            return meta_title["content"].strip()
         
         return "Untitled Document"
     
@@ -194,6 +191,20 @@ class HtmlParser:
             The inner HTML as a string.
         """
         return ''.join(str(child) for child in element.children)
+    
+    def get_outer_html(self, element: Tag) -> str:
+        """
+        Get the outer HTML of an element as a string.
+        
+        This preserves the element itself and all HTML tags inside it.
+        
+        Args:
+            element: The HTML element.
+            
+        Returns:
+            The outer HTML as a string.
+        """
+        return str(element)
     
     def get_element_text_content(self, element: Tag) -> str:
         """
@@ -239,3 +250,26 @@ class HtmlParser:
                 attributes[attr] = str(value)
                 
         return attributes
+    
+    def extract_elements_between(
+        self, start_element: Tag, end_element: Optional[Tag] = None
+    ) -> List[Tag]:
+        """
+        Extract all elements between start_element and end_element.
+        
+        Args:
+            start_element: The starting element.
+            end_element: The ending element (optional).
+            
+        Returns:
+            A list of elements between start and end.
+        """
+        elements = []
+        current = start_element.next_sibling
+        
+        while current and current != end_element:
+            if isinstance(current, Tag):
+                elements.append(current)
+            current = current.next_sibling
+            
+        return elements

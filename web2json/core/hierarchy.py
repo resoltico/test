@@ -3,8 +3,7 @@ Module for extracting hierarchical structure from HTML documents.
 """
 
 import re
-import uuid
-from typing import Dict, List, Optional, Tuple, TypeAlias, cast, Set, Any
+from typing import Dict, List, Optional, Tuple, cast, Set, Any
 
 import structlog
 from bs4 import BeautifulSoup, Tag, NavigableString
@@ -16,9 +15,6 @@ from web2json.core.parser import HtmlParser
 
 
 logger = structlog.get_logger(__name__)
-
-# Type alias for BeautifulSoup for better readability
-Soup: TypeAlias = BeautifulSoup
 
 
 class HierarchyExtractor:
@@ -40,7 +36,7 @@ class HierarchyExtractor:
         self.config = config
         self.parser = parser
     
-    def extract_hierarchy(self, soup: Soup, document: Document) -> Document:
+    def extract_hierarchy(self, soup: BeautifulSoup, document: Document) -> Document:
         """
         Extract the hierarchical structure from the HTML document.
         
@@ -59,123 +55,36 @@ class HierarchyExtractor:
             logger.warning("No body tag found in document")
             return document
         
-        # Extract semantic structure
-        document = self._process_semantic_sections(body, document)
+        # Build the section hierarchy based on headings
+        sections = self._build_section_hierarchy(body)
         
-        return document
-    
-    def _process_semantic_sections(self, body: Tag, document: Document) -> Document:
-        """
-        Process semantic sections in the document body.
-        
-        This identifies main structural elements like header, main, article, aside, etc.
-        and creates appropriate sections for them.
-        
-        Args:
-            body: The body tag of the document.
-            document: The Document object to populate.
-            
-        Returns:
-            The populated Document object.
-        """
-        # Start by looking for semantic sections
-        sections = []
-        
-        # Find main content area if present
-        main = body.find("main")
-        
-        # If main is found, process it first
-        if main:
-            main_sections = self._extract_sections_from_element(main)
-            sections.extend(main_sections)
-        else:
-            # Process the whole body if no main element
-            body_sections = self._extract_sections_from_element(body)
-            sections.extend(body_sections)
-        
-        # Find other top-level semantic sections
-        for tag_name in ["article", "section", "aside", "nav"]:
-            for element in body.find_all(tag_name, recursive=False):
-                # Skip if inside main (already processed)
-                if main and main.find(element):
-                    continue
-                    
-                section_type = tag_name
-                element_id = element.get("id")
-                
-                # Find a heading element to use as title
-                heading = element.find(self.config.heading_tags)
-                if heading:
-                    title = self._extract_text(heading)
-                    level = int(heading.name[1])
-                else:
-                    # Use a default title based on the element type
-                    title = section_type.capitalize()
-                    level = 1  # Default to top level
-                
-                # Create a section for this element
-                section = Section.create_from_heading(
-                    title=title,
-                    level=level,
-                    element_id=element_id
-                )
-                section.set_type(section_type)
-                
-                # Extract subsections based on headings
-                subsections = self._extract_sections_from_element(element)
-                if subsections:
-                    section.children = subsections
-                
-                # Collect content elements for this section
-                self._collect_content_for_section(element, section)
-                
-                sections.append(section)
+        # Attach content to sections
+        self._collect_content_for_sections(body, sections)
         
         # Set the document content to the extracted sections
         document.content = sections
         
         return document
     
-    def _extract_sections_from_element(self, element: Tag) -> List[Section]:
+    def _build_section_hierarchy(self, container: Tag) -> List[Section]:
         """
-        Extract sections based on headings within an element.
+        Build a nested section hierarchy from the container.
         
         Args:
-            element: The container element to extract sections from.
-            
-        Returns:
-            A list of Section objects.
-        """
-        # Find all heading elements in document order
-        headings = element.find_all(self.config.heading_tags)
-        if not headings:
-            return []
-        
-        # Build section hierarchy based on headings
-        sections = self._build_section_hierarchy(headings)
-        
-        # Collect content for each section
-        for section in sections:
-            self._collect_content_between_headings(element, section)
-        
-        return sections
-    
-    def _build_section_hierarchy(self, headings: List[Tag]) -> List[Section]:
-        """
-        Build a nested section hierarchy from a list of heading elements.
-        
-        Args:
-            headings: List of heading elements from the document.
+            container: Container element (usually the body or main).
             
         Returns:
             A list of top-level Section objects with properly nested children.
         """
+        # Find all heading elements in document order
+        headings = container.find_all(self.config.heading_tags)
+        if not headings:
+            return []
+        
         # Create a root section level 0 (container for top-level sections)
         root: List[Section] = []
         
         # Initialize the stack with the root level
-        # Each stack entry is a tuple of (level, section)
-        # The root level is 0 (lower than any real heading)
         stack: List[Tuple[int, Optional[Section]]] = [(0, None)]
         
         # Process each heading to create sections
@@ -199,7 +108,7 @@ class HierarchyExtractor:
                 element_id=element_id,
             )
             
-            # Store reference to the heading element
+            # Store the heading element itself in raw_content_elements
             section.raw_content_elements = [heading]
             
             # Pop the stack until we find the appropriate parent level
@@ -223,84 +132,207 @@ class HierarchyExtractor:
         
         return root
     
-    def _collect_content_between_headings(self, container: Tag, section: Section) -> None:
+    def _collect_content_for_sections(self, container: Tag, sections: List[Section]) -> None:
         """
-        Collect content elements between headings for a section.
+        Collect content for all sections in the hierarchy.
         
         Args:
-            container: The container element.
+            container: Container element (usually the body or main).
+            sections: List of sections to collect content for.
+        """
+        # First, define all section boundaries
+        self._define_section_boundaries(container, sections)
+        
+        # Then, collect content within those boundaries
+        for section in sections:
+            self._collect_content_between_boundaries(container, section)
+            # Recursively process children
+            self._collect_content_for_sections(container, section.children)
+    
+    def _define_section_boundaries(self, container: Tag, sections: List[Section]) -> None:
+        """
+        Define the boundaries of each section.
+        
+        Args:
+            container: Container element.
+            sections: List of sections to define boundaries for.
+        """
+        # Get all heading elements in document order
+        headings = container.find_all(self.config.heading_tags)
+        heading_elements = {h: idx for idx, h in enumerate(headings)}
+        
+        for section in sections:
+            # Get the current heading element
+            current_heading = section.raw_content_elements[0] if section.raw_content_elements else None
+            if not current_heading or current_heading.name not in self.config.heading_tags:
+                continue
+                
+            current_idx = heading_elements.get(current_heading)
+            if current_idx is None:
+                continue
+                
+            # Find next heading at same or higher level
+            next_heading = None
+            next_idx = len(headings)
+            
+            for i in range(current_idx + 1, len(headings)):
+                h = headings[i]
+                level = int(h.name[1])
+                if level <= section.level:
+                    next_heading = h
+                    next_idx = i
+                    break
+            
+            # Store the range of elements between headings
+            section.raw_tags = ['start']
+            
+            # Find all elements between current_heading and next_heading
+            current = current_heading.next_element
+            
+            while current and (next_heading is None or current != next_heading):
+                if isinstance(current, Tag) and current.name:
+                    section.raw_tags.append(current.name)
+                current = current.next_element
+            
+            section.raw_tags.append('end')
+            
+            # Also process children
+            self._define_section_boundaries(container, section.children)
+    
+    def _collect_content_between_boundaries(self, container: Tag, section: Section) -> None:
+        """
+        Collect content elements between section boundaries.
+        
+        Args:
+            container: Container element.
             section: The section to collect content for.
         """
-        # Get the current heading for this section
-        current_heading = None
-        for heading in section.raw_content_elements:
-            if heading.name in self.config.heading_tags:
-                current_heading = heading
-                break
-        
-        if not current_heading:
+        # Get the heading element that defines this section
+        heading = section.raw_content_elements[0] if section.raw_content_elements else None
+        if not heading or heading.name not in self.config.heading_tags:
             return
         
-        # Find the next heading
+        # Find the next heading element that would end this section
         next_heading = None
-        found_current = False
-        
-        for heading in container.find_all(self.config.heading_tags):
-            if found_current:
-                # Check if this heading is at the same or higher level
-                # (indicating the end of the current section)
-                heading_level = int(heading.name[1])
-                if heading_level <= section.level:
-                    next_heading = heading
+        for h in container.find_all(self.config.heading_tags):
+            if h == heading:
+                continue
+            if int(h.name[1]) <= section.level:
+                # This is a heading at the same or higher level, so it ends our section
+                next_sibling = heading.find_next_sibling()
+                while next_sibling and next_sibling != h:
+                    next_sibling = next_sibling.find_next_sibling()
+                if next_sibling == h:
+                    next_heading = h
                     break
-            elif heading is current_heading:
-                found_current = True
         
-        # Collect all content elements between current_heading and next_heading
-        content_elements = []
-        current = current_heading.next_sibling
+        # Collect all content elements between heading and next_heading
+        elements = []
+        current = heading.next_sibling
         
         while current and current != next_heading:
             if isinstance(current, Tag):
-                if (current.name in self.config.content_tags or 
-                    current.name in self.config.semantic_tags):
-                    # Skip if this is a heading for a subsection
-                    if (current.name in self.config.heading_tags and
-                        int(current.name[1]) > section.level):
-                        pass
-                    else:
-                        content_elements.append(current)
+                # Skip headings that define child sections
+                is_subsection_heading = (
+                    current.name in self.config.heading_tags and 
+                    int(current.name[1]) > section.level
+                )
+                
+                if not is_subsection_heading:
+                    elements.append(current)
             current = current.next_sibling
         
-        # Set the raw content elements for this section
-        section.raw_content_elements.extend(content_elements)
-        
-        # Do the same for all child sections recursively
-        for child in section.children:
-            self._collect_content_between_headings(container, child)
+        # For paragraph-like content, preserve the HTML directly
+        for element in elements:
+            if element.name == 'p':
+                # Preserve the paragraph HTML directly
+                content = str(element)
+                section.add_content(content)
+            elif element.name in {'ul', 'ol', 'dl'}:
+                # Preserve list HTML directly
+                content = str(element)
+                section.add_content(content)
+            elif element.name == 'table':
+                # For tables, create a structured representation
+                self._process_table(element, section)
+            elif element.name in self.config.content_tags:
+                # For other content elements, preserve HTML directly
+                content = str(element)
+                section.add_content(content)
     
-    def _collect_content_for_section(self, element: Tag, section: Section) -> None:
+    def _process_table(self, table: Tag, section: Section) -> None:
         """
-        Collect content elements directly from a semantic section element.
+        Process a table element and add it to the section's content.
         
         Args:
-            element: The semantic section element.
-            section: The section to collect content for.
+            table: The table element.
+            section: The section to add the processed table to.
         """
-        # Collect all content elements in the section
-        content_elements = []
+        # Create a table structure
+        table_data = {
+            "type": "table",
+            "headers": [],
+            "rows": []
+        }
         
-        for child in element.children:
-            if isinstance(child, Tag):
-                if (child.name in self.config.content_tags or 
-                    child.name in self.config.semantic_tags):
-                    # Skip headings (already processed in hierarchy)
-                    if child.name in self.config.heading_tags:
-                        continue
-                    content_elements.append(child)
+        # Extract caption
+        caption = table.find('caption')
+        if caption:
+            table_data["caption"] = caption.get_text()
         
-        # Set the raw content elements for this section
-        section.raw_content_elements.extend(content_elements)
+        # Extract headers
+        thead = table.find('thead')
+        if thead:
+            headers = []
+            for tr in thead.find_all('tr'):
+                row = []
+                for th in tr.find_all(['th', 'td']):
+                    cell = {"text": th.get_text()}
+                    if th.get('colspan'):
+                        cell["colspan"] = int(th['colspan'])
+                    if th.get('rowspan'):
+                        cell["rowspan"] = int(th['rowspan'])
+                    row.append(cell)
+                headers.append(row)
+            table_data["headers"] = headers
+        
+        # Extract rows
+        tbody = table.find('tbody') or table
+        rows = []
+        for tr in tbody.find_all('tr'):
+            # Skip rows in thead
+            if thead and tr.parent == thead:
+                continue
+                
+            row = []
+            for td in tr.find_all(['td', 'th']):
+                cell = {"text": td.get_text()}
+                if td.get('colspan'):
+                    cell["colspan"] = int(td['colspan'])
+                if td.get('rowspan'):
+                    cell["rowspan"] = int(td['rowspan'])
+                row.append(cell)
+            rows.append(row)
+        table_data["rows"] = rows
+        
+        # Extract footer
+        tfoot = table.find('tfoot')
+        if tfoot:
+            footer = []
+            for tr in tfoot.find_all('tr'):
+                row = []
+                for td in tr.find_all(['td', 'th']):
+                    cell = {"text": td.get_text()}
+                    if td.get('colspan'):
+                        cell["colspan"] = int(td['colspan'])
+                    if td.get('rowspan'):
+                        cell["rowspan"] = int(td['rowspan'])
+                    row.append(cell)
+                footer.append(row)
+            table_data["footer"] = footer
+        
+        # Add the table to the section content
+        section.add_content(table_data)
     
     def _extract_text(self, element: Tag) -> str:
         """

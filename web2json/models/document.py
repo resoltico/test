@@ -3,7 +3,7 @@ Document model representing the high-level structure of a processed HTML documen
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from web2json.models.section import Section
 
@@ -45,3 +45,29 @@ class Document:
             title=title or "Untitled Document",
             url=url,
         )
+    
+    def find_section_by_id(self, section_id: str) -> Optional[Section]:
+        """
+        Find a section by its ID.
+        
+        Args:
+            section_id: The ID to search for.
+            
+        Returns:
+            The section if found, otherwise None.
+        """
+        for section in self.content:
+            found = section.find_section_by_id(section_id)
+            if found:
+                return found
+                
+        return None
+    
+    def add_section(self, section: Section) -> None:
+        """
+        Add a top-level section to the document.
+        
+        Args:
+            section: The section to add.
+        """
+        self.content.append(section)

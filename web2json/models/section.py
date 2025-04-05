@@ -3,7 +3,7 @@ Section model representing hierarchical sections within a document.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Self, Union, cast
+from typing import Any, Dict, List, Optional, Self, Union
 from bs4 import Tag
 
 
@@ -24,7 +24,8 @@ class Section:
     
     # Non-serialized fields used during processing
     raw_content_elements: List[Tag] = field(default_factory=list, repr=False)
-    element_id: Optional[str] = field(default=None, repr=False)
+    raw_tags: List[str] = field(default_factory=list, repr=False)
+    processed: bool = field(default=False, repr=False)
     
     def add_content(self, content_item: Any) -> None:
         """
@@ -56,8 +57,6 @@ class Section:
         # Include ID if present
         if self.id:
             result["id"] = self.id
-        elif self.element_id:
-            result["id"] = self.element_id
         
         # Include children if present
         if self.children:
@@ -94,3 +93,27 @@ class Section:
             type_name: The type name to set.
         """
         self.type = type_name
+    
+    def clear_content(self) -> None:
+        """Clear the content list."""
+        self.content = []
+
+    def find_section_by_id(self, section_id: str) -> Optional[Self]:
+        """
+        Find a section by its ID, searching this section and all children.
+        
+        Args:
+            section_id: The ID to search for.
+            
+        Returns:
+            The section if found, otherwise None.
+        """
+        if self.id == section_id:
+            return self
+            
+        for child in self.children:
+            found = child.find_section_by_id(section_id)
+            if found:
+                return found
+                
+        return None
