@@ -10,22 +10,21 @@ Create a framework-agnostic Node.js application that transforms any HTML webpage
 8. **Use pnpm and fnm**
 
 ### Use the technologies, functions, solutions and possibilities of these modules
-1. Cheerio (1.0.0+) - use TypeScript definitions from the file “cheerio-index.d.ts” (I download it from https://github.com/DefinitelyTyped/DefinitelyTyped/blob/master/types/cheerio/index.d.ts). Also examine Cheerio dist files in the “dist” folder and its folders.
-2. Zod (3.24.2+) - 
-3. TypeScript (5.8.3+ )- 
-4. html-entities (2.6.0+) - 
-5. sanitize-html (2.15.0+) - 
-6. commander (13.1.0+) - 
-7. ora (8.2.0+) - 
-8. Chalk (5.4.1+) - 
-9. tsx (4.19.3+) - 
+1. Jsdom (26.0.0+)
+2. Zod (3.24.2+)
+3. TypeScript (5.8.3+)
+4. html-entities (2.6.0+)
+5. sanitize-html (2.15.0+)
+6. commander (13.1.0+)
+7. ora (8.2.0+)
+8. Chalk (5.4.1+)
+9. tsx (4.19.3+)
 10. ESLint (9.24.0+)
-11. got  (14.4.7+)
+11. got (14.4.7+)
 
 ### ENSURE and DOUBLE-CHECK
 
 - That there are no circular references in schema definitions
-- That there are no missing Cheerio type exports
 - Support for processing both URLs and local files
 - Smart output path determination, sanitizing of paths and filenames (spaces, special characters, invalids, etc)
 - Progress indicators and error handling
@@ -33,7 +32,7 @@ Create a framework-agnostic Node.js application that transforms any HTML webpage
 ## PROCESSING ALGORITHM
 
 ### 1. HTML Parsing Approach
-- Load HTML content using Cheerio with configuration that preserves original content
+- Load HTML content using Jsdom with configuration that preserves original content
 - Maintain HTML entities and formatting in the parsed structure
 - Leverage Node's enhanced string processing capabilities for efficient parsing
 
