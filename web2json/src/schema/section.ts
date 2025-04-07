@@ -26,7 +26,7 @@ export const sectionSchema = z.lazy(() => sectionSchemaInner);
 // Now define the inner schema using the lazy reference to itself
 sectionSchemaInner = z.object({
   type: z.literal('section'),
-  id: z.string().optional(),
+  id: z.string(),
   title: z.string().optional(),
   level: z.number().int().min(1).max(6).optional(),
   content: z.array(z.string()),

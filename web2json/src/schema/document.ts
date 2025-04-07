@@ -1,5 +1,11 @@
 import { z } from 'zod';
 import { sectionSchema } from './section.js';
+import { quoteSchema } from './quote.js';
+
+// Add children field to quoteSchema for compatibility with the expected output
+const extendedQuoteSchema = quoteSchema.extend({
+  children: z.array(z.any()).default([])
+});
 
 // Schema for the entire document
 export const documentSchema = z.object({
@@ -7,27 +13,24 @@ export const documentSchema = z.object({
   content: z.array(
     z.union([
       sectionSchema,
-      z.lazy(() => z.object({
+      z.object({
         type: z.literal('article'),
-        id: z.string().optional(),
+        id: z.string(),
         children: z.array(sectionSchema)
-      })),
-      z.lazy(() => z.object({
+      }),
+      z.object({
         type: z.literal('search'),
         content: z.string(),
         children: z.array(z.any()).default([])
-      })),
-      z.lazy(() => z.object({
-        type: z.literal('quote'),
-        content: z.string(),
-        source: z.string().optional(),
-        children: z.array(z.any()).default([])
-      })),
-      z.lazy(() => z.object({
+      }),
+      extendedQuoteSchema.extend({
+        type: z.literal('quote')
+      }),
+      z.object({
         type: z.literal('footer'),
         content: z.array(z.string()),
         children: z.array(z.any()).default([])
-      }))
+      })
     ])
   )
 });

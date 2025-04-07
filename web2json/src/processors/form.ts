@@ -8,7 +8,7 @@ export function processForm(formElement: Element): Form {
   // Extract form title from legend
   const legendElement = formElement.querySelector('legend');
   const title = legendElement 
-    ? normalizeTextContent(legendElement.textContent || '') 
+    ? legendElement.textContent || '' 
     : 'Form';
   
   // Process form fields
@@ -27,7 +27,7 @@ export function processForm(formElement: Element): Form {
   // Extract submit button text
   const submitButton = formElement.querySelector('button[type="submit"]');
   const submit = submitButton 
-    ? normalizeTextContent(submitButton.textContent || '')
+    ? submitButton.textContent || ''
     : 'Submit';
   
   // Create the form object
@@ -55,7 +55,7 @@ function processFormField(input: Element, formElement: Element): FormField | nul
   if (inputId) {
     const labelElement = formElement.querySelector(`label[for="${inputId}"]`);
     if (labelElement) {
-      labelText = normalizeTextContent(labelElement.textContent || '');
+      labelText = labelElement.textContent || '';
     }
   }
   
@@ -100,7 +100,7 @@ function processFormField(input: Element, formElement: Element): FormField | nul
         const groupLabel = group.getAttribute('label') || 'Group';
         const groupItems = Array.from(group.querySelectorAll('option')).map(option => {
           const value = option.getAttribute('value') || '';
-          const label = normalizeTextContent(option.textContent || '');
+          const label = option.textContent || '';
           return { value, label };
         });
         
@@ -114,8 +114,8 @@ function processFormField(input: Element, formElement: Element): FormField | nul
       const options = input.querySelectorAll('option');
       options.forEach(option => {
         const value = option.getAttribute('value') || '';
-        const label = normalizeTextContent(option.textContent || '');
-        field.options?.push({ value, label });
+        const label = option.textContent || '';
+        field.options?.push(value);
       });
     }
   }
@@ -141,15 +141,6 @@ function processFormField(input: Element, formElement: Element): FormField | nul
         field.options?.push(value);
       });
     }
-  }
-  
-  // Process meter and progress elements
-  if (['meter', 'progress'].includes(inputType)) {
-    const value = input.getAttribute('value');
-    if (value) field.value = parseFloat(value);
-    
-    const max = input.getAttribute('max');
-    if (max) field.max = parseFloat(max);
   }
   
   return field;

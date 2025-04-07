@@ -6,6 +6,7 @@ A powerful Node.js application that transforms HTML webpages into structured JSO
 
 - Converts HTML webpages (from URLs or local files) to structured JSON
 - Preserves document hierarchy and semantic relationships
+- Maintains HTML formatting in content fields
 - Handles special HTML elements like tables, forms, figures, and quotes
 - Processes HTML5 elements with proper context preservation
 - Outputs hierarchical nested tree JSON
@@ -132,13 +133,22 @@ web2json --file path/to/local/file.html
 # Specify output directory
 web2json --url https://example.com --output ~/Downloads/converted
 
+# Enable debug mode for more verbose logging
+web2json --url https://example.com --debug
+
 # Show help
 web2json --help
 ```
 
 ## Output
 
-The JSON output is structured hierarchically, preserving the semantic structure and relationships between elements. The output is always in a pretty, indented format for better readability.
+The JSON output is structured hierarchically, preserving the semantic structure, relationships between elements, and HTML formatting. The output is always in a pretty, indented format for better readability.
+
+### Key Features of the JSON Output
+
+1. **HTML Markup Preservation**: All HTML formatting (tags, attributes) in content fields is preserved
+2. **Semantic Structure**: The document's hierarchical structure is maintained
+3. **Special Elements Handling**: Properly processes tables, forms, figures, and other HTML5 elements
 
 ## Project Structure
 
@@ -172,7 +182,8 @@ web2json/
 │       ├── index.ts
 │       ├── html.ts
 │       ├── json.ts
-│       └── logger.ts
+│       ├── logger.ts
+│       └── path.ts
 └── bin/
     └── web2json.ts          # CLI entry point
 ```

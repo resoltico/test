@@ -1,5 +1,8 @@
+import { logger } from './logger.js';
+import { documentSchema } from '../schema/document.js';
+
 /**
- * Writes JSON to a file with proper indentation
+ * Writes JSON to a string with proper indentation
  */
 export function formatJson(data: unknown): string {
   // Space value of 2 gives a nice readable indentation
@@ -10,20 +13,20 @@ export function formatJson(data: unknown): string {
  * Validates output JSON against our schema
  */
 export function validateJsonStructure(data: unknown): boolean {
-  // Basic structure validation - check if it's an object with expected properties
-  if (!data || typeof data !== 'object') {
+  try {
+    // Use Zod to validate the structure
+    const result = documentSchema.safeParse(data);
+    
+    if (!result.success) {
+      logger.error('JSON validation failed', new Error(result.error.message));
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    logger.error('JSON validation error', error as Error);
     return false;
   }
-  
-  // Cast to any to check properties
-  const doc = data as any;
-  
-  // Check required top-level properties
-  if (!doc.title || !Array.isArray(doc.content)) {
-    return false;
-  }
-  
-  return true;
 }
 
 /**

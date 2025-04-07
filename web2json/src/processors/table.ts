@@ -8,7 +8,7 @@ export function processTable(tableElement: Element): Table {
   // Extract caption if present
   const captionElement = tableElement.querySelector('caption');
   const caption = captionElement 
-    ? normalizeTextContent(captionElement.textContent || '') 
+    ? captionElement.textContent || '' 
     : undefined;
   
   // Process headers
@@ -19,7 +19,7 @@ export function processTable(tableElement: Element): Table {
     // Extract header cells
     const headerCells = headerRow.querySelectorAll('th');
     headerCells.forEach(cell => {
-      headers.push(normalizeTextContent(cell.textContent || ''));
+      headers.push(cell.textContent || '');
     });
   }
   
@@ -32,7 +32,7 @@ export function processTable(tableElement: Element): Table {
     const cells = row.querySelectorAll('td');
     
     cells.forEach(cell => {
-      rowData.push(normalizeTextContent(cell.textContent || ''));
+      rowData.push(cell.textContent || '');
     });
     
     if (rowData.length > 0) {
@@ -45,7 +45,7 @@ export function processTable(tableElement: Element): Table {
   let footer: string | undefined;
   
   if (footerElement) {
-    footer = normalizeTextContent(footerElement.textContent || '');
+    footer = footerElement.textContent || '';
   }
   
   // Create the table object

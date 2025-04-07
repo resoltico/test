@@ -9,6 +9,7 @@ import { processTable } from './table.js';
 import { processForm } from './form.js';
 import { processFigure } from './figure.js';
 import { processSpecialContent } from './special.js';
+import { logger } from '../utils/logger.js';
 
 /**
  * Process a section element and its children
@@ -20,12 +21,12 @@ export function processSection(element: Element): Section {
   // Get the heading element (first heading within this section)
   const headingElement = Array.from(element.children).find(isHeading);
   
-  // Extract heading text and level
+  // Extract heading text and level (preserve HTML markup in title)
   let title: string | undefined;
   let level: number | undefined;
   
   if (headingElement) {
-    title = extractFormattedContent(headingElement);
+    title = headingElement.innerHTML;
     level = getHeadingLevel(headingElement) || undefined;
   }
   
@@ -35,6 +36,7 @@ export function processSection(element: Element): Section {
     return tagName === 'p' && !isHeading(child);
   });
   
+  // Preserve HTML markup in content elements
   const content = contentElements.map(extractFormattedContent);
   
   // Create the base section object
@@ -101,6 +103,7 @@ export function processSection(element: Element): Section {
 
 /**
  * Create a hierarchical section structure from flat sections based on heading levels
+ * This ensures the correct nesting of sections in the JSON output
  */
 export function buildSectionHierarchy(sections: Section[]): Section[] {
   if (sections.length === 0) return [];
@@ -112,11 +115,17 @@ export function buildSectionHierarchy(sections: Section[]): Section[] {
     return levelA - levelB;
   });
   
+  logger.debug(`Building section hierarchy from ${sortedSections.length} sections`);
+  
   // Find the minimum heading level to establish the root level
   const minLevel = Math.min(...sortedSections.map(s => s.level || 1));
   
+  logger.debug(`Minimum heading level found: ${minLevel}`);
+  
   // Filter root sections (those at the minimum level)
   const rootSections = sortedSections.filter(s => (s.level || 1) === minLevel);
+  
+  logger.debug(`Found ${rootSections.length} root sections`);
   
   // Process each root section to build its hierarchy
   rootSections.forEach(section => {

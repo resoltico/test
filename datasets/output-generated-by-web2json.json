@@ -5,7 +5,7 @@
       "type": "section",
       "id": "intro",
       "content": [
-        "Welcome to the <strong>Buggle Struggle</strong> of modern software development, where programmers wrestle with <code>undefined</code> behaviors and <kbd>Ctrl</kbd>+<kbd>Z</kbd> becomes a spiritual practice. According to <abbr title=\"International Programmer Psychological Association\">IPPA</abbr>, the average developer spends thirty hours coding and fifty hours explaining why it doesn't work.",
+        "Welcome to the <strong>Buggle Struggle</strong> of modern software development, where programmers wrestle with <code>undefined</code> behaviors and <kbd>Ctrl</kbd>+<kbd>Z</kbd> becomes a spiritual practice. According to <abbr title=\"International Programmer Psychological Association\">IPPA</abbr>, the average developer spends <data value=\"30\">thirty hours</data> coding and <data value=\"50\">fifty hours</data> explaining why it doesn't work.",
         "In the realm of <var>x</var> = <var>y</var> + <dfn>headache</dfn>, our research at <b>Noodle Coogle</b> <sub>University</sub> has discovered that <sup>92%</sup> of bugs occur in code written on <time datetime=\"2042-04-01\">April Fool's Day</time>. As one developer put it: <q>My code doesn't have <i>bugs</i>, it has <i>undocumented features</i>.</q> <small>(Results may vary based on caffeine intake)</small>."
       ],
       "children": []
@@ -22,9 +22,9 @@
             "The principle of <u>moose loose</u> programming suggests variables should <mark>roam free</mark> across scopes, though most senior developers prefer <samp>strict mode</samp> discipline. <abbr title=\"Document Object Model\">DOM</abbr> manipulation without a framework is now considered a <ruby>古い<rt>furui</rt></ruby> practice, roughly translated as <q>career-limiting move</q>.",
             "<a href=\"/hello/you/there/\" target=\"_blank\">Engineers</a> assigned to legacy systems develop what psychiatrists term <dfn>COBOL gobble</dfn> syndrome—the compulsive consumption of outdated programming manuals in <a href=\"https://hopesanddreamsalwaysdielast.org\">hopes</a> of understanding <i>ancestral code</i>. The <kbd>comment lament</kbd> occurs upon discovering critical business logic explained by <small>// fixes the thing</small>.",
             "<a href=\"#legacy\">Archaeological code studies</a> have identified <u>mainframe brain-drain</u> as a cognitive condition affecting those who maintain systems older than themselves. Companies implement what <cite>The Journal of Technical Debt</cite> calls <var>zombie lobby</var> protocols, where <sup>undead</sup> projects receive minimal funding despite multiple termination attempts.",
-            "Optimization specialists suffer from <strong>algorithm rhythm</strong> disorder—involuntarily tapping out <code>O(log n)</code> beats with their fingers. The <b>cache stash</b> compulsion drives engineers to store unnecessary 10 gigabytes of data in memory <q>just in case</q> while muttering about <time datetime=\"PT0.001S\">millisecond</time> performance gains.",
-            "Junior developers can be identified by their <mark>loop droop</mark> fatigue when someone explains why we don't use <var>O(n<sup>4</sup>)</var> algorithms in production. The <samp>benchmark henchman</samp> phenomenon describes team members who obsessively measure performance without contributing fixes<wbr></wbr>—a form of technical procrastination.",
-            "C programmers develop <dfn>pointer pouter</dfn> syndrome, becoming irrationally upset when someone suggests garbage collection. Studies show that 93% of low-level coders unconsciously make <kbd>malloc</kbd>/<kbd>free</kbd> gestures while discussing memory allocation—a behavior <abbr title=\"Computer Science Psychological Association\">CSPA</abbr> calls <em>manual memory mimicry</em>.",
+            "Optimization specialists suffer from <strong>algorithm rhythm</strong> disorder—involuntarily tapping out <code>O(log n)</code> beats with their fingers. The <b>cache stash</b> compulsion drives engineers to store unnecessary <data value=\"10GB\">10 gigabytes of</data> data in memory <q>just in case</q> while muttering about <time datetime=\"PT0.001S\">millisecond</time> performance gains.",
+            "Junior developers can be identified by their <mark>loop droop</mark> fatigue when someone explains why we don't use <var>O(n<sup>4</sup>)</var> algorithms in production. The <samp>benchmark henchman</samp> phenomenon describes team members who obsessively measure performance without contributing fixes<wbr>—a form of technical procrastination.",
+            "C programmers develop <dfn>pointer pouter</dfn> syndrome, becoming irrationally upset when someone suggests garbage collection. Studies show that <data value=\"93\">93%</data> of low-level coders unconsciously make <kbd>malloc</kbd>/<kbd>free</kbd> gestures while discussing memory allocation—a behavior <abbr title=\"Computer Science Psychological Association\">CSPA</abbr> calls <em>manual memory mimicry</em>.",
             "Memory leak investigators exhibit symptoms of <u>fragment flagrant</u> disorder, characterized by an obsessive need to defragment not only their hard drives but also their <sub>refrigerators</sub>, sock drawers, and social relationships. <s>Deallocating pointers twice</s> is now recognized as a cry for <sup>help</sup>."
           ],
           "children": [],
@@ -136,7 +136,7 @@
         "Researchers have observed that <b>production bugs</b> trigger what psychiatrists call <dfn>deadline delirium</dfn>—a state where developers become convinced they can fix critical issues through <i>sheer force of will</i> rather than actual <code>debugging</code>. The most dangerous species is the <em>heisenbug</em>, which disappears when observed, causing <strong>existential uncertainty</strong> among even senior engineers."
       ],
       "children": [],
-      "title": "Bug <wbr></wbr>Taxonomy: Classification of Digital Phenomena",
+      "title": "Bug <wbr>Taxonomy: Classification of Digital Phenomena",
       "level": 2,
       "table": {
         "headers": [
@@ -170,7 +170,7 @@
           ]
         ],
         "caption": "Comprehensive Taxonomy of Programming Bugs",
-        "footer": "Data compiled from stackoverflow trauma reports"
+        "footer": "\n                        Data compiled from stackoverflow trauma reports\n                    "
       }
     },
     {
@@ -178,7 +178,7 @@
       "id": "form-section",
       "content": [
         "Our annual <mark>Developer Happiness Index</mark> measures the psychological wellbeing of programmers exposed to various technologies. The <abbr title=\"International Developer Wellness Organization\">IDWO</abbr> uses this data to issue <dfn>burnout warnings</dfn> for particularly toxic combinations of deadlines, legacy code, and <strong>managerial expectations</strong>.",
-        "The <b>Satisfaction Paradox</b> describes the phenomenon where developers simultaneously love and hate their chosen profession. As noted in <cite>Keyboard Psychology Quarterly</cite>, programmers experience <var>n</var> moments of joy followed by <var>n+1</var> moments of <i>frustration</i>, yet continue to insist they <u>wouldn't choose any other career</u> <wbr></wbr>despite evidence of <em>widespread disillusionment</em>."
+        "The <b>Satisfaction Paradox</b> describes the phenomenon where developers simultaneously love and hate their chosen profession. As noted in <cite>Keyboard Psychology Quarterly</cite>, programmers experience <var>n</var> moments of joy followed by <var>n+1</var> moments of <i>frustration</i>, yet continue to insist they <u>wouldn't choose any other career</u> <wbr>despite evidence of <em>widespread disillusionment</em>."
       ],
       "children": [],
       "title": "Developer <small>Satisfaction</small> Survey: Quantifying Despair",
@@ -258,7 +258,7 @@
     },
     {
       "type": "search",
-      "content": "\n            \n            Find Help\n        ",
+      "content": "\n            <input type=\"search\" placeholder=\"Search for developer coping mechanisms...\">\n            <button>Find Help</button>\n        ",
       "children": []
     },
     {

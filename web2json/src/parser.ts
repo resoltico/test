@@ -6,7 +6,8 @@ import {
   getElementId,
   getHeadingLevel,
   isHeading,
-  isSectionContainer 
+  isSectionContainer,
+  extractFormattedContent
 } from './utils/html.js';
 import { 
   processSection,
@@ -146,8 +147,8 @@ function createSectionFromHeading(
   startNode: Element, 
   endNode: Element | null
 ): Section {
-  // Extract heading info
-  const title = heading.textContent || '';
+  // Extract heading info - preserve HTML markup
+  const title = heading.innerHTML;
   const level = getHeadingLevel(heading) || 1;
   const id = getElementId(heading, 'section');
   
@@ -162,6 +163,7 @@ function createSectionFromHeading(
       // Skip headings and containers
       if (!isHeading(element) && !isSectionContainer(element)) {
         if (element.tagName === 'P') {
+          // Preserve HTML markup in paragraphs
           content.push(element.innerHTML);
         }
       }
@@ -193,7 +195,7 @@ function createSectionFromContent(container: Element): Section {
     children: []
   };
   
-  // Extract paragraphs as content
+  // Extract paragraphs as content - preserve HTML markup
   const paragraphs = container.querySelectorAll('p');
   paragraphs.forEach(p => {
     if (p.innerHTML.trim()) {
@@ -237,7 +239,7 @@ function processSpecialElements(container: Element, result: Document): void {
   if (search) {
     result.content.push({
       type: 'search',
-      content: search.textContent || 'Search',
+      content: search.innerHTML,
       children: []
     });
   }

@@ -1,5 +1,3 @@
-import { normalizeTextContent } from '../utils/html.js';
-
 type SpecialContent = {
   description: string;
   terms: { term: string; definition: string }[];
@@ -35,12 +33,12 @@ export function processSpecialContent(element: Element): SpecialContent | null {
  * Process a math element
  */
 function processMathElement(mathElement: Element): SpecialContent {
-  // Extract MathML content
+  // Extract MathML content - preserve the formula text exactly
   const mathContent = mathElement.textContent || '';
   
   // Extract the math formula description
   return {
-    description: normalizeTextContent(mathContent),
+    description: mathContent,
     // Always provide a non-empty terms array to satisfy schema requirements
     terms: [{ term: "Mathematical Formula", definition: "Formula expression" }]
   };
@@ -58,9 +56,9 @@ function processDefinitionList(dlElement: Element): SpecialContent {
   
   // Process terms and definitions
   for (let i = 0; i < dtElements.length; i++) {
-    const term = normalizeTextContent(dtElements[i].textContent || '');
+    const term = dtElements[i].textContent || '';
     const definition = i < ddElements.length 
-      ? normalizeTextContent(ddElements[i].textContent || '')
+      ? ddElements[i].textContent || ''
       : '';
     
     if (term) {
@@ -105,7 +103,7 @@ function processOrderedList(olElement: Element): SpecialContent {
   // Extract list items
   const liElements = olElement.querySelectorAll('li');
   for (const li of liElements) {
-    items.push(normalizeTextContent(li.textContent || ''));
+    items.push(li.textContent || '');
   }
   
   return {
@@ -124,7 +122,7 @@ function processUnorderedList(ulElement: Element): SpecialContent {
   // Extract list items
   const liElements = ulElement.querySelectorAll('li');
   for (const li of liElements) {
-    items.push(normalizeTextContent(li.textContent || ''));
+    items.push(li.textContent || '');
   }
   
   return {
