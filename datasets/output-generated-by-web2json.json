@@ -16,7 +16,7 @@
       "children": [
         {
           "type": "section",
-          "id": "section-function-junction-w",
+          "id": "section-function-junction-where-methods-meet-mad",
           "content": [
             "Modern frameworks have evolved from simple tools to what experts call <strong>bloated beasties</strong> that consume memory faster than a <var>n</var><sup>2</sup> algorithm at scale. Junior developers often mistake <em>Redux Seduce</em> for a dating app, only to discover it's just another state management solution with <sub>existential</sub> complexity.",
             "The principle of <u>moose loose</u> programming suggests variables should <mark>roam free</mark> across scopes, though most senior developers prefer <samp>strict mode</samp> discipline. <abbr title=\"Document Object Model\">DOM</abbr> manipulation without a framework is now considered a <ruby>古い<rt>furui</rt></ruby> practice, roughly translated as <q>career-limiting move</q>.",
@@ -33,7 +33,7 @@
         },
         {
           "type": "section",
-          "id": "section-framework-flamework",
+          "id": "section-framework-flamework-the-javascript-libra",
           "content": [
             "The JavaScript ecosystem experiences what experts call <abbr title=\"Framework Acceleration Syndrome\">FAS</abbr>—the <u>exponential proliferation</u> of libraries solving identical problems in slightly different ways. Senior developers suffer from <dfn>import fatigue</dfn>, a condition where <samp>yarn add</samp> triggers involuntary <cite>sighing</cite> and <em>nostalgic reminiscence</em> about the days of <code>&lt;script&gt;</code> tags.",
             "The <mark>framework lifecycle</mark> follows a predictable pattern: hype, adoption, <b>stack overflow questions</b>, stability, and eventual <ruby>枯れる<rt>kareru</rt></ruby> (abandonment). This creates what psychologists term <i>dependency dread</i>—the fear that by the time you <kbd>npm install</kbd> a package, it's already <s>deprecated</s>. <sub>Frontend</sub> <sup>developers</sup> experience <small>chronic fatigue</small> from implementing the same login form in seventeen different frameworks."
@@ -170,7 +170,7 @@
           ]
         ],
         "caption": "Comprehensive Taxonomy of Programming Bugs",
-        "footer": "\n                        Data compiled from stackoverflow trauma reports\n                    "
+        "footer": "\n                    \n                        Data compiled from stackoverflow trauma reports\n                    \n                "
       }
     },
     {
@@ -210,6 +210,7 @@
           {
             "label": "Top Frustrations:",
             "type": "select",
+            "multiple": true,
             "options": [
               {
                 "group": "Technical",
@@ -237,8 +238,7 @@
                   }
                 ]
               }
-            ],
-            "multiple": true
+            ]
           },
           {
             "label": "Additional Comments:",
@@ -251,21 +251,14 @@
       }
     },
     {
-      "type": "quote",
       "content": "\n            <p>\"Programming today is a race between software engineers striving to build bigger and better idiot-proof programs, and the universe trying to produce bigger and better idiots. So far, the universe is winning.\"</p>\n            <footer>— <cite>Rick Cook, The Wizardry Compiled</cite></footer>\n        ",
       "source": "— Rick Cook, The Wizardry Compiled",
+      "type": "quote",
       "children": []
     },
     {
       "type": "search",
       "content": "\n            <input type=\"search\" placeholder=\"Search for developer coping mechanisms...\">\n            <button>Find Help</button>\n        ",
-      "children": []
-    },
-    {
-      "type": "footer",
-      "content": [
-        "Rick Cook, The Wizardry Compiled"
-      ],
       "children": []
     }
   ]

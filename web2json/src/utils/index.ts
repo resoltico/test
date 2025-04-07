@@ -1,4 +1,4 @@
-// Export all utilities from this central file
+// Export all utility functions
 export * from './html.js';
 export * from './json.js';
 export * from './logger.js';

@@ -11,35 +11,36 @@ import { processFigure } from './figure.js';
 import { processSpecialContent } from './special.js';
 import { logger } from '../utils/logger.js';
 
+// DOM node relationship constants (since Node isn't globally available in Node.js)
+const DOCUMENT_POSITION_PRECEDING = 2; // Same as Node.DOCUMENT_POSITION_PRECEDING in browsers
+
 /**
- * Process a section element and its children
+ * Process a section element into the desired JSON structure
  */
 export function processSection(element: Element): Section {
-  // Extract section ID
-  const id = getElementId(element);
+  logger.debug(`Processing section: ${element.id || 'unnamed'}`);
   
-  // Get the heading element (first heading within this section)
-  const headingElement = Array.from(element.children).find(isHeading);
+  // Get section ID
+  const id = getElementId(element, 'section');
   
-  // Extract heading text and level (preserve HTML markup in title)
+  // Find the heading element (first heading in the section)
+  const headingElement = findSectionHeading(element);
+  
+  // Extract title and level from heading
   let title: string | undefined;
   let level: number | undefined;
   
   if (headingElement) {
-    title = headingElement.innerHTML;
-    level = getHeadingLevel(headingElement) || undefined;
+    title = headingElement.innerHTML; // Preserve HTML formatting
+    // Convert null to undefined if getHeadingLevel returns null
+    level = getHeadingLevel(headingElement) ?? undefined;
   }
   
-  // Extract content paragraphs (text elements that aren't headings or special elements)
-  const contentElements = Array.from(element.children).filter(child => {
-    const tagName = child.tagName.toLowerCase();
-    return tagName === 'p' && !isHeading(child);
-  });
+  // Extract content paragraphs (preserve HTML formatting)
+  const contentElements = extractContentElements(element, headingElement);
+  const content = contentElements.map(el => el.innerHTML);
   
-  // Preserve HTML markup in content elements
-  const content = contentElements.map(extractFormattedContent);
-  
-  // Create the base section object
+  // Create the base section
   const section: Section = {
     type: 'section',
     id,
@@ -47,115 +48,125 @@ export function processSection(element: Element): Section {
     children: []
   };
   
-  // Add optional properties if they exist
+  // Add optional properties
   if (title) section.title = title;
   if (level) section.level = level;
   
   // Process special elements
-  
-  // Check for table
-  const tableElement = element.querySelector('table');
-  if (tableElement) {
-    section.table = processTable(tableElement);
-  }
-  
-  // Check for form
-  const formElement = element.querySelector('form');
-  if (formElement) {
-    section.form = processForm(formElement);
-  }
-  
-  // Check for figure
-  const figureElement = element.querySelector('figure');
-  if (figureElement) {
-    section.figure = processFigure(figureElement);
-  }
-  
-  // Check for mathematical content or other special content
-  const specialElements = ['math', 'dl', 'pre', 'ol', 'ul'];
-  for (const tagName of specialElements) {
-    const specialElement = element.querySelector(tagName);
-    if (specialElement) {
-      const specialContent = processSpecialContent(specialElement);
-      if (specialContent) {
-        // Ensure the specialContent matches the formula schema structure with required properties
-        section.formula = {
-          description: specialContent.description,
-          terms: specialContent.terms || [], // Provide empty array as fallback
-          code: specialContent.code,
-          'ordered-list': specialContent['ordered-list'],
-          'unordered-list': specialContent['unordered-list']
-        };
-        break;
-      }
-    }
-  }
+  addSpecialElements(section, element);
   
   // Process child sections
-  const childSections = Array.from(element.children).filter(child => {
-    return child.tagName.toLowerCase() === 'section';
-  });
-  
-  section.children = childSections.map(processSection);
+  addChildSections(section, element);
   
   return section;
 }
 
 /**
- * Create a hierarchical section structure from flat sections based on heading levels
- * This ensures the correct nesting of sections in the JSON output
+ * Find the first heading element within a section
  */
-export function buildSectionHierarchy(sections: Section[]): Section[] {
-  if (sections.length === 0) return [];
+function findSectionHeading(element: Element): Element | null {
+  // First check direct children
+  for (const child of Array.from(element.children)) {
+    if (isHeading(child)) {
+      return child;
+    }
+  }
   
-  // Sort sections by their level (if defined)
-  const sortedSections = [...sections].sort((a, b) => {
-    const levelA = a.level || 1;
-    const levelB = b.level || 1;
-    return levelA - levelB;
-  });
-  
-  logger.debug(`Building section hierarchy from ${sortedSections.length} sections`);
-  
-  // Find the minimum heading level to establish the root level
-  const minLevel = Math.min(...sortedSections.map(s => s.level || 1));
-  
-  logger.debug(`Minimum heading level found: ${minLevel}`);
-  
-  // Filter root sections (those at the minimum level)
-  const rootSections = sortedSections.filter(s => (s.level || 1) === minLevel);
-  
-  logger.debug(`Found ${rootSections.length} root sections`);
-  
-  // Process each root section to build its hierarchy
-  rootSections.forEach(section => {
-    buildChildHierarchy(section, sortedSections);
-  });
-  
-  return rootSections;
+  // If no direct child heading, look deeper
+  return element.querySelector('h1, h2, h3, h4, h5, h6');
 }
 
 /**
- * Recursively build the hierarchy for a section by finding its children
+ * Extract content elements (paragraphs) from a section
  */
-function buildChildHierarchy(parent: Section, allSections: Section[]): void {
-  const parentLevel = parent.level || 1;
+function extractContentElements(element: Element, headingElement: Element | null): Element[] {
+  const result: Element[] = [];
   
-  // Gather potential children (sections with level = parent level + 1)
-  const childSections = allSections.filter(s => {
-    return (s.level || 1) === parentLevel + 1 && 
-           s !== parent && 
-           !parent.children.includes(s);
-  });
+  // Collect all paragraph elements that are not inside child sections
+  const paragraphs = element.querySelectorAll('p');
   
-  // If no children, return
-  if (childSections.length === 0) return;
+  for (const paragraph of Array.from(paragraphs)) {
+    // Skip if this paragraph is inside a nested section
+    const closestSection = paragraph.closest('section');
+    if (closestSection && closestSection !== element) {
+      continue;
+    }
+    
+    // Skip if this paragraph is before the heading
+    if (headingElement && 
+        (headingElement.compareDocumentPosition(paragraph) & DOCUMENT_POSITION_PRECEDING)) {
+      continue;
+    }
+    
+    result.push(paragraph);
+  }
   
-  // Add children to parent
-  parent.children = parent.children.concat(childSections);
+  return result;
+}
+
+/**
+ * Process special elements within a section (tables, forms, figures)
+ */
+function addSpecialElements(section: Section, element: Element): void {
+  // Check for table
+  const tableElement = element.querySelector('table');
+  if (tableElement && !isInNestedSection(tableElement, element)) {
+    section.table = processTable(tableElement);
+  }
   
-  // Recursively process each child
-  childSections.forEach(child => {
-    buildChildHierarchy(child, allSections);
-  });
+  // Check for form
+  const formElement = element.querySelector('form');
+  if (formElement && !isInNestedSection(formElement, element)) {
+    section.form = processForm(formElement);
+  }
+  
+  // Check for figure
+  const figureElement = element.querySelector('figure');
+  if (figureElement && !isInNestedSection(figureElement, element)) {
+    section.figure = processFigure(figureElement);
+  }
+  
+  // Check for special content (math, definition lists, code, etc.)
+  const specialElementTypes = ['math', 'dl', 'pre', 'ol', 'ul'];
+  
+  for (const type of specialElementTypes) {
+    const specialElement = element.querySelector(type);
+    
+    if (specialElement && !isInNestedSection(specialElement, element)) {
+      const specialContent = processSpecialContent(specialElement);
+      
+      if (specialContent) {
+        section.formula = {
+          description: specialContent.description,
+          terms: specialContent.terms || [],
+          code: specialContent.code,
+          'ordered-list': specialContent['ordered-list'],
+          'unordered-list': specialContent['unordered-list']
+        };
+        
+        // Break after finding the first special content to avoid overwrites
+        break;
+      }
+    }
+  }
+}
+
+/**
+ * Check if an element is within a nested section
+ */
+function isInNestedSection(element: Element, parentSection: Element): boolean {
+  const closestSection = element.closest('section');
+  return closestSection !== null && closestSection !== parentSection;
+}
+
+/**
+ * Process child sections
+ */
+function addChildSections(section: Section, element: Element): void {
+  // Find direct child section elements
+  const childSections = Array.from(element.querySelectorAll(':scope > section'));
+  
+  if (childSections.length > 0) {
+    section.children = childSections.map(processSection);
+  }
 }

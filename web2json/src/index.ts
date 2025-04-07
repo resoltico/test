@@ -1,21 +1,28 @@
-// Main module entry point for web2json
+// Main entry point for web2json
 
-// Re-export the main functionality
+// Re-export core functionality
 export { parseDocument } from './parser.js';
 export { fetchFromUrl, fetchFromFile, parseHtml } from './fetcher.js';
+
+// Re-export types and schemas
 export * from './schema/index.js';
+
+// Re-export utilities
 export * from './utils/index.js';
+
+// Re-export processors
 export * from './processors/index.js';
 
-// Export the CLI functionality
+// Re-export CLI functionality
 export { createCli } from './cli.js';
 
-// Provide a programmatic API for direct use
+// Import necessary modules for programmatic API
 import fs from 'node:fs/promises';
 import { fetchFromUrl, fetchFromFile, parseHtml } from './fetcher.js';
 import { parseDocument } from './parser.js';
 import { formatJson } from './utils/json.js';
 import { resolveOutputPath } from './utils/path.js';
+import { logger } from './utils/logger.js';
 
 /**
  * Convert a URL to JSON
@@ -24,6 +31,8 @@ export async function convertUrlToJson(
   url: string, 
   outputPath?: string
 ): Promise<string> {
+  logger.info(`Converting URL to JSON: ${url}`);
+  
   // Fetch HTML from URL
   const html = await fetchFromUrl(url);
   
@@ -38,6 +47,8 @@ export async function convertFileToJson(
   filePath: string, 
   outputPath?: string
 ): Promise<string> {
+  logger.info(`Converting file to JSON: ${filePath}`);
+  
   // Read HTML from file
   const html = await fetchFromFile(filePath);
   
@@ -64,11 +75,13 @@ async function convertHtmlToJson(
   
   // Write to file if output path is provided
   if (outputPath) {
-    // Resolve the full output path
+    // Resolve output path
     const fullOutputPath = await resolveOutputPath(sourcePath, outputPath);
     
-    // Write the JSON file
+    // Write JSON file
     await fs.writeFile(fullOutputPath, jsonOutput, 'utf-8');
+    
+    logger.success(`JSON saved to: ${fullOutputPath}`);
   }
   
   return jsonOutput;

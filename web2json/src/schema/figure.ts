@@ -1,34 +1,34 @@
 import { z } from 'zod';
 
-// Schema for SVG elements
+// Schema for SVG elements (rect, circle, text, etc.)
 const svgElementSchema = z.object({
   type: z.string(),
+  // Common SVG attributes
   x: z.number().optional(),
   y: z.number().optional(),
   width: z.number().optional(),
   height: z.number().optional(),
   fill: z.string().optional(),
   stroke: z.string().optional(),
-  content: z.string().optional(),
+  // Additional properties for specific element types
+  content: z.string().optional(), // For text elements
   fontSize: z.number().optional(),
-  // Additional properties can be added as needed
+  // Allow for other attributes not explicitly defined
 }).passthrough();
 
-export type SvgElement = z.infer<typeof svgElementSchema>;
-
-// Schema for SVG figure
+// Schema for SVG structure
 const svgSchema = z.object({
   width: z.number(),
   height: z.number(),
-  elements: z.array(svgElementSchema),
+  elements: z.array(svgElementSchema)
 });
 
-// Schema for figures, supporting SVG
+// Schema for the overall figure
 export const figureSchema = z.object({
   caption: z.string(),
-  svg: svgSchema.optional(),
-  // Can extend with other figure types like image, etc.
+  svg: svgSchema.optional()
 });
 
 export type Figure = z.infer<typeof figureSchema>;
-export type SVG = z.infer<typeof svgSchema>;
+export type SvgElement = z.infer<typeof svgElementSchema>;
+export type Svg = z.infer<typeof svgSchema>;

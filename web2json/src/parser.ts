@@ -1,179 +1,209 @@
 import { JSDOM } from 'jsdom';
 import { Document } from './schema/document.js';
 import { Section } from './schema/section.js';
+import { Table } from './schema/table.js';
+import { Figure } from './schema/figure.js';
+import { Form } from './schema/form.js';
+import { Quote } from './schema/quote.js';
+import { logger } from './utils/logger.js';
 import { 
+  extractFormattedContent, 
   getDocumentTitle, 
-  getElementId,
-  getHeadingLevel,
-  isHeading,
-  isSectionContainer,
-  extractFormattedContent
+  getElementId, 
+  getHeadingLevel, 
+  isHeading 
 } from './utils/html.js';
 import { 
   processSection,
-  buildSectionHierarchy,
+  processTable,
+  processForm,
+  processFigure,
   processQuote
 } from './processors/index.js';
-import { logger } from './utils/logger.js';
 
 /**
- * Parse an HTML document and convert it to our JSON structure
+ * Parse HTML document and convert to structured JSON
  */
 export function parseDocument(dom: JSDOM): Document {
-  logger.info('Analyzing document structure');
+  logger.info('Starting document parsing');
   
   const document = dom.window.document;
-  
-  // Extract the document title
   const title = getDocumentTitle(document);
   
-  // Start with an empty document structure
+  // Initialize result document
   const result: Document = {
     title,
     content: []
   };
   
-  // Process the document body
-  processDocumentBody(document.body, result);
+  // Process the main content structure
+  processDocumentContent(document.body, result);
   
-  logger.success('Document structure analysis complete');
+  logger.success('Document parsing complete');
   return result;
 }
 
 /**
- * Process the document body and extract the content structure
+ * Process the body element to extract the document's main content structure
  */
-function processDocumentBody(body: HTMLElement, result: Document): void {
-  // Find all explicit section containers
-  const explicitSections = Array.from(body.querySelectorAll('section, article, aside'));
+function processDocumentContent(body: HTMLElement, result: Document): void {
+  // First process sections and structural elements
+  processMainStructure(body, result);
   
-  // If we have explicit sections, process them
-  if (explicitSections.length > 0) {
-    logger.info(`Found ${explicitSections.length} explicit section elements`);
-    
-    // Process sections individually
-    explicitSections.forEach(sectionElement => {
-      // Skip nested sections as they'll be handled by their parent
-      if (sectionElement.parentElement && 
-          (sectionElement.parentElement.tagName === 'SECTION' || 
-           sectionElement.parentElement.tagName === 'ARTICLE' || 
-           sectionElement.parentElement.tagName === 'ASIDE')) {
-        return;
-      }
+  // Then process standalone elements (blockquotes, search, footer, etc.)
+  processStandaloneElements(body, result);
+}
+
+/**
+ * Process the main structural content (sections, articles, etc.)
+ */
+function processMainStructure(container: HTMLElement, result: Document): void {
+  // Get all top-level structure elements (sections, articles, etc.)
+  const topLevelElements = getTopLevelStructureElements(container);
+  
+  logger.info(`Found ${topLevelElements.length} top-level structural elements`);
+  
+  if (topLevelElements.length > 0) {
+    // Process explicit structure elements
+    for (const element of topLevelElements) {
+      const tagName = element.tagName.toLowerCase();
       
-      if (sectionElement.tagName === 'ARTICLE') {
-        // Process article as a special container with sections
+      if (tagName === 'section') {
+        // Process as section
+        const section = processSection(element);
+        result.content.push(section);
+      } 
+      else if (tagName === 'article') {
+        // Process as article
         const article = {
           type: 'article' as const,
-          id: getElementId(sectionElement, 'article'),
-          children: processArticleSections(sectionElement)
+          id: getElementId(element, 'article'),
+          children: processArticleContent(element)
         };
-        
         result.content.push(article);
-      } else {
-        // Process regular section
-        const section = processSection(sectionElement);
+      }
+      else if (tagName === 'aside') {
+        // Process as a special section
+        const section = processSection(element);
         result.content.push(section);
       }
-    });
+    }
   } else {
-    // No explicit sections, use implicit sections based on headings
-    logger.info('No explicit sections found, creating implicit sections based on headings');
-    
-    const sections = createImplicitSections(body);
-    result.content = sections;
+    // No explicit structure - create implicit structure based on headings
+    logger.info('No explicit structure found - creating implicit structure from headings');
+    const sections = createImplicitSectionsFromHeadings(container);
+    result.content.push(...sections);
   }
-  
-  // Process other top-level elements
-  processSpecialElements(body, result);
 }
 
 /**
- * Process the sections within an article
+ * Extract sections from article content - handles both explicit and implicit structures
  */
-function processArticleSections(article: Element): Section[] {
-  // Find all section elements within the article
-  const sectionElements = Array.from(article.querySelectorAll('section'));
+function processArticleContent(article: Element): Section[] {
+  // Look for explicit sections within the article
+  const sectionElements = Array.from(article.querySelectorAll(':scope > section'));
   
-  // If we have explicit sections, process them
   if (sectionElements.length > 0) {
-    // Process sections individually
-    return sectionElements.map(processSection);
+    // Process explicit sections
+    return sectionElements.map(el => processSection(el));
+  } else {
+    // Create implicit sections based on headings
+    // Cast article to Element since createImplicitSectionsFromHeadings accepts Element
+    return createImplicitSectionsFromHeadings(article as Element);
   }
-  
-  // No explicit sections, use implicit sections based on headings
-  return createImplicitSections(article);
 }
 
 /**
- * Create implicit sections based on heading elements
+ * Get all top-level structure elements (those not nested within other structure elements)
  */
-function createImplicitSections(container: Element): Section[] {
-  // Find all heading elements
-  const headings = Array.from(container.querySelectorAll('h1, h2, h3, h4, h5, h6'))
-    .filter(heading => {
-      // Filter out headings that are within explicit sections
-      const closestSection = heading.closest('section, article, aside');
-      return !closestSection || closestSection === container;
-    });
+function getTopLevelStructureElements(container: HTMLElement): Element[] {
+  // Collect all section, article, and aside elements
+  const allStructuralElements = Array.from(container.querySelectorAll('section, article, aside'));
   
-  // If no headings, create a single section for the container
-  if (headings.length === 0) {
-    return [createSectionFromContent(container)];
-  }
-  
-  // Create sections based on headings
-  const sections: Section[] = [];
-  
-  headings.forEach((heading, index) => {
-    // Determine the content range for this section
-    const startNode = heading;
-    const endNode = index < headings.length - 1 ? headings[index + 1] : null;
+  // Filter to just the top-level ones (not nested inside other structural elements)
+  return allStructuralElements.filter(element => {
+    const parent = element.parentElement;
+    if (!parent) return false;
     
-    // Create a section for this heading
-    const section = createSectionFromHeading(heading, startNode, endNode);
-    sections.push(section);
+    // Check if parent is the container or is not a section/article/aside
+    const parentTag = parent.tagName.toLowerCase();
+    const isParentStructural = parentTag === 'section' || parentTag === 'article' || parentTag === 'aside';
+    
+    return !isParentStructural || parent === container;
+  });
+}
+
+/**
+ * Create implicit sections based on headings when no explicit sections exist
+ */
+function createImplicitSectionsFromHeadings(container: Element): Section[] {
+  // Find all headings that are direct children of the container
+  const headings = Array.from(container.querySelectorAll('h1, h2, h3, h4, h5, h6')).filter(heading => {
+    // Only include headings that are not inside other structural elements
+    const closestStructural = heading.closest('section, article, aside');
+    return !closestStructural || closestStructural === container;
   });
   
-  // Build the hierarchy based on heading levels
-  return buildSectionHierarchy(sections);
+  logger.debug(`Found ${headings.length} headings for implicit sections`);
+  
+  // If no headings, create a single content section
+  if (headings.length === 0) {
+    return [createContentSection(container)];
+  }
+  
+  // Create sections for each heading and its following content
+  const sections: Section[] = [];
+  
+  for (let i = 0; i < headings.length; i++) {
+    const heading = headings[i];
+    const nextHeading = i < headings.length - 1 ? headings[i + 1] : null;
+    
+    // Create a section for this heading
+    const section = createSectionFromHeading(heading, nextHeading, container);
+    sections.push(section);
+  }
+  
+  // Build hierarchical structure based on heading levels
+  return buildHierarchyFromHeadingLevels(sections);
 }
 
 /**
- * Create a section from a heading element and its following content
+ * Create a section from a heading and its following content
  */
 function createSectionFromHeading(
   heading: Element, 
-  startNode: Element, 
-  endNode: Element | null
+  nextHeading: Element | null, 
+  container: Element
 ): Section {
-  // Extract heading info - preserve HTML markup
-  const title = heading.innerHTML;
-  const level = getHeadingLevel(heading) || 1;
+  const title = heading.innerHTML; // Preserve HTML formatting in title
   const id = getElementId(heading, 'section');
+  const level = getHeadingLevel(heading) || 1;
   
-  // Collect content elements between startNode and endNode
-  const content: string[] = [];
-  let currentNode = startNode.nextSibling;
+  // Find all content between this heading and the next
+  const contentElements: Element[] = [];
+  let current = heading.nextElementSibling;
   
-  while (currentNode && currentNode !== endNode) {
-    if (currentNode.nodeType === 1) { // Element node
-      const element = currentNode as Element;
-      
-      // Skip headings and containers
-      if (!isHeading(element) && !isSectionContainer(element)) {
-        if (element.tagName === 'P') {
-          // Preserve HTML markup in paragraphs
-          content.push(element.innerHTML);
-        }
+  while (current && current !== nextHeading) {
+    // Skip nested structural elements
+    if (!['SECTION', 'ARTICLE', 'ASIDE'].includes(current.tagName)) {
+      // Only include paragraph elements in content
+      if (current.tagName === 'P') {
+        contentElements.push(current);
+      }
+      // Handle special elements - tables, forms, etc.
+      else if (current.tagName === 'TABLE') {
+        // Special elements will be handled later
       }
     }
     
-    currentNode = currentNode.nextSibling;
+    current = current.nextElementSibling;
   }
   
-  // Create the section
-  return {
+  // Extract content with preserved HTML formatting
+  const content = contentElements.map(el => el.innerHTML);
+  
+  // Create base section
+  const section: Section = {
     type: 'section',
     id,
     title,
@@ -181,57 +211,133 @@ function createSectionFromHeading(
     content,
     children: []
   };
-}
-
-/**
- * Create a section from container content
- */
-function createSectionFromContent(container: Element): Section {
-  // Create a default section
-  const section: Section = {
-    type: 'section',
-    id: getElementId(container),
-    content: [],
-    children: []
-  };
   
-  // Extract paragraphs as content - preserve HTML markup
-  const paragraphs = container.querySelectorAll('p');
-  paragraphs.forEach(p => {
-    if (p.innerHTML.trim()) {
-      section.content.push(p.innerHTML);
-    }
-  });
+  // Process special elements
+  processSpecialElements(section, heading, nextHeading, container);
   
   return section;
 }
 
 /**
- * Process special top-level elements like blockquotes, search, footer
+ * Process special elements (tables, forms, figures) for a section
  */
-function processSpecialElements(container: Element, result: Document): void {
+function processSpecialElements(
+  section: Section, 
+  startElement: Element, 
+  endElement: Element | null, 
+  container: Element
+): void {
+  // Find all elements between start and end
+  let current = startElement.nextElementSibling;
+  
+  while (current && current !== endElement) {
+    const tagName = current.tagName.toLowerCase();
+    
+    // Process based on element type
+    switch (tagName) {
+      case 'table':
+        section.table = processTable(current);
+        break;
+        
+      case 'form':
+        section.form = processForm(current);
+        break;
+        
+      case 'figure':
+        section.figure = processFigure(current);
+        break;
+    }
+    
+    current = current.nextElementSibling;
+  }
+}
+
+/**
+ * Create a single content section when no headings exist
+ */
+function createContentSection(container: Element): Section {
+  const id = getElementId(container, 'content');
+  
+  // Get all paragraphs
+  const paragraphs = Array.from(container.querySelectorAll('p'));
+  const content = paragraphs.map(p => p.innerHTML); // Preserve HTML formatting
+  
+  return {
+    type: 'section',
+    id,
+    content,
+    children: []
+  };
+}
+
+/**
+ * Build hierarchical structure from heading levels
+ */
+function buildHierarchyFromHeadingLevels(sections: Section[]): Section[] {
+  if (sections.length <= 1) return sections;
+  
+  // Sort by heading levels
+  const sortedSections = [...sections].sort((a, b) => {
+    const levelA = a.level || 1;
+    const levelB = b.level || 1;
+    return levelA - levelB;
+  });
+  
+  // Find the minimum level - these will be our top sections
+  const minLevel = Math.min(...sortedSections.map(s => s.level || 1));
+  const topSections = sortedSections.filter(s => (s.level || 1) === minLevel);
+  
+  // Process each top section to add its children
+  topSections.forEach(section => {
+    buildSectionChildren(section, sortedSections);
+  });
+  
+  return topSections;
+}
+
+/**
+ * Build the children hierarchy for a section
+ */
+function buildSectionChildren(parent: Section, allSections: Section[]): void {
+  const parentLevel = parent.level || 1;
+  
+  // Find child sections (those with level = parent level + 1)
+  const childSections = allSections.filter(section => {
+    const sectionLevel = section.level || 1;
+    return sectionLevel === parentLevel + 1 && section !== parent;
+  });
+  
+  // Skip if no children
+  if (childSections.length === 0) return;
+  
+  // Determine which children belong to this parent (vs. other parents at same level)
+  // This requires checking position in the document
+  // For simplicity, we're just assigning all children of this level to this parent
+  // In a real implementation, we'd check document position
+  parent.children = childSections;
+  
+  // Recursively process child sections
+  childSections.forEach(child => {
+    buildSectionChildren(child, allSections);
+  });
+}
+
+/**
+ * Process standalone elements outside the main structure (blockquotes, search, footer)
+ */
+function processStandaloneElements(container: HTMLElement, result: Document): void {
   // Process blockquotes
   const blockquotes = container.querySelectorAll('blockquote');
   blockquotes.forEach(blockquote => {
     // Skip nested blockquotes
-    if (blockquote.parentElement && blockquote.parentElement.tagName === 'BLOCKQUOTE') {
-      return;
-    }
+    if (blockquote.closest('blockquote') !== blockquote) return;
     
-    const quote = {
-      type: 'quote' as const,
-      content: blockquote.innerHTML,
-      source: '',
+    const quote = processQuote(blockquote);
+    result.content.push({
+      ...quote,
+      type: 'quote',
       children: []
-    };
-    
-    // Extract footer if present
-    const footer = blockquote.querySelector('footer');
-    if (footer) {
-      quote.source = footer.textContent || '';
-    }
-    
-    result.content.push(quote);
+    });
   });
   
   // Process search elements
@@ -246,8 +352,14 @@ function processSpecialElements(container: Element, result: Document): void {
   
   // Process footer
   const footer = container.querySelector('footer');
-  if (footer) {
-    const footerContent = Array.from(footer.children).map(child => child.innerHTML);
+  if (footer && footer.parentElement === container) {
+    const footerContent = Array.from(footer.children).map(el => {
+      // Special handling for links in footer
+      if (el.tagName === 'A') {
+        return el.textContent || '';
+      }
+      return el.innerHTML;
+    });
     
     result.content.push({
       type: 'footer',

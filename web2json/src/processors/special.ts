@@ -1,4 +1,7 @@
-type SpecialContent = {
+import { logger } from '../utils/logger.js';
+
+// Type definition for special content (math, dl, ol, ul, pre)
+export type SpecialContent = {
   description: string;
   terms: { term: string; definition: string }[];
   code?: string;
@@ -11,6 +14,8 @@ type SpecialContent = {
  */
 export function processSpecialContent(element: Element): SpecialContent | null {
   const tagName = element.tagName.toLowerCase();
+  
+  logger.debug(`Processing special element: ${tagName}`);
   
   // Process based on element type
   switch (tagName) {
@@ -33,52 +38,55 @@ export function processSpecialContent(element: Element): SpecialContent | null {
  * Process a math element
  */
 function processMathElement(mathElement: Element): SpecialContent {
-  // Extract MathML content - preserve the formula text exactly
-  const mathContent = mathElement.textContent || '';
+  // Preserve the exact MathML content
+  const content = mathElement.textContent || '';
   
-  // Extract the math formula description
   return {
-    description: mathContent,
-    // Always provide a non-empty terms array to satisfy schema requirements
-    terms: [{ term: "Mathematical Formula", definition: "Formula expression" }]
+    description: content,
+    terms: [
+      { 
+        term: 'Mathematical Expression', 
+        definition: 'Formula represented in MathML format' 
+      }
+    ]
   };
 }
 
 /**
- * Process a definition list
+ * Process a definition list (dl) element
  */
 function processDefinitionList(dlElement: Element): SpecialContent {
   const terms: { term: string; definition: string }[] = [];
   
-  // Get all dt and dd elements
+  // Find all term/definition pairs
   const dtElements = dlElement.querySelectorAll('dt');
-  const ddElements = dlElement.querySelectorAll('dd');
   
-  // Process terms and definitions
   for (let i = 0; i < dtElements.length; i++) {
-    const term = dtElements[i].textContent || '';
-    const definition = i < ddElements.length 
-      ? ddElements[i].textContent || ''
-      : '';
+    const dtElement = dtElements[i];
+    const term = dtElement.textContent || '';
     
+    // Find the corresponding dd element
+    let definition = '';
+    const ddElement = dtElement.nextElementSibling;
+    
+    if (ddElement && ddElement.tagName.toLowerCase() === 'dd') {
+      definition = ddElement.textContent || '';
+    }
+    
+    // Add the term-definition pair
     if (term) {
       terms.push({ term, definition });
     }
   }
   
-  // Ensure terms is never empty, even if no terms were found
-  if (terms.length === 0) {
-    terms.push({ term: "No terms found", definition: "" });
-  }
-  
   return {
     description: 'Definition list',
-    terms
+    terms: terms.length > 0 ? terms : [{ term: 'No terms found', definition: '' }]
   };
 }
 
 /**
- * Process a code block
+ * Process a code block (pre) element
  */
 function processCodeBlock(preElement: Element): SpecialContent {
   // Look for a code element within the pre
@@ -89,45 +97,45 @@ function processCodeBlock(preElement: Element): SpecialContent {
   
   return {
     description: 'Code block',
-    terms: [{ term: "Code snippet", definition: "Source code" }],
+    terms: [{ term: 'Code', definition: 'Source code' }],
     code
   };
 }
 
 /**
- * Process an ordered list
+ * Process an ordered list (ol) element
  */
 function processOrderedList(olElement: Element): SpecialContent {
   const items: string[] = [];
   
-  // Extract list items
+  // Extract all list items
   const liElements = olElement.querySelectorAll('li');
-  for (const li of liElements) {
+  for (const li of Array.from(liElements)) {
     items.push(li.textContent || '');
   }
   
   return {
     description: 'Ordered list',
-    terms: [{ term: "List items", definition: "Numbered sequence" }],
+    terms: [{ term: 'List items', definition: 'Numbered sequence' }],
     'ordered-list': items
   };
 }
 
 /**
- * Process an unordered list
+ * Process an unordered list (ul) element
  */
 function processUnorderedList(ulElement: Element): SpecialContent {
   const items: string[] = [];
   
-  // Extract list items
+  // Extract all list items
   const liElements = ulElement.querySelectorAll('li');
-  for (const li of liElements) {
+  for (const li of Array.from(liElements)) {
     items.push(li.textContent || '');
   }
   
   return {
     description: 'Unordered list',
-    terms: [{ term: "List items", definition: "Bulleted sequence" }],
+    terms: [{ term: 'List items', definition: 'Bulleted sequence' }],
     'unordered-list': items
   };
 }

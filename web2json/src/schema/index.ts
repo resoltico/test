@@ -1,4 +1,4 @@
-// Export all schemas from this central file
+// Export all schema definitions and types
 export * from './document.js';
 export * from './section.js';
 export * from './table.js';
