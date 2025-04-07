@@ -24,10 +24,12 @@ Create a framework-agnostic Node.js application that transforms any HTML webpage
 
 ### ENSURE and DOUBLE-CHECK
 
-- That there are no circular references in schema definitions
-- Support for processing both URLs and local files
-- Smart output path determination, sanitizing of paths and filenames (spaces, special characters, invalids, etc)
-- Progress indicators and error handling
+- That there are no circular references in schema definitions.
+- That we have type annotations.
+- Support for processing both URLs and local files.
+- Smart output path determination, sanitizing of paths and filenames (spaces, special characters, invalids, etc).
+- Progress indicators and error handling.
+- When building recursive schema structures in Zod and TypeScript: (A) Always declare a placeholder variable first without initialization (e.g., let innerSchema: z.ZodType<any>;); (B) Create your exported schema using z.lazy() that references this placeholder (e.g., export const schema = z.lazy(() => innerSchema);); (C) Only then define the actual schema structure, using your exported lazy schema for self-references; (D)Never directly reference a schema in its own initialization expression; (E) Use z.array() with your lazy schema for collections of recursive elements.
 
 ## PROCESSING ALGORITHM
 
@@ -194,35 +196,36 @@ function web2json() {
 
 
 Possible project tree - double-check whether it is appropriate and sufficient and extendable and easily maintainable:
+
 web2json/
-├── .node-version              # Node version requirement (already provided)
-├── .eslintrc.js               # ESLint configuration
-├── tsconfig.json              # TypeScript configuration
-├── package.json               # Project dependencies and scripts
-├── README.md                  # Installation and usage instructions
+├── .node-version            # Node version requirement
+├── .eslintrc.js             # ESLint configuration
+├── tsconfig.json            # TypeScript configuration
+├── package.json             # Project dependencies and scripts
+├── README.md                # Installation and usage instructions
 ├── src/
-│   ├── index.ts               # Main entry point
-│   ├── cli.ts                 # Command-line interface
-│   ├── fetcher.ts             # HTML fetching module
-│   ├── parser.ts              # Main HTML parsing logic
-│   ├── processors/            # Specialized element processors
-│   │   ├── index.ts           # Exports all processors
-│   │   ├── section.ts         # Section/heading processor
-│   │   ├── table.ts           # Table processor
-│   │   ├── form.ts            # Form processor
-│   │   ├── figure.ts          # Figure processor
-│   │   ├── quote.ts           # Quote processor
-│   │   └── special.ts         # Special element processor
-│   ├── schema/                # Zod schema definitions
-│   │   ├── index.ts           # Main schema exports
-│   │   ├── document.ts        # Document schema
-│   │   ├── section.ts         # Section schema
-│   │   ├── table.ts           # Table schema
-│   │   └── form.ts            # Form schema
-│   └── utils/                 # Utility functions
-│       ├── index.ts           # Exports all utilities
-│       ├── html.ts            # HTML processing utilities
-│       ├── json.ts            # JSON handling utilities
-│       └── logger.ts          # Logging utilities
+│   ├── index.ts             # Main entry point
+│   ├── cli.ts               # Command-line interface
+│   ├── fetcher.ts           # HTML fetching module
+│   ├── parser.ts            # Main HTML parsing logic
+│   ├── processors/          # Specialized element processors
+│   │   ├── index.ts
+│   │   ├── section.ts
+│   │   ├── table.ts
+│   │   ├── form.ts
+│   │   ├── figure.ts
+│   │   ├── quote.ts
+│   │   └── special.ts
+│   ├── schema/              # Zod schema definitions
+│   │   ├── index.ts
+│   │   ├── document.ts
+│   │   ├── section.ts
+│   │   ├── table.ts
+│   │   └── form.ts
+│   └── utils/               # Utility functions
+│       ├── index.ts
+│       ├── html.ts
+│       ├── json.ts
+│       └── logger.ts
 └── bin/
-    └── web2json.ts            # CLI entry point
+    └── web2json.ts          # CLI entry point
