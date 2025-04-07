@@ -1,19 +1,20 @@
 // src/processors/section.ts
 import * as cheerio from 'cheerio';
+import { Element } from 'domhandler';
 import { Section } from '../schema/section.js';
 import { cleanHtmlContent, getHeadingLevel } from '../utils/html.js';
 
 // Keeps track of heading information
 interface HeadingInfo {
   level: number;
-  element: cheerio.Element;
+  element: Element;
   text: string;
 }
 
 /**
  * Process a section including headings and content
  */
-export function processSection($: cheerio.CheerioAPI, element: cheerio.Element): Section {
+export function processSection($: cheerio.CheerioAPI, element: Element): Section {
   const $element = $(element);
   
   // Determine section type based on element tag
@@ -29,7 +30,11 @@ export function processSection($: cheerio.CheerioAPI, element: cheerio.Element):
   const $heading = $element.find('h1, h2, h3, h4, h5, h6').first();
   if ($heading.length > 0) {
     section.title = cleanHtmlContent($heading.html() || $heading.text() || '');
-    section.level = getHeadingLevel($heading.prop('tagName')) || undefined;
+    // Fix for the getHeadingLevel issue - ensure proper type checking
+    const tagName = $heading.prop('tagName');
+    if (tagName) {
+      section.level = getHeadingLevel(tagName) || undefined;
+    }
   }
   
   // Process section content (text nodes and elements that aren't sections or headings)
@@ -134,7 +139,9 @@ export function createSectionsFromHeadings($: cheerio.CheerioAPI): Section[] {
     
     let content = '';
     let el = $(heading.element).next();
-    while (el.length && !el.is(contentEnd.selector)) {
+    
+    // Fix for the selector issue - handle comparing elements appropriately
+    while (el.length && contentEnd.length && !el.is(el.is(contentEnd))) {
       // Skip headings and sections
       if (!el.is('h1, h2, h3, h4, h5, h6, section, article, aside')) {
         content += el.prop('outerHTML');

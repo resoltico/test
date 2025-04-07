@@ -2,6 +2,7 @@
 import { decode } from 'html-entities';
 import sanitizeHtml from 'sanitize-html';
 import * as cheerio from 'cheerio';
+import { Element } from 'domhandler';
 
 /**
  * Clean and decode HTML content while preserving semantic elements
@@ -45,7 +46,7 @@ export function extractTextContent(html: string): string {
 /**
  * Get the parent section of an element
  */
-export function getParentSection($: cheerio.CheerioAPI, element: cheerio.Element): cheerio.Element | null {
+export function getParentSection($: cheerio.CheerioAPI, element: Element): Element | null {
   const $element = $(element);
   const $section = $element.closest('section, article, aside, div');
   
@@ -60,11 +61,12 @@ export function getParentSection($: cheerio.CheerioAPI, element: cheerio.Element
  * Create a Cheerio instance with consistent configuration
  */
 export function createCheerio(html: string): cheerio.CheerioAPI {
+  // Fix for the CheerioOptions issue
   return cheerio.load(html, {
-    decodeEntities: false,
-    xmlMode: false,
-    // Use htmlparser2 for better HTML5 support
-    _useHtmlParser2: true
+    // Only include properties that are actually supported
+    // Removed decodeEntities as it's not in the interface
+    xml: false, // Use HTML mode
+    _useHtmlParser2: true // Use htmlparser2 for better HTML5 support
   });
 }
 

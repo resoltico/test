@@ -1,12 +1,13 @@
 // src/processors/table.ts
 import * as cheerio from 'cheerio';
+import { Element } from 'domhandler';
 import { Table } from '../schema/table.js';
 import { cleanHtmlContent, extractTextContent } from '../utils/html.js';
 
 /**
  * Process a table element
  */
-export function processTable($: cheerio.CheerioAPI, tableElement: cheerio.Element): Table {
+export function processTable($: cheerio.CheerioAPI, tableElement: Element): Table {
   const $table = $(tableElement);
   const table: Table = {
     rows: []

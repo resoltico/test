@@ -1,12 +1,13 @@
 // src/processors/special.ts
 import * as cheerio from 'cheerio';
+import { Element } from 'domhandler';
 import { Formula } from '../schema/section.js';
 import { cleanHtmlContent, extractTextContent } from '../utils/html.js';
 
 /**
  * Process formula/math content
  */
-export function processFormula($: cheerio.CheerioAPI, element: cheerio.Element): Formula {
+export function processFormula($: cheerio.CheerioAPI, element: Element): Formula {
   const $element = $(element);
   const formula: Formula = {};
   
@@ -69,7 +70,7 @@ export function processFormula($: cheerio.CheerioAPI, element: cheerio.Element):
 /**
  * Process a search element
  */
-export function processSearch($: cheerio.CheerioAPI, element: cheerio.Element): { type: string; content: string } {
+export function processSearch($: cheerio.CheerioAPI, element: Element): { type: string; content: string } {
   const $element = $(element);
   
   // Extract search input placeholder or text content

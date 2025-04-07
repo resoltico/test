@@ -34,17 +34,24 @@ export async function fetchHtml(url: string): Promise<string> {
     // Return the HTML content
     return response.body;
   } catch (error) {
-    // Handle various error cases
-    if (error instanceof got.RequestError) {
-      throw new Error(`Network error: ${error.message}`);
-    } else if (error instanceof got.HTTPError) {
-      throw new Error(`HTTP error ${error.response.statusCode}: ${error.message}`);
-    } else if (error instanceof got.TimeoutError) {
-      throw new Error('Request timed out');
-    } else if (error instanceof got.MaxRedirectsError) {
-      throw new Error('Too many redirects');
+    // Handle various error cases without using got's error types directly
+    if (error instanceof Error) {
+      const errorName = error.name;
+      if (errorName === 'RequestError') {
+        throw new Error(`Network error: ${error.message}`);
+      } else if (errorName === 'HTTPError') {
+        // Cast error to any to access response property
+        const httpError = error as any;
+        throw new Error(`HTTP error ${httpError.response?.statusCode}: ${error.message}`);
+      } else if (errorName === 'TimeoutError') {
+        throw new Error('Request timed out');
+      } else if (errorName === 'MaxRedirectsError') {
+        throw new Error('Too many redirects');
+      } else {
+        throw new Error(`Error fetching URL: ${error.message}`);
+      }
     } else {
-      throw new Error(`Error fetching URL: ${(error as Error).message}`);
+      throw new Error(`Error fetching URL: Unknown error`);
     }
   }
 }

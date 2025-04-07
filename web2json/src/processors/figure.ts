@@ -1,12 +1,13 @@
 // src/processors/figure.ts
 import * as cheerio from 'cheerio';
+import { Element } from 'domhandler';
 import { Figure, Svg } from '../schema/section.js';
 import { extractTextContent } from '../utils/html.js';
 
 /**
  * Process a figure element
  */
-export function processFigure($: cheerio.CheerioAPI, figureElement: cheerio.Element): Figure {
+export function processFigure($: cheerio.CheerioAPI, figureElement: Element): Figure {
   const $figure = $(figureElement);
   const figure: Figure = {};
   
@@ -28,7 +29,7 @@ export function processFigure($: cheerio.CheerioAPI, figureElement: cheerio.Elem
 /**
  * Process an SVG element
  */
-export function processSvg($: cheerio.CheerioAPI, svgElement: cheerio.Element): Svg {
+export function processSvg($: cheerio.CheerioAPI, svgElement: Element): Svg {
   const $svg = $(svgElement);
   
   const svg: Svg = {

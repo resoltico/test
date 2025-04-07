@@ -1,12 +1,13 @@
 // src/processors/form.ts
 import * as cheerio from 'cheerio';
+import { Element } from 'domhandler';
 import { Form, FormField, FormFieldOption, FormFieldOptionsGroup } from '../schema/form.js';
 import { cleanHtmlContent, extractTextContent } from '../utils/html.js';
 
 /**
  * Process a form element
  */
-export function processForm($: cheerio.CheerioAPI, formElement: cheerio.Element): Form {
+export function processForm($: cheerio.CheerioAPI, formElement: Element): Form {
   const $form = $(formElement);
   const form: Form = {
     fields: []
