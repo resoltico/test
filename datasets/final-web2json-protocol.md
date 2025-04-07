@@ -12,15 +12,19 @@ Create a framework-agnostic Node.js application that transforms any HTML webpage
 ### Use the technologies, functions, solutions and possibilities of these modules
 1. **Cheerio** (1.0.0+) - use TypeScript definitions from the file “cheerio-index.d.ts” (I download it from https://github.com/DefinitelyTyped/DefinitelyTyped/blob/master/types/cheerio/index.d.ts). Also examine Cheerio dist files in the “dist” folder and its folders.
 2. **Zod** (3.24.2+) - 
-3. **fast-json-stringify** (6.0.1+)
-4. **TypeScript** (5.8.3+ )- 
-5. **html-entities** (2.6.0+) - 
-6. **sanitize-html** (2.15.0+) - 
-7. commander (13.1.0+) - 
-8. ora (8.2.0+) - 
-9. Chalk (5.4.1+) - 
-10. tsx (4.19.3+) - 
-11. ESLint (9.24.0+)
+3. **TypeScript** (5.8.3+ )- 
+4. **html-entities** (2.6.0+) - 
+5. **sanitize-html** (2.15.0+) - 
+6. commander (13.1.0+) - 
+7. ora (8.2.0+) - 
+8. Chalk (5.4.1+) - 
+9. tsx (4.19.3+) - 
+10. ESLint (9.24.0+)
+
+### ENSURE and DOUBLE-CHECK
+
+- That there are no circular references in schema definitions
+- That there are no missing Cheerio type exports
 
 ## PROCESSING ALGORITHM
 
