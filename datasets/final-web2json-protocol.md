@@ -20,6 +20,7 @@ Create a framework-agnostic Node.js application that transforms any HTML webpage
 8. Chalk (5.4.1+) - 
 9. tsx (4.19.3+) - 
 10. ESLint (9.24.0+)
+11. got  (14.4.7+)
 
 ### ENSURE and DOUBLE-CHECK
 
