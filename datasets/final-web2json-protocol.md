@@ -10,11 +10,11 @@ Create a framework-agnostic Node.js application that transforms any HTML webpage
 8. **Use pnpm and fnm**
 
 ### Use the technologies, functions, solutions and possibilities of these modules
-1. **Cheerio** (1.0.0+) - use TypeScript definitions from the file “cheerio-index.d.ts” (I download it from https://github.com/DefinitelyTyped/DefinitelyTyped/blob/master/types/cheerio/index.d.ts). Also examine Cheerio dist files in the “dist” folder and its folders.
-2. **Zod** (3.24.2+) - 
-3. **TypeScript** (5.8.3+ )- 
-4. **html-entities** (2.6.0+) - 
-5. **sanitize-html** (2.15.0+) - 
+1. Cheerio (1.0.0+) - use TypeScript definitions from the file “cheerio-index.d.ts” (I download it from https://github.com/DefinitelyTyped/DefinitelyTyped/blob/master/types/cheerio/index.d.ts). Also examine Cheerio dist files in the “dist” folder and its folders.
+2. Zod (3.24.2+) - 
+3. TypeScript (5.8.3+ )- 
+4. html-entities (2.6.0+) - 
+5. sanitize-html (2.15.0+) - 
 6. commander (13.1.0+) - 
 7. ora (8.2.0+) - 
 8. Chalk (5.4.1+) - 
@@ -26,6 +26,9 @@ Create a framework-agnostic Node.js application that transforms any HTML webpage
 
 - That there are no circular references in schema definitions
 - That there are no missing Cheerio type exports
+- Support for processing both URLs and local files
+- Smart output path determination, sanitizing of paths and filenames (spaces, special characters, invalids, etc)
+- Progress indicators and error handling
 
 ## PROCESSING ALGORITHM
 
@@ -189,3 +192,38 @@ function web2json() {
   
   echo "💻 Ready for next command"
 }
+
+
+Possible project tree - double-check whether it is appropriate and sufficient and extendable and easily maintainable:
+web2json/
+├── .node-version              # Node version requirement (already provided)
+├── .eslintrc.js               # ESLint configuration
+├── tsconfig.json              # TypeScript configuration
+├── package.json               # Project dependencies and scripts
+├── README.md                  # Installation and usage instructions
+├── src/
+│   ├── index.ts               # Main entry point
+│   ├── cli.ts                 # Command-line interface
+│   ├── fetcher.ts             # HTML fetching module
+│   ├── parser.ts              # Main HTML parsing logic
+│   ├── processors/            # Specialized element processors
+│   │   ├── index.ts           # Exports all processors
+│   │   ├── section.ts         # Section/heading processor
+│   │   ├── table.ts           # Table processor
+│   │   ├── form.ts            # Form processor
+│   │   ├── figure.ts          # Figure processor
+│   │   ├── quote.ts           # Quote processor
+│   │   └── special.ts         # Special element processor
+│   ├── schema/                # Zod schema definitions
+│   │   ├── index.ts           # Main schema exports
+│   │   ├── document.ts        # Document schema
+│   │   ├── section.ts         # Section schema
+│   │   ├── table.ts           # Table schema
+│   │   └── form.ts            # Form schema
+│   └── utils/                 # Utility functions
+│       ├── index.ts           # Exports all utilities
+│       ├── html.ts            # HTML processing utilities
+│       ├── json.ts            # JSON handling utilities
+│       └── logger.ts          # Logging utilities
+└── bin/
+    └── web2json.ts            # CLI entry point
