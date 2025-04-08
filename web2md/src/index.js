@@ -1,6 +1,7 @@
 import { fetchHtml, fetchHtmlWithMetadata } from './fetcher.js';
-import { convertHtmlToMarkdown } from './converter.js';
+import { convertHtmlToMarkdown, convertHtmlToMarkdownWithSchema } from './converter.js';
 import { determineOutputPath, safeWriteFile } from './utils.js';
+import { loadSchema } from './schema-loader.js';
 import fs from 'node:fs/promises';
 import { setTimeout } from 'node:timers/promises';
 
@@ -11,6 +12,7 @@ export class Web2MdError extends Error {
     CONVERSION_ERROR: 'CONVERSION_ERROR',
     OUTPUT_ERROR: 'OUTPUT_ERROR',
     FILE_EXISTS_ERROR: 'FILE_EXISTS_ERROR',
+    SCHEMA_ERROR: 'SCHEMA_ERROR',
   };
   
   constructor(message, options = {}) {
@@ -31,6 +33,8 @@ export class Web2MdError extends Error {
  * @param {boolean} options.force - Whether to overwrite existing files
  * @param {number} options.timeout - Timeout in milliseconds
  * @param {number} options.maxRetries - Maximum number of retries
+ * @param {string} options.schema - Schema preset to use (standard, structured, clean, custom)
+ * @param {string} options.schemaFile - Path to custom schema file (required if schema is 'custom')
  * @returns {Promise<string>} - The path to the output file
  */
 export async function convertToMarkdown(source, options = {}) {
@@ -38,15 +42,36 @@ export async function convertToMarkdown(source, options = {}) {
     outputDir = '.', 
     force = false,
     timeout = 30000,
-    maxRetries = 3
+    maxRetries = 3,
+    schema = 'standard',
+    schemaFile = null
   } = options;
   
   try {
     // Fetch HTML content
     const { html, metadata } = await fetchHtmlWithMetadata(source, { timeout, maxRetries });
     
+    // Load the conversion schema
+    let schemaConfig;
+    try {
+      schemaConfig = await loadSchema(schema, schemaFile);
+    } catch (error) {
+      throw new Web2MdError(`Failed to load schema: ${error.message}`, {
+        code: Web2MdError.errorCodes.SCHEMA_ERROR,
+        cause: error,
+        metadata: { schema, schemaFile }
+      });
+    }
+    
     // Convert HTML to Markdown
-    const markdown = convertHtmlToMarkdown(html);
+    let markdown;
+    if (schema === 'standard' && !schemaFile) {
+      // Use the optimized default converter for standard schema
+      markdown = convertHtmlToMarkdown(html);
+    } else {
+      // Use the schema-based converter for custom schemas
+      markdown = convertHtmlToMarkdownWithSchema(html, schemaConfig);
+    }
     
     // Determine output path
     const outputPath = await determineOutputPath(source, outputDir);
@@ -90,6 +115,38 @@ export async function convertToMarkdown(source, options = {}) {
       metadata: { source }
     });
   }
+}
+
+/**
+ * Converts HTML to Markdown with a custom schema configuration
+ * @param {string} source - The source URL or file path
+ * @param {object} options - Options for the conversion
+ * @param {string} options.outputDir - The output directory
+ * @param {boolean} options.force - Whether to overwrite existing files
+ * @param {number} options.timeout - Timeout in milliseconds
+ * @param {number} options.maxRetries - Maximum number of retries
+ * @param {object} options.schemaOptions - Custom schema options
+ * @returns {Promise<string>} - The path to the output file
+ */
+export async function convertToMarkdownWithSchema(source, options = {}) {
+  const {
+    outputDir = '.',
+    force = false,
+    timeout = 30000,
+    maxRetries = 3,
+    schemaOptions = {}
+  } = options;
+  
+  // Call the standard converter with schemaOptions
+  return convertToMarkdown(source, {
+    outputDir,
+    force,
+    timeout,
+    maxRetries,
+    schema: 'custom',
+    schemaFile: null,
+    schemaOptions
+  });
 }
 
 /**
@@ -140,4 +197,4 @@ export async function batchConvert(sources, options = {}) {
   return results;
 }
 
-export { fetchHtml, convertHtmlToMarkdown, determineOutputPath };
+export { fetchHtml, convertHtmlToMarkdown, convertHtmlToMarkdownWithSchema, determineOutputPath, loadSchema };

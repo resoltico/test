@@ -44,6 +44,7 @@ web2md <source> [options]
 - `-f, --force`: Overwrite existing files
 - `-t, --timeout <ms>`: Timeout in milliseconds (default: 30000)
 - `-r, --retries <number>`: Maximum number of retries (default: 3)
+- `-s, --schema <preset>`: Conversion schema preset (default: "standard")
 - `-h, --help`: Display help information
 - `-V, --version`: Display version number
 
@@ -63,6 +64,20 @@ web2md batch <file> [options]
 
 Additional options for batch conversion:
 - `-c, --concurrency <number>`: Maximum number of concurrent conversions (default: 3)
+
+### Schema Presets
+
+The following schema presets are available:
+
+- `standard`: Default conversion schema that prioritizes content
+- `structured`: Preserves HTML structure with comments
+- `clean`: Minimal formatting with focus on readability
+- `custom`: Uses a custom schema defined in a JSON file (use --schema-file to specify)
+
+Specify a schema preset:
+```
+web2md https://example.com --schema structured
+```
 
 ### Examples
 
@@ -91,6 +106,11 @@ Batch convert URLs from a file:
 web2md batch urls.txt -o ./output -c 5
 ```
 
+Use a specific conversion schema:
+```
+web2md https://example.com --schema structured
+```
+
 ### API
 
 You can also use web2md programmatically:
@@ -103,13 +123,65 @@ async function example() {
     outputDir: './output',
     force: true,
     timeout: 30000,
-    maxRetries: 3
+    maxRetries: 3,
+    schema: 'standard'
   });
   
   console.log(`Converted to ${outputPath}`);
 }
 
 example().catch(console.error);
+```
+
+For more advanced schema customization:
+
+```javascript
+import { convertToMarkdownWithSchema } from 'web2md';
+
+async function customExample() {
+  const outputPath = await convertToMarkdownWithSchema('https://example.com', {
+    outputDir: './output',
+    schemaOptions: {
+      preserveStructure: true,
+      flattenContainers: false,
+      customElementRules: {
+        // Custom rules for specific HTML elements
+        'my-element': {
+          filter: 'my-element',
+          replacement: (content) => `Custom content: ${content}`
+        }
+      }
+    }
+  });
+  
+  console.log(`Converted to ${outputPath} with custom schema`);
+}
+
+customExample().catch(console.error);
+```
+
+## Custom Schema Development
+
+You can define your own conversion schema by creating a JSON file:
+
+```json
+{
+  "preserveStructure": true,
+  "flattenContainers": false,
+  "handleSpecialElements": true,
+  "elementRules": {
+    "div": {
+      "filter": "div",
+      "replacement": "function(content, node) { ... }"
+    }
+  }
+}
+```
+
+Then use it with:
+
+```
+web2md https://example.com --schema custom --schema-file ./my-schema.json
 ```
 
 ## Features
@@ -120,6 +192,7 @@ example().catch(console.error);
 - Smart output path determination and sanitization
 - Comprehensive error handling with retries
 - Progress indicators for command-line usage
+- Customizable conversion schemas
 
 ## Node.js 22+ Features
 
@@ -146,3 +219,13 @@ function web2md() {
 ```
 
 This function automatically switches to the correct Node.js version using fnm and runs the web2md command.
+
+## Extending the Schema
+
+The conversion schema is designed to be easily extended. To add support for new HTML elements or modify existing conversion rules:
+
+1. Create a custom schema file
+2. Add rules for the specific elements you want to customize
+3. Use the `--schema custom --schema-file` option to apply your changes
+
+Alternatively, you can modify the `src/converter.js` file to add permanent rules to the default conversion process.

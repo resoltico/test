@@ -7,6 +7,7 @@ import { fetchHtml } from './fetcher.js';
 import { convertHtmlToMarkdown } from './converter.js';
 import { determineOutputPath } from './utils.js';
 import { convertToMarkdown, batchConvert, Web2MdError } from './index.js';
+import { createDefaultSchemaFile } from './schema-loader.js';
 
 /**
  * Runs the CLI application
@@ -28,26 +29,38 @@ export async function run() {
     .option('-f, --force', 'Overwrite existing files', false)
     .option('-t, --timeout <ms>', 'Timeout in milliseconds', 30000)
     .option('-r, --retries <number>', 'Maximum number of retries', 3)
+    .option('-s, --schema <preset>', 'Conversion schema preset (standard, structured, clean, custom)', 'standard')
+    .option('--schema-file <file>', 'Custom schema file (required if schema is "custom")')
     .action(async (source, options) => {
       const spinner = ora('Processing...').start();
       
       try {
         // Convert to Markdown
-        spinner.text = `Converting ${source} to Markdown...`;
+        spinner.text = `Converting ${source} to Markdown using ${options.schema} schema...`;
         const outputPath = await convertToMarkdown(source, {
           outputDir: options.output,
           force: options.force,
           timeout: options.timeout,
-          maxRetries: options.retries
+          maxRetries: options.retries,
+          schema: options.schema,
+          schemaFile: options.schemaFile
         });
         
         // Success!
         spinner.succeed(`Successfully converted to ${chalk.green(outputPath)}`);
       } catch (error) {
-        if (error instanceof Web2MdError && 
-            error.code === Web2MdError.errorCodes.FILE_EXISTS_ERROR) {
-          spinner.fail(error.message);
-          spinner.info(`Use --force to overwrite existing files.`);
+        if (error instanceof Web2MdError) {
+          if (error.code === Web2MdError.errorCodes.FILE_EXISTS_ERROR) {
+            spinner.fail(error.message);
+            spinner.info(`Use --force to overwrite existing files.`);
+          } else if (error.code === Web2MdError.errorCodes.SCHEMA_ERROR) {
+            spinner.fail(error.message);
+            if (options.schema === 'custom' && !options.schemaFile) {
+              spinner.info(`Use --schema-file to specify a custom schema file.`);
+            }
+          } else {
+            spinner.fail(`Error: ${error.message}`);
+          }
         } else {
           spinner.fail(`Error: ${error.message}`);
         }
@@ -65,6 +78,8 @@ export async function run() {
     .option('-t, --timeout <ms>', 'Timeout in milliseconds', 30000)
     .option('-r, --retries <number>', 'Maximum number of retries', 3)
     .option('-c, --concurrency <number>', 'Maximum number of concurrent conversions', 3)
+    .option('-s, --schema <preset>', 'Conversion schema preset (standard, structured, clean, custom)', 'standard')
+    .option('--schema-file <file>', 'Custom schema file (required if schema is "custom")')
     .action(async (file, options) => {
       const spinner = ora('Processing batch...').start();
       
@@ -82,7 +97,7 @@ export async function run() {
           process.exit(0);
         }
         
-        spinner.text = `Converting ${sources.length} sources...`;
+        spinner.text = `Converting ${sources.length} sources using ${options.schema} schema...`;
         
         // Convert sources in batch
         const results = await batchConvert(sources, {
@@ -90,7 +105,9 @@ export async function run() {
           force: options.force,
           timeout: options.timeout,
           maxRetries: options.retries,
-          concurrencyLimit: options.concurrency
+          concurrencyLimit: options.concurrency,
+          schema: options.schema,
+          schemaFile: options.schemaFile
         });
         
         // Report results
@@ -115,6 +132,24 @@ export async function run() {
       }
     });
   
+  // Create schema command
+  program
+    .command('create-schema')
+    .description('Create a default schema file that can be customized')
+    .argument('[output-file]', 'Output file path', './web2md-schema.json')
+    .action(async (outputFile) => {
+      const spinner = ora('Creating schema file...').start();
+      
+      try {
+        await createDefaultSchemaFile(outputFile);
+        spinner.succeed(`Successfully created schema file at ${chalk.green(outputFile)}`);
+        spinner.info(`You can now customize this file and use it with --schema custom --schema-file ${outputFile}`);
+      } catch (error) {
+        spinner.fail(`Error: ${error.message}`);
+        process.exit(1);
+      }
+    });
+  
   // Default command (if no subcommand specified, convert command is used)
   program
     .argument('[source]', 'URL or file path to convert')
@@ -122,6 +157,8 @@ export async function run() {
     .option('-f, --force', 'Overwrite existing files', false)
     .option('-t, --timeout <ms>', 'Timeout in milliseconds', 30000)
     .option('-r, --retries <number>', 'Maximum number of retries', 3)
+    .option('-s, --schema <preset>', 'Conversion schema preset (standard, structured, clean, custom)', 'standard')
+    .option('--schema-file <file>', 'Custom schema file (required if schema is "custom")')
     .action(async (source, options) => {
       if (!source) {
         program.help();
@@ -132,21 +169,31 @@ export async function run() {
       
       try {
         // Convert to Markdown
-        spinner.text = `Converting ${source} to Markdown...`;
+        spinner.text = `Converting ${source} to Markdown using ${options.schema} schema...`;
         const outputPath = await convertToMarkdown(source, {
           outputDir: options.output,
           force: options.force,
           timeout: options.timeout,
-          maxRetries: options.retries
+          maxRetries: options.retries,
+          schema: options.schema,
+          schemaFile: options.schemaFile
         });
         
         // Success!
         spinner.succeed(`Successfully converted to ${chalk.green(outputPath)}`);
       } catch (error) {
-        if (error instanceof Web2MdError && 
-            error.code === Web2MdError.errorCodes.FILE_EXISTS_ERROR) {
-          spinner.fail(error.message);
-          spinner.info(`Use --force to overwrite existing files.`);
+        if (error instanceof Web2MdError) {
+          if (error.code === Web2MdError.errorCodes.FILE_EXISTS_ERROR) {
+            spinner.fail(error.message);
+            spinner.info(`Use --force to overwrite existing files.`);
+          } else if (error.code === Web2MdError.errorCodes.SCHEMA_ERROR) {
+            spinner.fail(error.message);
+            if (options.schema === 'custom' && !options.schemaFile) {
+              spinner.info(`Use --schema-file to specify a custom schema file.`);
+            }
+          } else {
+            spinner.fail(`Error: ${error.message}`);
+          }
         } else {
           spinner.fail(`Error: ${error.message}`);
         }
