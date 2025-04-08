@@ -21,7 +21,7 @@ export async function fetchFromUrl(url: string): Promise<string> {
         statusCodes: [408, 429, 500, 502, 503, 504]
       },
       headers: {
-        'User-Agent': 'web2json/1.0 Node.js/22.0 (https://github.com/yourusername/web2json)',
+        'User-Agent': 'web2json/1.0 Node.js/22.0',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5'
       },
@@ -73,7 +73,7 @@ export async function fetchFromFile(filePath: string): Promise<string> {
     const content = await fs.readFile(filePath, { encoding: 'utf-8' });
     
     // Basic validation of HTML content
-    if (!content.includes('<html') && !content.includes('<!DOCTYPE')) {
+    if (!content.includes('<html') && !content.includes('<!DOCTYPE') && !content.includes('<HTML')) {
       logger.warning(`File ${filePath} might not be valid HTML (missing doctype/html tag)`);
     }
     

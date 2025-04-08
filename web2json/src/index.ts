@@ -20,7 +20,7 @@ export { createCli } from './cli.js';
 import fs from 'node:fs/promises';
 import { fetchFromUrl, fetchFromFile, parseHtml } from './fetcher.js';
 import { parseDocument } from './parser.js';
-import { formatJson, validateJsonStructure, cleanupJson } from './utils/json.js';
+import { formatJson, validateJsonStructure, cleanupJson, ensureDocumentStructure } from './utils/json.js';
 import { resolveOutputPath } from './utils/path.js';
 import { logger } from './utils/logger.js';
 
@@ -111,7 +111,7 @@ export async function convertHtmlStringToJson(
 }
 
 /**
- * Convert HTML content to JSON
+ * Core function to convert HTML content to JSON
  */
 async function convertHtmlToJson(
   html: string, 
@@ -126,6 +126,9 @@ async function convertHtmlToJson(
   
   // Clean up the JSON structure
   document = cleanupJson(document);
+  
+  // Ensure document structure matches expected output
+  document = ensureDocumentStructure(document);
   
   // Validate JSON if not skipped
   if (!options.skipValidation) {

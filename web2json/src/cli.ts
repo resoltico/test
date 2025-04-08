@@ -5,7 +5,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fetchFromUrl, fetchFromFile, parseHtml } from './fetcher.js';
 import { parseDocument } from './parser.js';
-import { formatJson, validateJsonStructure, cleanupJson } from './utils/json.js';
+import { formatJson, validateJsonStructure, cleanupJson, ensureDocumentStructure } from './utils/json.js';
 import { resolveOutputPath } from './utils/path.js';
 import { logger } from './utils/logger.js';
 
@@ -107,7 +107,7 @@ export function createCli(): Command {
  * Process the input based on the provided options
  */
 async function processInput(options: any): Promise<void> {
-  // Spinner for better user experience - using 'let' instead of 'const' to allow reassignment
+  // Spinner for better user experience
   let spinner = ora('Processing...').start();
   
   try {
@@ -129,8 +129,8 @@ async function processInput(options: any): Promise<void> {
     spinner.text = 'Parsing HTML content';
     const dom = parseHtml(html);
     
-    // Convert to JSON structure
-    spinner.text = 'Converting to JSON structure';
+    // Convert to JSON structure using new parser
+    spinner.text = 'Converting to JSON structure with improved hierarchy handling';
     let jsonData = parseDocument(dom);
     
     // Save raw JSON if requested
@@ -144,8 +144,11 @@ async function processInput(options: any): Promise<void> {
     }
     
     // Cleanup JSON to match expected format
-    spinner.text = 'Cleaning up JSON structure';
+    spinner.text = 'Cleaning up and structuring JSON output';
     jsonData = cleanupJson(jsonData);
+    
+    // Ensure document structure matches expected output
+    jsonData = ensureDocumentStructure(jsonData);
     
     // Validate JSON structure (unless skipped)
     if (!options.skipValidation) {

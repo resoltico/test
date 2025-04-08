@@ -2,7 +2,7 @@ import { logger } from './logger.js';
 import { documentSchema } from '../schema/document.js';
 
 /**
- * Writes JSON to a string with proper indentation
+ * Formats a JSON object with pretty-printing
  */
 export function formatJson(data: unknown): string {
   // Space value of 2 gives a nice readable indentation
@@ -10,7 +10,7 @@ export function formatJson(data: unknown): string {
 }
 
 /**
- * Validates output JSON against our schema
+ * Validates the JSON structure against our schema
  */
 export function validateJsonStructure(data: unknown): boolean {
   try {
@@ -22,6 +22,12 @@ export function validateJsonStructure(data: unknown): boolean {
     
     if (!result.success) {
       logger.error('JSON validation failed', new Error(result.error.message));
+      
+      // Log specific validation errors for debugging
+      result.error.errors.forEach(err => {
+        logger.error(`Validation error at path: ${err.path.join('.')} - ${err.message}`);
+      });
+      
       return false;
     }
     
@@ -59,72 +65,46 @@ function ensureRequiredProperties(data: any): void {
     if (data.formula && !Array.isArray(data.formula.terms)) {
       data.formula.terms = [];
     }
+  } else if (data.type === 'article') {
+    // Ensure article has children array
+    if (!Array.isArray(data.children)) {
+      data.children = [];
+    }
+  } else if (data.type === 'quote' || data.type === 'search' || 
+             data.type === 'footer' || data.type === 'header') {
+    // Ensure these elements have children array
+    if (!Array.isArray(data.children)) {
+      data.children = [];
+    }
   }
   
-  // Process children recursively
-  if (data.children && Array.isArray(data.children)) {
-    data.children.forEach((child: any) => ensureRequiredProperties(child));
-  }
-  
-  // Process content objects
-  if (data.content && Array.isArray(data.content)) {
-    data.content.forEach((item: any) => {
-      if (item && typeof item === 'object') {
-        ensureRequiredProperties(item);
-      }
-    });
-  }
-}
-
-/**
- * Safely stringifies values, handling circular references
- */
-export function safeStringify(obj: unknown): string {
-  // Create a cache to store seen objects
-  const cache = new Set();
-  
-  return JSON.stringify(obj, (key, value) => {
-    // Skip functions and symbols
-    if (typeof value === 'function' || typeof value === 'symbol') {
-      return undefined;
+  // Process properties recursively
+  Object.entries(data).forEach(([key, value]) => {
+    if (value && typeof value === 'object') {
+      ensureRequiredProperties(value);
     }
-    
-    // Handle null and primitives
-    if (value === null || typeof value !== 'object') {
-      return value;
-    }
-    
-    // Handle circular references
-    if (cache.has(value)) {
-      return '[Circular Reference]';
-    }
-    
-    // Add to cache
-    cache.add(value);
-    
-    return value;
-  }, 2);
+  });
 }
 
 /**
  * Clean up the JSON structure to match the expected format
- * Remove empty arrays, null values, etc.
+ * This removes empty arrays, null values, etc. and ensures
+ * proper structure alignment with expected output
  */
 export function cleanupJson(obj: any): any {
   if (obj === null || obj === undefined) {
     return undefined;
   }
   
+  // Handle arrays
   if (Array.isArray(obj)) {
     // Filter out null/undefined values from arrays
-    const filtered = obj
+    return obj
       .map(item => cleanupJson(item))
       .filter(item => item !== undefined);
-    
-    // Return empty array instead of undefined for required arrays
-    return filtered;
   }
   
+  // Handle objects
   if (typeof obj === 'object') {
     const result: Record<string, any> = {};
     
@@ -133,17 +113,19 @@ export function cleanupJson(obj: any): any {
       const cleaned = cleanupJson(value);
       
       // Include empty arrays for required fields
-      if (cleaned !== undefined || 
-          (key === 'content' || key === 'children' || key === 'terms')) {
-        result[key] = cleaned === undefined && 
-                     (key === 'content' || key === 'children' || key === 'terms') 
+      if (cleaned !== undefined || isRequiredArray(key)) {
+        result[key] = cleaned === undefined && isRequiredArray(key) 
                      ? [] : cleaned;
       }
     }
     
-    // Make sure sections have required properties
+    // Ensure required properties exist
     if (obj.type === 'section' || obj.type === 'aside') {
       if (!result.content) result.content = [];
+      if (!result.children) result.children = [];
+    } else if (obj.type === 'article') {
+      if (!result.children) result.children = [];
+    } else if (['quote', 'search', 'footer', 'header'].includes(obj.type)) {
       if (!result.children) result.children = [];
     }
     
@@ -152,4 +134,155 @@ export function cleanupJson(obj: any): any {
   
   // Return primitive values as-is
   return obj;
+}
+
+/**
+ * Check if a property is a required array
+ */
+function isRequiredArray(key: string): boolean {
+  return ['content', 'children', 'terms', 'ordered-list', 'unordered-list'].includes(key);
+}
+
+/**
+ * Safe stringify that handles circular references
+ */
+export function safeStringify(obj: unknown): string {
+  // Create a cache to store seen objects
+  const seenObjects = new WeakSet();
+  
+  return JSON.stringify(obj, (key, value) => {
+    if (typeof value === 'object' && value !== null) {
+      if (seenObjects.has(value)) {
+        return '[Circular Reference]';
+      }
+      seenObjects.add(value);
+    }
+    return value;
+  }, 2);
+}
+
+/**
+ * Add missing but required properties to ensure the document
+ * structure matches the expected output
+ */
+export function ensureDocumentStructure(document: any): any {
+  if (!document || typeof document !== 'object') return document;
+  
+  // Ensure top-level document properties
+  if (!document.title) document.title = 'Untitled Document';
+  if (!Array.isArray(document.content)) document.content = [];
+  
+  // Process content items
+  document.content = document.content.map((item: any) => {
+    return ensureContentItemStructure(item);
+  });
+  
+  return document;
+}
+
+/**
+ * Ensure a content item has the required structure
+ */
+function ensureContentItemStructure(item: any): any {
+  if (!item || typeof item !== 'object') return item;
+  
+  // Ensure item has a type
+  if (!item.type) {
+    // Try to infer type from properties
+    if (item.children && Array.isArray(item.children)) {
+      item.type = 'section';
+    } else if (item.content && typeof item.content === 'string') {
+      item.type = 'quote';
+    } else {
+      item.type = 'section';
+    }
+  }
+  
+  // Process based on type
+  switch (item.type) {
+    case 'section':
+    case 'aside':
+      return ensureSectionStructure(item);
+      
+    case 'article':
+      return ensureArticleStructure(item);
+      
+    case 'quote':
+      return ensureQuoteStructure(item);
+      
+    case 'search':
+    case 'footer':
+    case 'header':
+      return ensureBasicStructure(item);
+      
+    default:
+      return item;
+  }
+}
+
+/**
+ * Ensure a section has the required structure
+ */
+function ensureSectionStructure(section: any): any {
+  if (!section.id) {
+    section.id = `section-${Math.random().toString(36).substring(2, 9)}`;
+  }
+  
+  if (!Array.isArray(section.content)) {
+    section.content = [];
+  }
+  
+  if (!Array.isArray(section.children)) {
+    section.children = [];
+  } else {
+    // Process children recursively
+    section.children = section.children.map((child: any) => ensureContentItemStructure(child));
+  }
+  
+  // Process formula if present
+  if (section.formula && !Array.isArray(section.formula.terms)) {
+    section.formula.terms = [];
+  }
+  
+  return section;
+}
+
+/**
+ * Ensure an article has the required structure
+ */
+function ensureArticleStructure(article: any): any {
+  if (!article.id) {
+    article.id = `article-${Math.random().toString(36).substring(2, 9)}`;
+  }
+  
+  if (!Array.isArray(article.children)) {
+    article.children = [];
+  } else {
+    // Process children recursively
+    article.children = article.children.map((child: any) => ensureContentItemStructure(child));
+  }
+  
+  return article;
+}
+
+/**
+ * Ensure a quote has the required structure
+ */
+function ensureQuoteStructure(quote: any): any {
+  if (!Array.isArray(quote.children)) {
+    quote.children = [];
+  }
+  
+  return quote;
+}
+
+/**
+ * Ensure basic elements have required structure
+ */
+function ensureBasicStructure(item: any): any {
+  if (!Array.isArray(item.children)) {
+    item.children = [];
+  }
+  
+  return item;
 }

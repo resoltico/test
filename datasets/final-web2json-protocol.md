@@ -199,7 +199,7 @@ function web2json() {
 
 
 Possible project tree - double-check whether it is appropriate and sufficient and extendable and easily maintainable:
-
+```
 web2json/
 ├── .node-version            # Node version requirement
 ├── .eslintrc.js             # ESLint configuration
@@ -210,28 +210,37 @@ web2json/
 │   ├── index.ts             # Main entry point
 │   ├── cli.ts               # Command-line interface
 │   ├── fetcher.ts           # HTML fetching module
-│   ├── parser.ts            # Main HTML parsing logic
+│   ├── parsers/             # Parsers
+│   │   ├── index.ts         # Central export for the parsers
+│   │   ├── section.ts       # Section parser
+│   │   ├── hierarchy.ts     # Pierarchy parser
+│   │   └── content.ts       # content parser
 │   ├── processors/          # Specialized element processors
-│   │   ├── index.ts
-│   │   ├── section.ts
-│   │   ├── table.ts
-│   │   ├── form.ts
-│   │   ├── figure.ts
-│   │   ├── quote.ts
-│   │   └── special.ts
+│   │   ├── index.ts         # Central export for all processors
+│   │   ├── section.ts       # Section processing
+│   │   ├── table.ts         # Table processing
+│   │   ├── form.ts          # Form processing
+│   │   ├── figure.ts        # Figure processing
+│   │   ├── quote.ts         # Quote processing
+│   │   ├── formula.ts       # Formula/special content processing
+│   │   └── special.ts       # Other special elements
 │   ├── schema/              # Zod schema definitions
-│   │   ├── index.ts
-│   │   ├── document.ts
-│   │   ├── section.ts
-│   │   ├── table.ts
-│   │   └── form.ts
+│   │   ├── index.ts         # Central export for all schemas
+│   │   ├── document.ts      # Document schema
+│   │   ├── section.ts       # Section schema
+│   │   ├── table.ts         # Table schema
+│   │   └── form.ts          # Form schema
 │   └── utils/               # Utility functions
-│       ├── index.ts
-│       ├── html.ts
-│       ├── json.ts
-│       └── logger.ts
-└── bin/
-    └── web2json.ts          # CLI entry point
+│       ├── index.ts         # Central export for all utilities
+│       ├── html.ts          # HTML processing utilities
+│       ├── json.ts          # JSON utilities
+│       ├── logger.ts        # Logging utilities
+│       └── path.ts          # Path handling utilities
+└── test/
+    ├── basic-test.ts        # Basic functionality test
+    ├── validation-test.ts   # Validation against expected output
+    └── run-tests.sh         # Test runner script
+```
 
 Proposed tsconfig.json:
 

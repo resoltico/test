@@ -43,7 +43,23 @@ function extractQuoteSource(blockquoteElement: Element): string | undefined {
     // If cite is inside a footer, it's already handled above
     const parentFooter = cite.closest('footer');
     if (!parentFooter) {
-      return normalizeTextContent(cite.textContent || '');
+      // If there's text before the cite, combine them
+      const citeText = cite.textContent || '';
+      const parent = cite.parentElement;
+      
+      if (parent && parent !== blockquoteElement) {
+        // Get parent's text with cite removed temporarily
+        const originalHtml = parent.innerHTML;
+        cite.remove();
+        const precedingText = parent.textContent?.trim() || '';
+        parent.innerHTML = originalHtml; // Restore original content
+        
+        if (precedingText) {
+          return `${precedingText} ${citeText}`.trim();
+        }
+      }
+      
+      return citeText.trim();
     }
   }
   

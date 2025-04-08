@@ -9,15 +9,21 @@ const articleSchema = z.object({
   children: z.array(z.lazy(() => sectionSchema))
 });
 
-// Schema for aside elements
+// Schema for aside elements (similar to sections but with a different type)
+// We can't directly extend sectionSchema because it's a lazy type
 const asideSchema = z.object({
   type: z.literal('aside'),
   id: z.string(),
   title: z.string().optional(),
   level: z.number().int().min(1).max(6).optional(),
-  content: z.array(z.string()),
-  children: z.array(z.lazy(() => sectionSchema)).default([])
-}).passthrough(); // Allow additional properties like table, form, etc.
+  content: z.array(z.string()).default([]),
+  children: z.array(z.lazy(() => sectionSchema)).default([]),
+  // Special element schemas - same as in sectionSchema
+  table: z.any().optional(),
+  form: z.any().optional(),
+  figure: z.any().optional(),
+  formula: z.any().optional()
+}).passthrough();
 
 // Schema for search elements
 const searchSchema = z.object({
@@ -40,6 +46,12 @@ const headerSchema = z.object({
   children: z.array(z.any()).default([])
 });
 
+// Extended quote schema that includes type and children
+const documentQuoteSchema = quoteSchema.extend({
+  type: z.literal('quote'),
+  children: z.array(z.any()).default([])
+});
+
 // Schema for the entire document
 export const documentSchema = z.object({
   title: z.string(),
@@ -48,10 +60,7 @@ export const documentSchema = z.object({
       sectionSchema,
       articleSchema,
       asideSchema,
-      quoteSchema.extend({
-        type: z.literal('quote'),
-        children: z.array(z.any()).default([])
-      }),
+      documentQuoteSchema,
       searchSchema,
       footerSchema,
       headerSchema
@@ -65,3 +74,4 @@ export type AsideContent = z.infer<typeof asideSchema>;
 export type SearchContent = z.infer<typeof searchSchema>;
 export type FooterContent = z.infer<typeof footerSchema>;
 export type HeaderContent = z.infer<typeof headerSchema>;
+export type DocumentQuoteContent = z.infer<typeof documentQuoteSchema>;

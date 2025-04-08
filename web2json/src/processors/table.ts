@@ -10,7 +10,9 @@ export function processTable(tableElement: Element): Table {
   
   // Extract caption if present
   const captionElement = tableElement.querySelector('caption');
-  const caption = captionElement ? captionElement.textContent || 'Table' : 'Table';
+  const caption = captionElement 
+    ? normalizeTextContent(captionElement.textContent || 'Table') 
+    : 'Table';
   
   // Process headers from thead
   const headers = extractTableHeaders(tableElement);
@@ -36,59 +38,73 @@ export function processTable(tableElement: Element): Table {
 
 /**
  * Extract table headers from thead element
+ * This handles various table structures
  */
 function extractTableHeaders(tableElement: Element): string[] {
   const headers: string[] = [];
   
-  // Find header row in thead
+  // Try multiple strategies to extract headers
+  // Strategy 1: Use thead > tr > th elements (most common)
   const thead = tableElement.querySelector('thead');
   if (thead) {
-    const headerRows = thead.querySelectorAll('tr');
-    if (headerRows.length > 0) {
-      // Use the first header row
-      const headerRow = headerRows[0];
-      // Extract header cells
-      const headerCells = headerRow.querySelectorAll('th');
+    const headerCells = thead.querySelectorAll('th');
+    if (headerCells.length > 0) {
       for (const cell of Array.from(headerCells)) {
         headers.push(normalizeTextContent(cell.textContent || ''));
       }
+      return headers;
     }
   }
   
-  // If no headers found in thead, check for th elements in first row
-  if (headers.length === 0) {
-    const firstRow = tableElement.querySelector('tr');
-    if (firstRow) {
-      const headerCells = firstRow.querySelectorAll('th');
+  // Strategy 2: Use first row with th elements
+  const rows = tableElement.querySelectorAll('tr');
+  if (rows.length > 0) {
+    const firstRow = rows[0];
+    const headerCells = firstRow.querySelectorAll('th');
+    if (headerCells.length > 0) {
       for (const cell of Array.from(headerCells)) {
         headers.push(normalizeTextContent(cell.textContent || ''));
       }
+      return headers;
     }
   }
   
-  // If still no headers, try to extract column headers from first row
-  if (headers.length === 0) {
-    const firstRow = tableElement.querySelector('tr');
-    if (firstRow) {
-      const cells = firstRow.querySelectorAll('td');
-      for (const cell of Array.from(cells)) {
-        headers.push(normalizeTextContent(cell.textContent || ''));
-      }
-      
-      // Since we used the first row for headers, we'll need to skip it when processing rows
+  // Strategy 3: Use first row (even if td instead of th)
+  if (rows.length > 0) {
+    const firstRow = rows[0];
+    const cells = firstRow.querySelectorAll('td, th');
+    for (const cell of Array.from(cells)) {
+      headers.push(normalizeTextContent(cell.textContent || ''));
     }
+    return headers;
   }
   
-  // Ensure we have at least some headers
-  if (headers.length === 0) {
-    // Create generic column headers
-    const firstRowCells = tableElement.querySelector('tr')?.children || [];
-    for (let i = 0; i < firstRowCells.length; i++) {
-      headers.push(`Column ${i + 1}`);
-    }
+  // Fallback: Create generic headers
+  const columnCount = estimateColumnCount(tableElement);
+  for (let i = 0; i < columnCount; i++) {
+    headers.push(`Column ${i + 1}`);
   }
   
   return headers;
+}
+
+/**
+ * Estimate the number of columns in a table
+ */
+function estimateColumnCount(tableElement: Element): number {
+  const rows = tableElement.querySelectorAll('tr');
+  
+  // If there are no rows, return 0
+  if (rows.length === 0) return 0;
+  
+  // Count cells in all rows and take the maximum
+  let maxCells = 0;
+  for (const row of Array.from(rows)) {
+    const cells = row.querySelectorAll('td, th');
+    maxCells = Math.max(maxCells, cells.length);
+  }
+  
+  return maxCells;
 }
 
 /**
@@ -97,49 +113,50 @@ function extractTableHeaders(tableElement: Element): string[] {
 function extractTableRows(tableElement: Element): string[][] {
   const rows: string[][] = [];
   
-  // Find tbody element or use table directly
-  const tbody = tableElement.querySelector('tbody') || tableElement;
-  const rowElements = tbody.querySelectorAll('tr');
+  // Find row elements - look in tbody first, then in table
+  const tbody = tableElement.querySelector('tbody');
+  const rowElements = tbody 
+    ? tbody.querySelectorAll('tr')
+    : tableElement.querySelectorAll('tr');
   
-  // Determine if first row should be skipped (if it was used for headers)
-  let startIndex = 0;
+  // Determine if we should skip the first row (if it's a header row)
+  let skipFirstRow = false;
   const thead = tableElement.querySelector('thead');
   
-  if (!thead) {
-    // No thead - check if first row has th elements
+  if (!thead && rowElements.length > 0) {
+    // Check if first row has th elements
     const firstRow = rowElements[0];
-    
-    if (firstRow && firstRow.querySelector('th')) {
-      // First row contains headers, skip it
-      startIndex = 1;
-    }
+    skipFirstRow = !!firstRow.querySelector('th');
   }
   
   // Process each data row
+  let startIndex = skipFirstRow ? 1 : 0;
+  
   for (let i = startIndex; i < rowElements.length; i++) {
     const rowElement = rowElements[i];
-    const row: string[] = [];
     
-    // Skip rows in thead and tfoot
+    // Skip rows that are in thead or tfoot
     if (rowElement.closest('thead') || rowElement.closest('tfoot')) {
       continue;
     }
     
-    // Extract cell values (prefer td but fall back to th if needed)
+    // Process the cells
     const cells = rowElement.querySelectorAll('td, th');
     
-    for (const cell of Array.from(cells)) {
-      // Skip th cells if we have td cells in this row
-      if (cell.tagName.toLowerCase() === 'th' && rowElement.querySelector('td')) {
-        continue;
-      }
-      
-      row.push(normalizeTextContent(cell.textContent || ''));
+    // Skip rows with only th cells if we have other rows
+    if (cells.length === 0 || (Array.from(cells).every(cell => cell.tagName.toLowerCase() === 'th') && rowElements.length > 1)) {
+      continue;
     }
     
-    // Only add non-empty rows
-    if (row.length > 0 && row.some(cell => cell.trim() !== '')) {
-      rows.push(row);
+    // Create row data
+    const rowData: string[] = [];
+    for (const cell of Array.from(cells)) {
+      rowData.push(normalizeTextContent(cell.textContent || ''));
+    }
+    
+    // Add non-empty rows
+    if (rowData.length > 0 && rowData.some(cell => cell.trim() !== '')) {
+      rows.push(rowData);
     }
   }
   
@@ -154,8 +171,15 @@ function extractTableFooter(tableElement: Element): string | undefined {
   const tfoot = tableElement.querySelector('tfoot');
   if (!tfoot) return undefined;
   
-  // Extract text from footer
-  const footerText = normalizeTextContent(tfoot.textContent || '');
+  // Extract all cells from the footer
+  const cells = tfoot.querySelectorAll('td, th');
+  if (cells.length === 0) return undefined;
+  
+  // Combine all cell content
+  const footerText = Array.from(cells)
+    .map(cell => normalizeTextContent(cell.textContent || ''))
+    .join(' ')
+    .trim();
   
   return footerText || undefined;
 }

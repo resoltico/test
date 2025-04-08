@@ -1,15 +1,15 @@
 # Web2JSON
 
-A powerful Node.js application that transforms HTML webpages into structured JSON format while preserving semantic structure, element relationships, and formatting.
+A powerful Node.js 22+ application that transforms HTML webpages into structured JSON format while precisely preserving semantic structure, element relationships, and formatting.
 
 ## Features
 
-- Converts HTML webpages (from URLs or local files) to structured JSON
-- Preserves document hierarchy and semantic relationships
-- Maintains HTML formatting in content fields
-- Handles special HTML elements like tables, forms, figures, and quotes
-- Processes HTML5 elements with proper context preservation
-- Outputs hierarchical nested tree JSON
+- Converts HTML webpages (from URLs or local files) to hierarchical nested JSON
+- Preserves document structure and semantic hierarchy exactly as in the source HTML
+- Maintains all HTML formatting in content fields
+- Accurately processes special HTML5 elements like tables, forms, figures, and quotes
+- Properly handles mathematical formulas, definition lists, and code blocks
+- Outputs hierarchical nested tree JSON that maintains the document's logical structure
 
 ## Requirements
 
@@ -211,9 +211,26 @@ The JSON output preserves the semantic structure of the HTML document:
 
 ### Key Features of the JSON Output
 
-1. **HTML Markup Preservation**: All HTML formatting (tags, attributes) in content fields is preserved
-2. **Semantic Structure**: The document's hierarchical structure is maintained
-3. **Special Elements Handling**: Properly processes tables, forms, figures, and other HTML5 elements
+1. **HTML Markup Preservation**: All HTML formatting (tags, attributes) in content fields is preserved exactly as in the source
+2. **Hierarchical Structure**: The document's hierarchical structure is maintained with proper nesting of sections
+3. **Special Elements Handling**: Special HTML5 elements like tables, forms, figures, and formulas are processed into structured JSON
+4. **Content Fidelity**: Text content, including special characters and entities, is preserved accurately
+
+## Testing
+
+The project includes comprehensive tests to verify the output matches the expected structure:
+
+```bash
+# Run all tests
+cd ~/Tools/web2json
+pnpm tsx test/run-tests.sh
+
+# Run validation test only
+pnpm tsx test/validation-test.ts
+
+# Run basic functionality test
+pnpm tsx test/basic-test.ts
+```
 
 ## Project Structure
 
@@ -230,29 +247,30 @@ web2json/
 │   ├── fetcher.ts           # HTML fetching module
 │   ├── parser.ts            # Main HTML parsing logic
 │   ├── processors/          # Specialized element processors
-│   │   ├── index.ts
-│   │   ├── section.ts
-│   │   ├── table.ts
-│   │   ├── form.ts
-│   │   ├── figure.ts
-│   │   ├── quote.ts
-│   │   └── special.ts
+│   │   ├── index.ts         # Central export for all processors
+│   │   ├── section.ts       # Section processing
+│   │   ├── table.ts         # Table processing
+│   │   ├── form.ts          # Form processing
+│   │   ├── figure.ts        # Figure processing
+│   │   ├── quote.ts         # Quote processing
+│   │   ├── formula.ts       # Formula/special content processing
+│   │   └── special.ts       # Other special elements
 │   ├── schema/              # Zod schema definitions
-│   │   ├── index.ts
-│   │   ├── document.ts
-│   │   ├── section.ts
-│   │   ├── table.ts
-│   │   └── form.ts
-│   ├── utils/               # Utility functions
-│   │   ├── index.ts
-│   │   ├── html.ts
-│   │   ├── json.ts
-│   │   ├── logger.ts
-│   │   └── path.ts
-│   └── bin/
-│       └── web2json.ts      # CLI entry point
+│   │   ├── index.ts         # Central export for all schemas
+│   │   ├── document.ts      # Document schema
+│   │   ├── section.ts       # Section schema
+│   │   ├── table.ts         # Table schema
+│   │   └── form.ts          # Form schema
+│   └── utils/               # Utility functions
+│       ├── index.ts         # Central export for all utilities
+│       ├── html.ts          # HTML processing utilities
+│       ├── json.ts          # JSON utilities
+│       ├── logger.ts        # Logging utilities
+│       └── path.ts          # Path handling utilities
 └── test/
-    └── basic-test.ts        # Basic functionality test
+    ├── basic-test.ts        # Basic functionality test
+    ├── validation-test.ts   # Validation against expected output
+    └── run-tests.sh         # Test runner script
 ```
 
 ## Development
@@ -271,13 +289,6 @@ pnpm lint
 
 # Run the development version
 pnpm dev --url https://example.com
-```
-
-### Testing
-
-```bash
-# Run basic tests
-pnpm tsx test/basic-test.ts
 ```
 
 ## License

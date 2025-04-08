@@ -5,3 +5,4 @@ export * from './form.js';
 export * from './figure.js';
 export * from './quote.js';
 export * from './special.js';
+export * from './formula.js';
