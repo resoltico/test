@@ -5,9 +5,10 @@ Create a framework-agnostic Node.js application that transforms any HTML webpage
 
 ## REQUIREMENTS
 ### Use Node.js 22+ features extensively
-6. **Require Node.js 22+** — build the project around Node.js 22+ as a requirement and a foundational basis and featureset and behavior and strategies.
-7. **Require hierarchical nested tree indented JSON output** - No flat JSON output — we need only a hierarchical nested tree JSON; we absolutely do not need a flat JSON, not even as an option. “Pretty” is the only kind of output — no other output alternatives can be presents — therefore there must be no such argument in cli — because this is the only option.
-8. **Use pnpm and fnm**
+1. Require Node.js 22+ — build the project around Node.js 22+ as a requirement and a foundational basis and featureset and behavior and strategies.
+2. Require hierarchical nested tree indented JSON output - No flat JSON output — we need only a hierarchical nested tree JSON; we absolutely do not need a flat JSON, not even as an option. “Pretty” is the only kind of output — no other output alternatives can be presents — therefore there must be no such argument in cli — because this is the only option.
+3. Require preserved HTML formatting within content fields — no other output alternatives can be presents — therefore there must be no such argument in cli — because this is the only option.
+4. Use pnpm and fnm
 
 ### Use the technologies, functions, solutions and possibilities of these modules
 1. Jsdom (26.0.0+)
@@ -30,6 +31,8 @@ Create a framework-agnostic Node.js application that transforms any HTML webpage
 - Smart output path determination, sanitizing of paths and filenames (spaces, special characters, invalids, etc).
 - Progress indicators and error handling.
 - When building recursive schema structures in Zod and TypeScript: (A) Always declare a placeholder variable first without initialization (e.g., let innerSchema: z.ZodType<any>;); (B) Create your exported schema using z.lazy() that references this placeholder (e.g., export const schema = z.lazy(() => innerSchema);); (C) Only then define the actual schema structure, using your exported lazy schema for self-references; (D)Never directly reference a schema in its own initialization expression; (E) Use z.array() with your lazy schema for collections of recursive elements.
+- Complete DOM traversal via Jsdom — make full use of Jsdom features and capabilities.
+- Define DOM Node constants since Node is not globally available in Node.js.
 
 ## PROCESSING ALGORITHM
 
@@ -229,3 +232,27 @@ web2json/
 │       └── logger.ts
 └── bin/
     └── web2json.ts          # CLI entry point
+
+Proposed tsconfig.json:
+
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "outDir": "dist",
+    "declaration": true,
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noImplicitReturns": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "test"]
+}

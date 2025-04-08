@@ -1,5 +1,6 @@
 import { Quote } from '../schema/quote.js';
 import { logger } from '../utils/logger.js';
+import { normalizeHtmlContent, normalizeTextContent } from '../utils/html.js';
 
 /**
  * Process a blockquote element into structured JSON format
@@ -8,7 +9,7 @@ export function processQuote(blockquoteElement: Element): Quote {
   logger.debug('Processing blockquote element');
   
   // Preserve HTML formatting in content
-  const content = blockquoteElement.innerHTML;
+  const content = normalizeHtmlContent(blockquoteElement.innerHTML);
   
   // Extract source information from footer or cite elements
   let source = extractQuoteSource(blockquoteElement);
@@ -33,7 +34,7 @@ function extractQuoteSource(blockquoteElement: Element): string | undefined {
   // First check for footer element which is the standard way to cite a quote
   const footer = blockquoteElement.querySelector('footer');
   if (footer) {
-    return footer.textContent || undefined;
+    return normalizeTextContent(footer.textContent || '');
   }
   
   // If no footer, check for cite element
@@ -42,7 +43,7 @@ function extractQuoteSource(blockquoteElement: Element): string | undefined {
     // If cite is inside a footer, it's already handled above
     const parentFooter = cite.closest('footer');
     if (!parentFooter) {
-      return cite.textContent || undefined;
+      return normalizeTextContent(cite.textContent || '');
     }
   }
   
@@ -53,11 +54,15 @@ function extractQuoteSource(blockquoteElement: Element): string | undefined {
     const lastParagraph = paragraphs[paragraphs.length - 1];
     const text = lastParagraph.textContent || '';
     
+    // Look for attribution patterns
+    // 1. Starting with dash: "- Author"
+    // 2. Starting with em dash: "— Author"
+    // 3. Format like "Author, Work"
     const attributionRegex = /^\s*[—–-]\s*(.+)$/;
     const match = text.match(attributionRegex);
     
     if (match) {
-      return match[1];
+      return match[1].trim();
     }
   }
   

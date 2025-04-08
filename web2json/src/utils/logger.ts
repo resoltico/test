@@ -22,19 +22,19 @@ const icons = {
  * Logger class for consistent application logging
  */
 export class Logger {
-  private readonly context: string;
-  private readonly debugMode: boolean;
+  private _context: string;
+  private _debugMode: boolean;
   
   constructor(context = 'web2json', debugMode = false) {
-    this.context = context;
-    this.debugMode = debugMode;
+    this._context = context;
+    this._debugMode = debugMode;
   }
   
   /**
    * Format a log message with the context prefix
    */
   private format(message: string): string {
-    return `[${this.context}] ${message}`;
+    return `[${this._context}] ${message}`;
   }
   
   /**
@@ -72,9 +72,44 @@ export class Logger {
    * Log a debug message (only in debug mode)
    */
   debug(message: string): void {
-    if (this.debugMode) {
+    if (this._debugMode) {
       console.log(colors.debug(this.format(`${icons.debug}${message}`)));
     }
+  }
+  
+  /**
+   * Enable debug mode
+   */
+  enableDebug(): void {
+    this._debugMode = true;
+  }
+  
+  /**
+   * Disable debug mode
+   */
+  disableDebug(): void {
+    this._debugMode = false;
+  }
+  
+  /**
+   * Get the current debug mode status
+   */
+  get debugMode(): boolean {
+    return this._debugMode;
+  }
+  
+  /**
+   * Set the debug mode status
+   */
+  set debugMode(value: boolean) {
+    this._debugMode = value;
+  }
+  
+  /**
+   * Set the context for the logger
+   */
+  set context(value: string) {
+    this._context = value;
   }
 }
 

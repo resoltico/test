@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 // Schema for tables
 export const tableSchema = z.object({
-  caption: z.string().optional(),
+  caption: z.string(),
   headers: z.array(z.string()),
   rows: z.array(z.array(z.string())),
   footer: z.string().optional()

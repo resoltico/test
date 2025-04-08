@@ -123,6 +123,8 @@ source ~/.zshrc
 
 ## Usage
 
+### Command Line Interface
+
 ```bash
 # Process a URL
 web2json --url https://example.com
@@ -136,13 +138,76 @@ web2json --url https://example.com --output ~/Downloads/converted
 # Enable debug mode for more verbose logging
 web2json --url https://example.com --debug
 
+# Process file and preserve HTML formatting
+web2json --file path/to/file.html --preserve-html
+
+# Process all HTML files in a directory recursively
+web2json --file path/to/file.html --recursive
+
 # Show help
 web2json --help
 ```
 
-## Output
+### Programmatic API
 
-The JSON output is structured hierarchically, preserving the semantic structure, relationships between elements, and HTML formatting. The output is always in a pretty, indented format for better readability.
+You can also use web2json as a library in your Node.js projects:
+
+```javascript
+import { convertUrlToJson, convertFileToJson } from 'web2json';
+
+// Convert a URL to JSON
+async function processUrl() {
+  const result = await convertUrlToJson('https://example.com', {
+    outputPath: './output',
+    debug: true
+  });
+  
+  console.log(result.document); // Access the JSON structure
+  console.log(result.json);     // Access the formatted JSON string
+}
+
+// Convert a local file to JSON
+async function processFile() {
+  const result = await convertFileToJson('./path/to/file.html', {
+    outputPath: './output'
+  });
+  
+  console.log(result.document); // Access the JSON structure
+}
+```
+
+## Output Structure
+
+The JSON output preserves the semantic structure of the HTML document:
+
+```json
+{
+  "title": "Document Title",
+  "content": [
+    {
+      "type": "section",
+      "id": "section-id",
+      "title": "Section Title",
+      "level": 2,
+      "content": [
+        "HTML formatted content...",
+        "More content..."
+      ],
+      "children": [
+        // Nested sections
+      ]
+    },
+    {
+      "type": "article",
+      "id": "article-id",
+      "children": [
+        // Sections within article
+      ]
+    },
+    // Other top-level elements (quotes, search, etc.)
+  ]
+}
+```
 
 ### Key Features of the JSON Output
 
@@ -178,14 +243,41 @@ web2json/
 │   │   ├── section.ts
 │   │   ├── table.ts
 │   │   └── form.ts
-│   └── utils/               # Utility functions
-│       ├── index.ts
-│       ├── html.ts
-│       ├── json.ts
-│       ├── logger.ts
-│       └── path.ts
-└── bin/
-    └── web2json.ts          # CLI entry point
+│   ├── utils/               # Utility functions
+│   │   ├── index.ts
+│   │   ├── html.ts
+│   │   ├── json.ts
+│   │   ├── logger.ts
+│   │   └── path.ts
+│   └── bin/
+│       └── web2json.ts      # CLI entry point
+└── test/
+    └── basic-test.ts        # Basic functionality test
+```
+
+## Development
+
+### Building the Project
+
+```bash
+# Install dependencies
+pnpm install
+
+# Build the project
+pnpm build
+
+# Run linting
+pnpm lint
+
+# Run the development version
+pnpm dev --url https://example.com
+```
+
+### Testing
+
+```bash
+# Run basic tests
+pnpm tsx test/basic-test.ts
 ```
 
 ## License

@@ -1,18 +1,12 @@
 import { logger } from '../utils/logger.js';
-
-// Type definition for special content (math, dl, ol, ul, pre)
-export type SpecialContent = {
-  description: string;
-  terms: { term: string; definition: string }[];
-  code?: string;
-  'ordered-list'?: string[];
-  'unordered-list'?: string[];
-};
+import { normalizeTextContent, normalizeHtmlContent } from '../utils/html.js';
+import { Formula } from '../schema/section.js';
+import { SearchContent, FooterContent } from '../schema/document.js';
 
 /**
  * Process special content elements (math, dl, pre, ol, ul)
  */
-export function processSpecialContent(element: Element): SpecialContent | null {
+export function processSpecialContent(element: Element): Formula | null {
   const tagName = element.tagName.toLowerCase();
   
   logger.debug(`Processing special element: ${tagName}`);
@@ -37,9 +31,9 @@ export function processSpecialContent(element: Element): SpecialContent | null {
 /**
  * Process a math element
  */
-function processMathElement(mathElement: Element): SpecialContent {
+function processMathElement(mathElement: Element): Formula {
   // Preserve the exact MathML content
-  const content = mathElement.textContent || '';
+  const content = normalizeHtmlContent(mathElement.outerHTML);
   
   return {
     description: content,
@@ -55,7 +49,7 @@ function processMathElement(mathElement: Element): SpecialContent {
 /**
  * Process a definition list (dl) element
  */
-function processDefinitionList(dlElement: Element): SpecialContent {
+function processDefinitionList(dlElement: Element): Formula {
   const terms: { term: string; definition: string }[] = [];
   
   // Find all term/definition pairs
@@ -63,14 +57,14 @@ function processDefinitionList(dlElement: Element): SpecialContent {
   
   for (let i = 0; i < dtElements.length; i++) {
     const dtElement = dtElements[i];
-    const term = dtElement.textContent || '';
+    const term = normalizeTextContent(dtElement.textContent || '');
     
     // Find the corresponding dd element
     let definition = '';
     const ddElement = dtElement.nextElementSibling;
     
     if (ddElement && ddElement.tagName.toLowerCase() === 'dd') {
-      definition = ddElement.textContent || '';
+      definition = normalizeTextContent(ddElement.textContent || '');
     }
     
     // Add the term-definition pair
@@ -88,7 +82,7 @@ function processDefinitionList(dlElement: Element): SpecialContent {
 /**
  * Process a code block (pre) element
  */
-function processCodeBlock(preElement: Element): SpecialContent {
+function processCodeBlock(preElement: Element): Formula {
   // Look for a code element within the pre
   const codeElement = preElement.querySelector('code');
   const code = codeElement 
@@ -105,13 +99,13 @@ function processCodeBlock(preElement: Element): SpecialContent {
 /**
  * Process an ordered list (ol) element
  */
-function processOrderedList(olElement: Element): SpecialContent {
+function processOrderedList(olElement: Element): Formula {
   const items: string[] = [];
   
   // Extract all list items
   const liElements = olElement.querySelectorAll('li');
   for (const li of Array.from(liElements)) {
-    items.push(li.textContent || '');
+    items.push(normalizeTextContent(li.textContent || ''));
   }
   
   return {
@@ -124,18 +118,50 @@ function processOrderedList(olElement: Element): SpecialContent {
 /**
  * Process an unordered list (ul) element
  */
-function processUnorderedList(ulElement: Element): SpecialContent {
+function processUnorderedList(ulElement: Element): Formula {
   const items: string[] = [];
   
   // Extract all list items
   const liElements = ulElement.querySelectorAll('li');
   for (const li of Array.from(liElements)) {
-    items.push(li.textContent || '');
+    items.push(normalizeTextContent(li.textContent || ''));
   }
   
   return {
     description: 'Unordered list',
     terms: [{ term: 'List items', definition: 'Bulleted sequence' }],
     'unordered-list': items
+  };
+}
+
+/**
+ * Process a search element
+ */
+export function processSearch(searchElement: Element): SearchContent {
+  return {
+    type: 'search',
+    content: normalizeHtmlContent(searchElement.innerHTML),
+    children: []
+  };
+}
+
+/**
+ * Process header or footer elements
+ */
+export function processHeaderFooter(element: Element, type: 'header' | 'footer'): FooterContent | null {
+  if (!element) return null;
+  
+  // Extract content paragraphs
+  const contentElements = Array.from(element.children);
+  const content = contentElements.map(el => normalizeHtmlContent(el.outerHTML));
+  
+  if (content.length === 0) {
+    return null;
+  }
+  
+  return {
+    type: type as 'footer', // Cast to make TypeScript happy
+    content,
+    children: []
   };
 }

@@ -3,6 +3,10 @@ import { JSDOM } from 'jsdom';
 import { logger } from './logger.js';
 import sanitizeHtml from 'sanitize-html';
 
+// Define DOM Node constants since Node is not globally available in Node.js
+const DOCUMENT_POSITION_FOLLOWING = 4; // Same as Node.DOCUMENT_POSITION_FOLLOWING in browsers
+const DOCUMENT_POSITION_PRECEDING = 2; // Same as Node.DOCUMENT_POSITION_PRECEDING in browsers
+
 /**
  * Create a new JSDOM instance from HTML content
  */
@@ -29,6 +33,21 @@ export function extractFormattedContent(element: Element): string {
 }
 
 /**
+ * Normalize HTML content while preserving important markup
+ */
+export function normalizeHtmlContent(html: string): string {
+  if (!html) return '';
+  
+  // Basic cleanup of whitespace without affecting tags
+  let normalized = html.trim()
+    // Replace sequences of whitespace with a single space within text nodes
+    .replace(/>\s+</g, '><') // Remove whitespace between tags
+    .replace(/\s+/g, ' ');   // Normalize whitespace
+    
+  return normalized;
+}
+
+/**
  * Clean and normalize text content
  */
 export function normalizeTextContent(text: string): string {
@@ -39,6 +58,13 @@ export function normalizeTextContent(text: string): string {
   
   // Normalize whitespace
   return decodedText.replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Convert an Element to its HTML string representation
+ */
+export function elementToHtml(element: Element): string {
+  return element.outerHTML;
 }
 
 /**
@@ -57,11 +83,53 @@ export function getHeadingLevel(element: Element): number | null {
 }
 
 /**
+ * Extract a title from a section or other container element
+ */
+export function getSectionTitle(element: Element): string | undefined {
+  // First try to find a heading element
+  const heading = element.querySelector('h1, h2, h3, h4, h5, h6');
+  
+  if (heading) {
+    return normalizeHtmlContent(heading.innerHTML);
+  }
+  
+  // Try other potential title elements
+  const potentialTitleElements = [
+    element.querySelector('header'),
+    element.querySelector('caption'),
+    element.querySelector('legend'),
+    element.querySelector('strong'),
+  ].filter(Boolean) as Element[];
+  
+  for (const titleElement of potentialTitleElements) {
+    if (titleElement && titleElement.textContent) {
+      return normalizeHtmlContent(titleElement.innerHTML);
+    }
+  }
+  
+  return undefined;
+}
+
+/**
  * Check if an element is a container (section, article, aside)
  */
 export function isContainer(element: Element): boolean {
   const tag = element.tagName.toLowerCase();
   return ['section', 'article', 'aside', 'div', 'main'].includes(tag);
+}
+
+/**
+ * Check if an element is block-level
+ */
+export function isBlockElement(element: Element): boolean {
+  const blockElements = [
+    'address', 'article', 'aside', 'blockquote', 'details', 'dialog', 'dd', 'div',
+    'dl', 'dt', 'fieldset', 'figcaption', 'figure', 'footer', 'form', 'h1', 'h2',
+    'h3', 'h4', 'h5', 'h6', 'header', 'hgroup', 'hr', 'li', 'main', 'nav', 'ol',
+    'p', 'pre', 'section', 'table', 'ul'
+  ];
+  
+  return blockElements.includes(element.tagName.toLowerCase());
 }
 
 /**
@@ -115,18 +183,78 @@ function generateRandomId(): string {
  */
 export function sanitizeContent(html: string): string {
   return sanitizeHtml(html, {
-    allowedTags: [
-      'strong', 'em', 'b', 'i', 'u', 's', 'code', 'pre', 'a', 'br', 
-      'p', 'div', 'span', 'mark', 'sub', 'sup', 'small', 'abbr', 
-      'time', 'var', 'samp', 'kbd', 'q', 'cite', 'dfn', 'wbr',
-      'ruby', 'rt', 'bdo', 'bdi'
-    ],
+    allowedTags: sanitizeHtml.defaults.allowedTags.concat([
+      'mark', 'abbr', 'time', 'var', 'samp', 'kbd', 'ruby', 'rt', 'bdo', 'bdi',
+      'data', 'wbr', 'cite', 'dfn', 'sub', 'sup', 'small', 'code'
+    ]),
     allowedAttributes: {
-      'a': ['href', 'target', 'rel'],
+      ...sanitizeHtml.defaults.allowedAttributes,
+      '*': ['id', 'class', 'data-*', 'dir', 'title'],
       'abbr': ['title'],
       'time': ['datetime'],
-      'bdo': ['dir'],
-      '*': ['class', 'id', 'data-*']
+      'data': ['value'],
+      'ruby': ['lang'],
+      'bdo': ['dir']
     }
   });
+}
+
+/**
+ * Extract all text content from an element, removing all HTML tags
+ */
+export function extractPlainText(element: Element): string {
+  return element.textContent || '';
+}
+
+/**
+ * Check if an element has visible content (not just whitespace)
+ */
+export function hasVisibleContent(element: Element): boolean {
+  return !!element.textContent?.trim();
+}
+
+/**
+ * Find all siblings of an element between it and the next heading or section
+ */
+export function getContentUntilNextHeadingOrSection(element: Element): Element[] {
+  const result: Element[] = [];
+  let current = element.nextElementSibling;
+  
+  while (current && !isHeading(current) && 
+         !['SECTION', 'ARTICLE', 'ASIDE'].includes(current.tagName)) {
+    result.push(current);
+    current = current.nextElementSibling;
+  }
+  
+  return result;
+}
+
+/**
+ * Check if an element is nested inside another element type
+ */
+export function isNestedIn(element: Element, parentType: string): boolean {
+  return !!element.closest(parentType);
+}
+
+/**
+ * Find the most appropriate container for an element
+ */
+export function findContainingSection(element: Element): Element | null {
+  // Try to find containing section, article, or aside
+  const container = element.closest('section, article, aside');
+  
+  if (container) {
+    return container;
+  }
+  
+  // If no structural container, try to find closest div with significant content
+  const div = element.closest('div');
+  
+  // Check if div contains headings or other significant elements
+  if (div && (div.querySelector('h1, h2, h3, h4, h5, h6') || 
+              div.querySelector('section, article, aside'))) {
+    return div;
+  }
+  
+  return null;
 }

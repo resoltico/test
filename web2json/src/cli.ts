@@ -5,15 +5,25 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fetchFromUrl, fetchFromFile, parseHtml } from './fetcher.js';
 import { parseDocument } from './parser.js';
-import { formatJson, validateJsonStructure } from './utils/json.js';
+import { formatJson, validateJsonStructure, cleanupJson } from './utils/json.js';
 import { resolveOutputPath } from './utils/path.js';
 import { logger } from './utils/logger.js';
 
-// Package version and description
+// Load package version from package.json
+let packageVersion = '1.0.0';
+try {
+  const packagePath = new URL('../package.json', import.meta.url);
+  const packageJson = JSON.parse(await fs.readFile(packagePath, 'utf-8'));
+  packageVersion = packageJson.version;
+} catch (e) {
+  // Use default version if package.json can't be read
+}
+
+// Package info
 const packageInfo = {
   name: 'web2json',
-  version: '1.0.0',
-  description: 'Convert HTML webpages to structured JSON'
+  version: packageVersion,
+  description: 'Convert HTML webpages to structured JSON while preserving semantic structure'
 };
 
 /**
@@ -32,7 +42,11 @@ export function createCli(): Command {
     .option('-f, --file <filepath>', 'Path to local HTML file to convert')
     .option('-o, --output <directory>', 'Output directory for the converted JSON')
     .option('-d, --debug', 'Enable debug mode for additional logging')
-    .option('-s, --silent', 'Suppress all output except errors');
+    .option('-s, --silent', 'Suppress all output except errors')
+    .option('-p, --preserve-html', 'Preserve HTML formatting in content fields')
+    .option('-r, --recursive', 'Process all nested HTML files (for local file mode)')
+    .option('--skip-validation', 'Skip JSON validation (faster but less safe)')
+    .option('--save-raw', 'Save raw parsed JSON before validation/cleanup');
   
   program.action(async (options) => {
     try {
@@ -51,20 +65,37 @@ export function createCli(): Command {
       
       // Configure logger based on options
       if (options.debug) {
-        Object.defineProperty(logger, 'debugMode', { value: true });
+        logger.enableDebug();
       }
       
       if (options.silent) {
-        // Silence console output
+        // Silence console output (except errors)
+        const originalLogMethods = {
+          log: console.log,
+          info: console.info
+        };
+        
         console.log = () => {};
         console.info = () => {};
+        
+        // Restore original methods when process exits
+        process.on('exit', () => {
+          console.log = originalLogMethods.log;
+          console.info = originalLogMethods.info;
+        });
       }
       
       // Process the input
       await processInput(options);
       
     } catch (error) {
-      console.error(chalk.red('Error:'), error);
+      console.error(chalk.red('Error:'), error instanceof Error ? error.message : String(error));
+      
+      // Show stack trace in debug mode
+      if (options.debug && error instanceof Error && error.stack) {
+        console.error(chalk.gray(error.stack));
+      }
+      
       process.exit(1);
     }
   });
@@ -76,8 +107,8 @@ export function createCli(): Command {
  * Process the input based on the provided options
  */
 async function processInput(options: any): Promise<void> {
-  // Spinner for better user experience
-  const spinner = ora('Processing...').start();
+  // Spinner for better user experience - using 'let' instead of 'const' to allow reassignment
+  let spinner = ora('Processing...').start();
   
   try {
     let html: string;
@@ -100,12 +131,28 @@ async function processInput(options: any): Promise<void> {
     
     // Convert to JSON structure
     spinner.text = 'Converting to JSON structure';
-    const jsonData = parseDocument(dom);
+    let jsonData = parseDocument(dom);
     
-    // Validate JSON structure
-    spinner.text = 'Validating JSON structure';
-    if (!validateJsonStructure(jsonData)) {
-      throw new Error('Generated JSON structure is invalid');
+    // Save raw JSON if requested
+    if (options.saveRaw) {
+      spinner.text = 'Saving raw JSON before cleanup';
+      const rawPath = await resolveOutputPath(inputSource + '.raw', options.output);
+      const rawJson = formatJson(jsonData);
+      await fs.writeFile(rawPath, rawJson, 'utf-8');
+      spinner.succeed(`Raw JSON saved to ${rawPath}`);
+      spinner = ora('Processing...').start();
+    }
+    
+    // Cleanup JSON to match expected format
+    spinner.text = 'Cleaning up JSON structure';
+    jsonData = cleanupJson(jsonData);
+    
+    // Validate JSON structure (unless skipped)
+    if (!options.skipValidation) {
+      spinner.text = 'Validating JSON structure';
+      if (!validateJsonStructure(jsonData)) {
+        throw new Error('Generated JSON structure is invalid');
+      }
     }
     
     // Format JSON
@@ -129,10 +176,70 @@ async function processInput(options: any): Promise<void> {
       console.log(chalk.green('  Input:'), options.url ? options.url : options.file);
       console.log(chalk.green('  Output:'), outputPath);
       console.log(chalk.green('  Size:'), `${(jsonOutput.length / 1024).toFixed(2)} KB`);
+      console.log(chalk.green('  Structure:'), `Document with ${jsonData.content.length} top-level elements`);
+    }
+    
+    // Handle recursive processing if enabled
+    if (options.recursive && options.file) {
+      await processNestedHtmlFiles(options, path.dirname(options.file));
     }
     
   } catch (error) {
     spinner.fail('Conversion failed');
     throw error;
+  }
+}
+
+/**
+ * Process nested HTML files recursively
+ */
+async function processNestedHtmlFiles(options: any, baseDir: string): Promise<void> {
+  // Only applicable when processing local files
+  if (!options.file) {
+    return;
+  }
+  
+  try {
+    // Find all HTML files in the directory
+    const files = await fs.readdir(baseDir);
+    const htmlFiles = files.filter(file => 
+      file.toLowerCase().endsWith('.html') || 
+      file.toLowerCase().endsWith('.htm')
+    );
+    
+    // Skip the already processed file
+    const originalFilename = path.basename(options.file);
+    const filesToProcess = htmlFiles.filter(file => file !== originalFilename);
+    
+    if (filesToProcess.length === 0) {
+      logger.info('No additional HTML files found for recursive processing');
+      return;
+    }
+    
+    logger.info(`Found ${filesToProcess.length} additional HTML files to process`);
+    
+    // Process each file
+    for (const file of filesToProcess) {
+      const filePath = path.join(baseDir, file);
+      logger.info(`Processing additional file: ${filePath}`);
+      
+      // Create modified options for this file
+      const fileOptions = {
+        ...options,
+        file: filePath,
+        recursive: false // Prevent further recursion
+      };
+      
+      try {
+        await processInput(fileOptions);
+      } catch (error) {
+        logger.error(`Failed to process ${filePath}`, error as Error);
+        // Continue with next file despite error
+      }
+    }
+    
+  } catch (error) {
+    logger.error('Error during recursive processing', error as Error);
+    // Don't propagate the error to allow main process to complete
   }
 }

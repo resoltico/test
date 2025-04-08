@@ -14,6 +14,9 @@ export function formatJson(data: unknown): string {
  */
 export function validateJsonStructure(data: unknown): boolean {
   try {
+    // Make sure sections have required properties
+    ensureRequiredProperties(data);
+    
     // Use Zod to validate the structure
     const result = documentSchema.safeParse(data);
     
@@ -26,6 +29,50 @@ export function validateJsonStructure(data: unknown): boolean {
   } catch (error) {
     logger.error('JSON validation error', error as Error);
     return false;
+  }
+}
+
+/**
+ * Ensure all required properties are present in the document structure
+ */
+function ensureRequiredProperties(data: any): void {
+  if (!data || typeof data !== 'object') return;
+  
+  // Handle arrays recursively
+  if (Array.isArray(data)) {
+    data.forEach(item => ensureRequiredProperties(item));
+    return;
+  }
+  
+  // Handle section objects
+  if (data.type === 'section' || data.type === 'aside') {
+    // Ensure required arrays exist
+    if (!Array.isArray(data.content)) {
+      data.content = [];
+    }
+    
+    if (!Array.isArray(data.children)) {
+      data.children = [];
+    }
+    
+    // Process formula if it exists
+    if (data.formula && !Array.isArray(data.formula.terms)) {
+      data.formula.terms = [];
+    }
+  }
+  
+  // Process children recursively
+  if (data.children && Array.isArray(data.children)) {
+    data.children.forEach((child: any) => ensureRequiredProperties(child));
+  }
+  
+  // Process content objects
+  if (data.content && Array.isArray(data.content)) {
+    data.content.forEach((item: any) => {
+      if (item && typeof item === 'object') {
+        ensureRequiredProperties(item);
+      }
+    });
   }
 }
 
@@ -57,4 +104,52 @@ export function safeStringify(obj: unknown): string {
     
     return value;
   }, 2);
+}
+
+/**
+ * Clean up the JSON structure to match the expected format
+ * Remove empty arrays, null values, etc.
+ */
+export function cleanupJson(obj: any): any {
+  if (obj === null || obj === undefined) {
+    return undefined;
+  }
+  
+  if (Array.isArray(obj)) {
+    // Filter out null/undefined values from arrays
+    const filtered = obj
+      .map(item => cleanupJson(item))
+      .filter(item => item !== undefined);
+    
+    // Return empty array instead of undefined for required arrays
+    return filtered;
+  }
+  
+  if (typeof obj === 'object') {
+    const result: Record<string, any> = {};
+    
+    // Process object properties
+    for (const [key, value] of Object.entries(obj)) {
+      const cleaned = cleanupJson(value);
+      
+      // Include empty arrays for required fields
+      if (cleaned !== undefined || 
+          (key === 'content' || key === 'children' || key === 'terms')) {
+        result[key] = cleaned === undefined && 
+                     (key === 'content' || key === 'children' || key === 'terms') 
+                     ? [] : cleaned;
+      }
+    }
+    
+    // Make sure sections have required properties
+    if (obj.type === 'section' || obj.type === 'aside') {
+      if (!result.content) result.content = [];
+      if (!result.children) result.children = [];
+    }
+    
+    return result;
+  }
+  
+  // Return primitive values as-is
+  return obj;
 }

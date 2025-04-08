@@ -1,5 +1,6 @@
 import { Form, FormField, FormFieldOption, FormFieldOptionGroup } from '../schema/form.js';
 import { logger } from '../utils/logger.js';
+import { normalizeTextContent } from '../utils/html.js';
 
 /**
  * Process a form element into structured JSON format
@@ -9,14 +10,18 @@ export function processForm(formElement: Element): Form {
   
   // Extract form title from fieldset/legend or create a default
   const legend = formElement.querySelector('legend');
-  const title = legend ? legend.textContent || 'Form' : 'Form';
+  const title = legend 
+    ? normalizeTextContent(legend.textContent || 'Form') 
+    : 'Form';
   
   // Process form fields
   const fields = extractFormFields(formElement);
   
   // Extract submit button text
   const submitButton = formElement.querySelector('button[type="submit"]');
-  const submit = submitButton ? submitButton.textContent || 'Submit' : 'Submit';
+  const submit = submitButton 
+    ? normalizeTextContent(submitButton.textContent || 'Submit') 
+    : 'Submit';
   
   // Create the form object
   return {
@@ -33,7 +38,7 @@ function extractFormFields(formElement: Element): FormField[] {
   const fields: FormField[] = [];
   
   // Find all form control elements
-  const fieldElements = formElement.querySelectorAll('input, select, textarea');
+  const fieldElements = formElement.querySelectorAll('input, select, textarea, meter, progress, output');
   
   for (const element of Array.from(fieldElements)) {
     // Skip hidden, submit, and button inputs
@@ -67,13 +72,13 @@ function processFormField(element: Element, formElement: Element): FormField | n
     // Try to find a label with matching 'for' attribute
     const labelElement = formElement.querySelector(`label[for="${id}"]`);
     if (labelElement) {
-      label = labelElement.textContent || '';
+      label = normalizeTextContent(labelElement.textContent || '');
     }
   }
   
   // If no label found, look for a preceding label
   if (!label && element.previousElementSibling?.tagName.toLowerCase() === 'label') {
-    label = element.previousElementSibling.textContent || '';
+    label = normalizeTextContent(element.previousElementSibling.textContent || '');
   }
   
   // If still no label, use a fallback
@@ -104,7 +109,7 @@ function processFormField(element: Element, formElement: Element): FormField | n
   }
   
   // Process min/max for range and number inputs
-  if (['range', 'number'].includes(inputType)) {
+  if (['range', 'number', 'meter', 'progress'].includes(inputType)) {
     const min = element.getAttribute('min');
     const max = element.getAttribute('max');
     
@@ -157,7 +162,7 @@ function extractSelectOptions(selectElement: HTMLSelectElement): Array<string | 
       const groupOptions = group.querySelectorAll('option');
       for (const option of Array.from(groupOptions)) {
         const value = option.getAttribute('value') || '';
-        const label = option.textContent || '';
+        const label = normalizeTextContent(option.textContent || '');
         
         items.push({ value, label });
       }
@@ -169,11 +174,11 @@ function extractSelectOptions(selectElement: HTMLSelectElement): Array<string | 
     const selectOptions = selectElement.querySelectorAll('option');
     for (const option of Array.from(selectOptions)) {
       const value = option.getAttribute('value') || '';
-      const label = option.textContent || '';
+      const label = normalizeTextContent(option.textContent || '');
       
       // Use simple string options when value matches label
       if (value === label) {
-        options.push(value);
+        options.push(label);
       } else {
         options.push({ value, label });
       }

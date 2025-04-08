@@ -11,7 +11,7 @@ const formulaSchema = z.object({
       term: z.string(),
       definition: z.string()
     })
-  ),
+  ).default([]),
   code: z.string().optional(),
   'ordered-list': z.array(z.string()).optional(),
   'unordered-list': z.array(z.string()).optional()
@@ -26,18 +26,18 @@ export const sectionSchema = z.lazy(() => innerSectionSchema);
 
 // Define the actual section schema using the recursion point
 innerSectionSchema = z.object({
-  type: z.literal('section'),
+  type: z.enum(['section', 'aside']).default('section'),
   id: z.string(),
   title: z.string().optional(),
   level: z.number().int().min(1).max(6).optional(),
-  content: z.array(z.string()),
+  content: z.array(z.string()).default([]),
   children: z.array(sectionSchema).default([]),
   // Special element schemas
   table: tableSchema.optional(),
   form: formSchema.optional(),
   figure: figureSchema.optional(),
   formula: formulaSchema.optional()
-});
+}).passthrough();
 
 export type Section = z.infer<typeof sectionSchema>;
 export type Formula = z.infer<typeof formulaSchema>;

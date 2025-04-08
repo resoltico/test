@@ -9,6 +9,16 @@ const articleSchema = z.object({
   children: z.array(z.lazy(() => sectionSchema))
 });
 
+// Schema for aside elements
+const asideSchema = z.object({
+  type: z.literal('aside'),
+  id: z.string(),
+  title: z.string().optional(),
+  level: z.number().int().min(1).max(6).optional(),
+  content: z.array(z.string()),
+  children: z.array(z.lazy(() => sectionSchema)).default([])
+}).passthrough(); // Allow additional properties like table, form, etc.
+
 // Schema for search elements
 const searchSchema = z.object({
   type: z.literal('search'),
@@ -23,6 +33,13 @@ const footerSchema = z.object({
   children: z.array(z.any()).default([])
 });
 
+// Schema for header elements
+const headerSchema = z.object({
+  type: z.literal('header'),
+  content: z.array(z.string()),
+  children: z.array(z.any()).default([])
+});
+
 // Schema for the entire document
 export const documentSchema = z.object({
   title: z.string(),
@@ -30,17 +47,21 @@ export const documentSchema = z.object({
     z.union([
       sectionSchema,
       articleSchema,
+      asideSchema,
       quoteSchema.extend({
         type: z.literal('quote'),
         children: z.array(z.any()).default([])
       }),
       searchSchema,
-      footerSchema
+      footerSchema,
+      headerSchema
     ])
   )
 });
 
 export type Document = z.infer<typeof documentSchema>;
 export type ArticleContent = z.infer<typeof articleSchema>;
+export type AsideContent = z.infer<typeof asideSchema>;
 export type SearchContent = z.infer<typeof searchSchema>;
 export type FooterContent = z.infer<typeof footerSchema>;
+export type HeaderContent = z.infer<typeof headerSchema>;

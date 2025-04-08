@@ -1,4 +1,4 @@
-// Main entry point for web2json
+// Main entry point for web2json library
 
 // Re-export core functionality
 export { parseDocument } from './parser.js';
@@ -20,24 +20,54 @@ export { createCli } from './cli.js';
 import fs from 'node:fs/promises';
 import { fetchFromUrl, fetchFromFile, parseHtml } from './fetcher.js';
 import { parseDocument } from './parser.js';
-import { formatJson } from './utils/json.js';
+import { formatJson, validateJsonStructure, cleanupJson } from './utils/json.js';
 import { resolveOutputPath } from './utils/path.js';
 import { logger } from './utils/logger.js';
+
+/**
+ * Options for HTML-to-JSON conversion
+ */
+export interface ConversionOptions {
+  /** Output path for saving the JSON file (optional) */
+  outputPath?: string;
+  /** Enable debug logging */
+  debug?: boolean;
+  /** Skip validation of the resulting JSON structure */
+  skipValidation?: boolean;
+  /** Preserve original HTML formatting in content fields */
+  preserveHtml?: boolean;
+}
+
+/**
+ * Result of an HTML-to-JSON conversion
+ */
+export interface ConversionResult {
+  /** The parsed document as a JSON object */
+  document: any;
+  /** The formatted JSON string */
+  json: string;
+  /** The output path if saved to file */
+  outputPath?: string;
+}
 
 /**
  * Convert a URL to JSON
  */
 export async function convertUrlToJson(
   url: string, 
-  outputPath?: string
-): Promise<string> {
+  options: ConversionOptions = {}
+): Promise<ConversionResult> {
+  if (options.debug) {
+    logger.enableDebug();
+  }
+  
   logger.info(`Converting URL to JSON: ${url}`);
   
   // Fetch HTML from URL
   const html = await fetchFromUrl(url);
   
   // Convert to JSON
-  return convertHtmlToJson(html, url, outputPath);
+  return convertHtmlToJson(html, url, options);
 }
 
 /**
@@ -45,15 +75,39 @@ export async function convertUrlToJson(
  */
 export async function convertFileToJson(
   filePath: string, 
-  outputPath?: string
-): Promise<string> {
+  options: ConversionOptions = {}
+): Promise<ConversionResult> {
+  if (options.debug) {
+    logger.enableDebug();
+  }
+  
   logger.info(`Converting file to JSON: ${filePath}`);
   
   // Read HTML from file
   const html = await fetchFromFile(filePath);
   
   // Convert to JSON
-  return convertHtmlToJson(html, filePath, outputPath);
+  return convertHtmlToJson(html, filePath, options);
+}
+
+/**
+ * Convert HTML string to JSON
+ */
+export async function convertHtmlStringToJson(
+  html: string,
+  options: ConversionOptions = {}
+): Promise<ConversionResult> {
+  if (options.debug) {
+    logger.enableDebug();
+  }
+  
+  logger.info('Converting HTML string to JSON');
+  
+  // Use a placeholder source path
+  const sourcePath = 'html-string-' + Date.now();
+  
+  // Convert to JSON
+  return convertHtmlToJson(html, sourcePath, options);
 }
 
 /**
@@ -62,27 +116,44 @@ export async function convertFileToJson(
 async function convertHtmlToJson(
   html: string, 
   sourcePath: string, 
-  outputPath?: string
-): Promise<string> {
+  options: ConversionOptions = {}
+): Promise<ConversionResult> {
   // Parse HTML
   const dom = parseHtml(html);
   
   // Convert to JSON structure
-  const jsonData = parseDocument(dom);
+  let document = parseDocument(dom);
   
-  // Format JSON
-  const jsonOutput = formatJson(jsonData);
+  // Clean up the JSON structure
+  document = cleanupJson(document);
   
-  // Write to file if output path is provided
-  if (outputPath) {
-    // Resolve output path
-    const fullOutputPath = await resolveOutputPath(sourcePath, outputPath);
-    
-    // Write JSON file
-    await fs.writeFile(fullOutputPath, jsonOutput, 'utf-8');
-    
-    logger.success(`JSON saved to: ${fullOutputPath}`);
+  // Validate JSON if not skipped
+  if (!options.skipValidation) {
+    if (!validateJsonStructure(document)) {
+      throw new Error('Generated JSON structure is invalid');
+    }
   }
   
-  return jsonOutput;
+  // Format JSON
+  const json = formatJson(document);
+  
+  // Prepare result
+  const result: ConversionResult = { 
+    document, 
+    json 
+  };
+  
+  // Write to file if output path is provided
+  if (options.outputPath) {
+    // Resolve output path
+    const fullOutputPath = await resolveOutputPath(sourcePath, options.outputPath);
+    
+    // Write JSON file
+    await fs.writeFile(fullOutputPath, json, 'utf-8');
+    
+    logger.success(`JSON saved to: ${fullOutputPath}`);
+    result.outputPath = fullOutputPath;
+  }
+  
+  return result;
 }
