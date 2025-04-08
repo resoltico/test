@@ -1,0 +1,33 @@
+{
+  "name": "web2md",
+  "version": "1.0.0",
+  "description": "Transform HTML webpages into structured markdown documents",
+  "main": "src/index.js",
+  "bin": {
+    "web2md": "bin/web2md.js"
+  },
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "build": "chmod +x bin/web2md.js",
+    "test": "node --test test/*.js"
+  },
+  "keywords": [
+    "html",
+    "markdown",
+    "converter",
+    "cli"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^5.4.1",
+    "commander": "^13.1.0",
+    "got": "^14.4.7",
+    "ora": "^8.2.0",
+    "turndown": "^7.2.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}
