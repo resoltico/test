@@ -1,15 +1,48 @@
 import path from 'path';
 import fs from 'fs/promises';
 import { URL } from 'url';
+import os from 'os';
 
 /**
- * Sanitizes a file path by replacing invalid characters
+ * Expands the tilde character in a path to the user's home directory
+ * @param filePath The file path that may contain a tilde
+ * @returns The expanded file path
+ */
+export function expandTilde(filePath: string): string {
+  if (filePath.startsWith('~/') || filePath === '~') {
+    return filePath.replace(/^~(?=$|\/|\\)/, os.homedir());
+  }
+  return filePath;
+}
+
+/**
+ * Sanitizes a filename (not the full path) by replacing invalid characters
+ * @param filename The filename to sanitize
+ * @returns The sanitized filename
+ */
+export function sanitizeFilename(filename: string): string {
+  // Replace invalid filename characters with underscores
+  return filename.replace(/[<>:"|?*]/g, '_');
+}
+
+/**
+ * Sanitizes a file path by preserving path structure but replacing invalid characters in each segment
  * @param filePath The file path to sanitize
  * @returns The sanitized file path
  */
 export function sanitizePath(filePath: string): string {
-  // Replace invalid characters with underscores
-  return filePath.replace(/[<>:"/\\|?*]/g, '_');
+  // First expand any tilde in the path
+  const expandedPath = expandTilde(filePath);
+  
+  // Split the path into directory and filename
+  const dir = path.dirname(expandedPath);
+  const filename = path.basename(expandedPath);
+  
+  // Sanitize the filename part only
+  const sanitizedFilename = sanitizeFilename(filename);
+  
+  // Rejoin the path
+  return path.join(dir, sanitizedFilename);
 }
 
 /**
@@ -25,6 +58,11 @@ export async function determineOutputPath(inputSource: string, outputPath?: stri
     // Create directory if it doesn't exist
     const dir = path.dirname(sanitizedPath);
     await fs.mkdir(dir, { recursive: true });
+    
+    // If the output path doesn't have an extension, add .md
+    if (!path.extname(sanitizedPath)) {
+      return `${sanitizedPath}.md`;
+    }
     
     return sanitizedPath;
   }
@@ -53,7 +91,7 @@ export async function determineOutputPath(inputSource: string, outputPath?: stri
     fileName = path.basename(inputSource, path.extname(inputSource));
   }
   
-  const sanitizedFileName = sanitizePath(fileName);
+  const sanitizedFileName = sanitizeFilename(fileName);
   const outputFile = `${sanitizedFileName}.md`;
   
   return outputFile;

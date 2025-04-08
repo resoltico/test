@@ -4,7 +4,7 @@ import ora from 'ora';
 import fs from 'fs/promises';
 import { convert } from '../converters/index.js';
 import { fetchFromUrl, fetchFromFile } from '../fetchers/index.js';
-import { determineOutputPath } from '../utils/path-utils.js';
+import { determineOutputPath, expandTilde } from '../utils/path-utils.js';
 // Fix: Changed 'assert' to 'with' for the import attribute
 import pkg from '../../package.json' with { type: 'json' };
 const { version } = pkg;
@@ -35,6 +35,19 @@ export async function cli() {
       if (options.url && options.file) {
         console.error(chalk.red('Error: You cannot provide both a URL and a file path'));
         process.exit(1);
+      }
+
+      // Expand tilde in file paths
+      if (options.file) {
+        options.file = expandTilde(options.file);
+      }
+      
+      if (options.output) {
+        options.output = expandTilde(options.output);
+      }
+      
+      if (options.schema) {
+        options.schema = expandTilde(options.schema);
       }
 
       const spinner = ora('Starting conversion...').start();
