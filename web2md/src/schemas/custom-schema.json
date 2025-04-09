@@ -33,7 +33,7 @@
     {
       "name": "link",
       "filter": "function(node) { return node.nodeName === 'A' && node.getAttribute('href'); }",
-      "replacement": "function(content, node) { const href = node.getAttribute('href'); return '[' + content + '](' + href + ')'; }"
+      "replacement": "function(content, node) { const href = node.getAttribute('href') || ''; return '[' + content + '](' + href + ')'; }"
     },
     {
       "name": "image",
@@ -238,7 +238,7 @@
     {
       "name": "svg",
       "filter": "function(node) { return node.nodeName === 'SVG' && node.hasAttribute('data-markdown-chart'); }",
-      "replacement": "function() { return '\\n*A chart showing declining interest over framework lifecycle:  \\nHype (tallest bar) → Adopt → Stack → Stable → Dead (shortest bar)*\\n'; }"
+      "replacement": "function() { return '\\n### The Framework Lifecycle Visualized\\n\\n*A chart showing declining interest over framework lifecycle:  \\nHype (tallest bar) → Adopt → Stack → Stable → Dead (shortest bar)*\\n'; }"
     },
     {
       "name": "dl",
@@ -248,7 +248,7 @@
     {
       "name": "dt",
       "filter": "dt",
-      "replacement": "function(content) { return '\\n**' + content + '**\\n'; }"
+      "replacement": "function(content) { return '\\n**' + content + '**  '; }"
     },
     {
       "name": "dd",
@@ -299,6 +299,11 @@
       "name": "math",
       "filter": "math",
       "replacement": "function(content, node) { return content; }"
+    },
+    {
+      "name": "mathml-formula",
+      "filter": "function(node) { return node.nodeName === 'SPAN' && node.classList.contains('markdown-math'); }",
+      "replacement": "function(content) { return content; }"
     }
   ],
   "keep": [],

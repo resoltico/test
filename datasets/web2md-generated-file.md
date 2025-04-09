@@ -1,7 +1,7 @@
   Software Dev Humor - HTML5 Elements Showcase
--   [Bugs](#bugs)
--   [Code](#code)
--   [Frameworks](#frameworks)
+-   [Bugs](PRESERVE_LINK:link-0)
+-   [Code](PRESERVE_LINK:link-1)
+-   [Frameworks](PRESERVE_LINK:link-2)
 
 # The **Coder's Comedy** Catastrophe
 
@@ -24,9 +24,9 @@ The principle of moose loose programming suggests variables should **roam free**
 
 #### Legacy `Wedgacy`: Maintaining Ancient Codebases
 
-[Engineers](/hello/you/there/) assigned to legacy systems develop what psychiatrists term COBOL gobble syndrome—the compulsive consumption of outdated programming manuals in [hopes](https://hopesanddreamsalwaysdielast.org) of understanding *ancestral code*. The `comment lament` occurs upon discovering critical business logic explained by // fixes the thing.
+[Engineers](PRESERVE_LINK:link-3) assigned to legacy systems develop what psychiatrists term COBOL gobble syndrome—the compulsive consumption of outdated programming manuals in [hopes](PRESERVE_LINK:link-4) of understanding *ancestral code*. The `comment lament` occurs upon discovering critical business logic explained by // fixes the thing.
 
-[Archaeological code studies](#legacy) have identified mainframe brain-drain as a cognitive condition affecting those who maintain systems older than themselves. Companies implement what The Journal of Technical Debt calls zombie lobby protocols, where undead projects receive minimal funding despite multiple termination attempts.
+[Archaeological code studies](PRESERVE_LINK:link-5) have identified mainframe brain-drain as a cognitive condition affecting those who maintain systems older than themselves. Companies implement what The Journal of Technical Debt calls zombie lobby protocols, where undead projects receive minimal funding despite multiple termination attempts.
 
 ##### Performance *Conformance*: Making Slow Code Acceptable
 
@@ -153,7 +153,7 @@ Computer scientists have developed a mathematical model for developer humor, exp
 
 The **Programmer Humor Formula** demonstrates that the `funny` value of a coding joke increases logarithmically with the obscurity of the reference, peaks at a specific threshold, then rapidly **decreases** as the joke becomes incomprehensible to all but the most specialized audience. This explains why *SQL injection jokes* are hilarious to *backend developers* but cause **blank stares** among general audiences.
 
-$J = T \\times \\sqrt{S} \\times \\frac{P}{\\log(audience)}$
+J = T × √S × P/log(audience)
 
 Absurdity Function
 
@@ -186,7 +186,7 @@ function calculateHumor(technicalAccuracy, sharedSuffering, punQuality, audience
 -   Larger audiences dilute specialized humor
 * * *
 
-Contact the [Humor Research Department](/cdn-cgi/l/email-protection#dbb5b4b5bea3b2a8afbeb5af9bafb3b2a8b2a8bab5b2b6babcb2b5baa9a2acbeb9a8b2afbef5b8b4b6)
+Contact the [Humor Research Department](PRESERVE_LINK:link-6)
 International Institute of Programmer Psychology
 123 Binary Road, Null Island
 

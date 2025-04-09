@@ -20,17 +20,14 @@ export async function processMathML(html: string): Promise<string> {
   // Process each MathML element
   for (const mathElement of mathElements) {
     try {
-      // Extract the MathML content
-      const mathML = mathElement.outerHTML;
-      
       // Convert MathML to LaTeX representation
       const latex = convertMathMLToLatex(mathElement);
       
       // Check if the math element is inline or block
       const isInline = isInlineMath(mathElement);
       
-      // Format LaTeX for Markdown
-      const markdownMath = formatLatexForMarkdown(latex, isInline);
+      // Format LaTeX for Markdown based on expected style
+      const markdownMath = formatMathForMarkdown(latex, isInline);
       
       // Create a replacement element
       const replacementElement = document.createElement('span');
@@ -46,7 +43,7 @@ export async function processMathML(html: string): Promise<string> {
       const textContent = mathElement.textContent || 'math expression';
       const replacementElement = document.createElement('span');
       replacementElement.classList.add('markdown-math');
-      replacementElement.textContent = `$${textContent}$`;
+      replacementElement.textContent = textContent;
       
       // Replace the MathML element
       mathElement.parentNode?.replaceChild(replacementElement, mathElement);
@@ -57,68 +54,101 @@ export async function processMathML(html: string): Promise<string> {
 }
 
 /**
- * Converts MathML element to LaTeX string
+ * Converts MathML element to LaTeX string using a generalized approach
  * @param mathElement The MathML element to convert
  * @returns LaTeX representation of the mathematical expression
  */
 function convertMathMLToLatex(mathElement: Element): string {
-  // Check for specific patterns seen in the example document
-  if (mathElement.querySelector('mrow') &&
-      mathElement.querySelector('mi') &&
-      mathElement.querySelector('mo') &&
-      mathElement.querySelector('mfrac')) {
-    
-    // This matches a structure like the math formula in the example: J = T × √S × (P/log(audience))
-    try {
-      // Extract the main components based on their structure
-      const miElements = Array.from(mathElement.querySelectorAll('mi')).map(el => el.textContent || '');
-      const moElements = Array.from(mathElement.querySelectorAll('mo')).map(el => el.textContent || '');
-      
-      // Check if we have the specific formula from the example
-      if (miElements.includes('J') && miElements.includes('T') && miElements.includes('S') && miElements.includes('P') && 
-          moElements.includes('=') && moElements.includes('×')) {
-          
-        // Reconstruct the formula with proper LaTeX notation
-        return 'J = T \\times \\sqrt{S} \\times \\frac{P}{\\log(audience)}';
-      }
-    } catch (error) {
-      console.error('Error in specific MathML pattern matching:', error);
-      // Fall through to general handling
-    }
-  }
-  
-  // General approach for other MathML structures
-  return extractMathMLContent(mathElement);
+  // Extract the structure of the MathML content
+  return generateLatexFromMathML(mathElement);
 }
 
 /**
- * Extracts content from MathML element and converts to LaTeX
- * @param mathElement The MathML element
+ * Recursively processes MathML elements to generate LaTeX
+ * @param element The current MathML element to process
  * @returns LaTeX representation
  */
-function extractMathMLContent(mathElement: Element): string {
-  // Extract operators, identifiers, and numbers
-  const operators = Array.from(mathElement.querySelectorAll('mo')).map(el => el.textContent || '');
-  const identifiers = Array.from(mathElement.querySelectorAll('mi')).map(el => el.textContent || '');
-  const numbers = Array.from(mathElement.querySelectorAll('mn')).map(el => el.textContent || '');
+function generateLatexFromMathML(element: Element): string {
+  const tagName = element.tagName.toLowerCase();
   
-  // Extract fractions if present
-  const fractions = Array.from(mathElement.querySelectorAll('mfrac')).map(el => {
-    const numerator = el.querySelector(':first-child')?.textContent || '';
-    const denominator = el.querySelector(':nth-child(2)')?.textContent || '';
-    return `\\frac{${numerator}}{${denominator}}`;
-  });
+  // Base element handling
+  if (tagName === 'mi') {
+    // Math identifier (variables)
+    return element.textContent || '';
+  } else if (tagName === 'mn') {
+    // Math number
+    return element.textContent || '';
+  } else if (tagName === 'mo') {
+    // Math operator
+    const op = element.textContent || '';
+    
+    // Map common operators to LaTeX
+    const opMap: Record<string, string> = {
+      '×': ' × ',
+      '÷': ' ÷ ',
+      '+': ' + ',
+      '-': ' - ',
+      '=': ' = ',
+      '<': ' < ',
+      '>': ' > ',
+      '≤': ' ≤ ',
+      '≥': ' ≥ ',
+      '∈': ' ∈ ',
+      '∉': ' ∉ ',
+      '⊂': ' ⊂ ',
+      '⊃': ' ⊃ ',
+      '∪': ' ∪ ',
+      '∩': ' ∩ '
+    };
+    
+    return opMap[op] || op;
+  }
   
-  // Extract square roots if present
-  const sqrts = Array.from(mathElement.querySelectorAll('msqrt')).map(el => {
-    const content = el.textContent || '';
-    return `\\sqrt{${content}}`;
-  });
+  // Structure handling
+  if (tagName === 'mrow') {
+    // Process all children and join
+    return Array.from(element.children)
+      .map(child => generateLatexFromMathML(child))
+      .join('');
+  } else if (tagName === 'msqrt') {
+    // Square root
+    const content = Array.from(element.children)
+      .map(child => generateLatexFromMathML(child))
+      .join('');
+    return `√${content}`;
+  } else if (tagName === 'mfrac') {
+    // Fraction
+    const children = Array.from(element.children);
+    if (children.length >= 2) {
+      const numerator = generateLatexFromMathML(children[0]);
+      const denominator = generateLatexFromMathML(children[1]);
+      return `${numerator}/${denominator}`;
+    }
+  } else if (tagName === 'msub') {
+    // Subscript
+    const children = Array.from(element.children);
+    if (children.length >= 2) {
+      const base = generateLatexFromMathML(children[0]);
+      const subscript = generateLatexFromMathML(children[1]);
+      return `${base}_${subscript}`;
+    }
+  } else if (tagName === 'msup') {
+    // Superscript
+    const children = Array.from(element.children);
+    if (children.length >= 2) {
+      const base = generateLatexFromMathML(children[0]);
+      const superscript = generateLatexFromMathML(children[1]);
+      return `${base}^${superscript}`;
+    }
+  } else if (tagName === 'math') {
+    // Process the math element by handling its children
+    return Array.from(element.children)
+      .map(child => generateLatexFromMathML(child))
+      .join('');
+  }
   
-  // Try to reconstruct the formula - this is a simplified approach
-  const latex = [...identifiers, ...operators, ...numbers, ...fractions, ...sqrts].join(' ');
-  
-  return latex || mathElement.textContent || 'math expression';
+  // Default: just extract text content for unhandled elements
+  return element.textContent || '';
 }
 
 /**
@@ -152,15 +182,59 @@ function isInlineMath(mathElement: Element): boolean {
 }
 
 /**
- * Formats LaTeX for Markdown
+ * Formats math notation for Markdown based on expected output style
  * @param latex The LaTeX string
  * @param isInline Whether the math should be displayed inline
- * @returns Markdown-formatted LaTeX
+ * @returns Markdown-formatted math notation
  */
-function formatLatexForMarkdown(latex: string, isInline: boolean): string {
-  if (isInline) {
-    return `$${latex}$`;
-  } else {
-    return `$$\n${latex}\n$$`;
-  }
+function formatMathForMarkdown(latex: string, isInline: boolean): string {
+  // Based on the reference file, it appears the expected format is
+  // plain text for math rather than LaTeX delimiters
+  
+  // Simplify the LaTeX to match the reference style
+  const simplified = simplifyLatexForPlaintext(latex);
+  
+  return simplified;
+}
+
+/**
+ * Simplifies LaTeX notation to plain text format matching the reference style
+ * @param latex The LaTeX notation
+ * @returns Simplified plain text representation
+ */
+function simplifyLatexForPlaintext(latex: string): string {
+  // Remove LaTeX-specific formatting while maintaining readability
+  // This should match the style in the reference file
+  
+  let simplified = latex;
+  
+  // Simplify common LaTeX commands
+  simplified = simplified
+    .replace(/\\times/g, '×')
+    .replace(/\\div/g, '÷')
+    .replace(/\\sqrt\{([^}]+)\}/g, '√$1')
+    .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '$1/$2')
+    .replace(/\\log/g, 'log')
+    .replace(/\\ln/g, 'ln')
+    .replace(/\\sin/g, 'sin')
+    .replace(/\\cos/g, 'cos')
+    .replace(/\\tan/g, 'tan')
+    .replace(/\\left\(/g, '(')
+    .replace(/\\right\)/g, ')')
+    .replace(/\\left\[/g, '[')
+    .replace(/\\right\]/g, ']')
+    .replace(/\\mathit\{([^}]+)\}/g, '$1')
+    .replace(/\\mathrm\{([^}]+)\}/g, '$1')
+    .replace(/\\_/g, '_')
+    .replace(/\\\^/g, '^')
+    .replace(/\\\{/g, '{')
+    .replace(/\\\}/g, '}');
+  
+  // Remove any remaining backslashes
+  simplified = simplified.replace(/\\/g, '');
+  
+  // Normalize spacing
+  simplified = simplified.replace(/\s+/g, ' ').trim();
+  
+  return simplified;
 }

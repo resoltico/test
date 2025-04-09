@@ -2,7 +2,7 @@ import TurndownService from 'turndown';
 import { JSDOM } from 'jsdom';
 import { Schema } from '../schemas/index.js';
 import { processMathML } from './mathml-processor.js';
-import { preserveLinks } from './link-processor.js';
+import { preserveLinks, preprocessLinks } from './link-processor.js';
 
 /**
  * Creates a configured TurndownService instance
@@ -32,14 +32,20 @@ export function createTurndownService(schema?: Schema): TurndownService {
       return node.nodeName === 'A' && !!node.getAttribute('href');
     },
     replacement: (content, node) => {
-      // Check if this link has a preserved original href
-      let href;
+      // Get the href, prioritizing the preserved original if it exists
+      let href = '';
+      
       if ((node as HTMLAnchorElement).hasAttribute('data-original-href')) {
-        href = (node as HTMLAnchorElement).getAttribute('data-original-href');
+        href = (node as HTMLAnchorElement).getAttribute('data-original-href') || '';
       } else {
-        href = (node as HTMLAnchorElement).getAttribute('href');
+        href = (node as HTMLAnchorElement).getAttribute('href') || '';
       }
-      // Dont add space after opening or before closing bracket
+      
+      // Handle special link format for our preprocessing
+      if (href.startsWith('PRESERVE_LINK:')) {
+        return `[${content}](${href})`;
+      }
+      
       return `[${content}](${href})`;
     }
   });
@@ -130,7 +136,7 @@ export function createTurndownService(schema?: Schema): TurndownService {
     filter: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
     replacement: function (content, node) {
       const level = parseInt(node.nodeName.charAt(1));
-      return `\n\n${'#'.repeat(level)} ${content}\n\n`;
+      return `\n\n${'#'.repeat(level)} ${content}\n`;
     }
   });
 
@@ -182,10 +188,13 @@ export async function preprocessHtml(html: string): Promise<string> {
       svg.setAttribute('data-markdown-chart', 'true');
     }
     
-    // First preserve links to ensure they don't get modified
-    const preservedLinksHtml = preserveLinks(dom.serialize());
+    // First preprocess links to ensure they are properly tracked
+    const preprocessedLinksHtml = preprocessLinks(dom.serialize());
     
-    // Then process MathML elements
+    // Then preserve links to ensure they don't get modified
+    const preservedLinksHtml = preserveLinks(preprocessedLinksHtml);
+    
+    // Finally process MathML elements
     const processedHtml = await processMathML(preservedLinksHtml);
     
     return processedHtml;
