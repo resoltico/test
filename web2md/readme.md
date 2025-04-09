@@ -1,200 +1,131 @@
 # web2md
 
-Convert HTML webpages into Markdown with customizable schemas and enhanced accuracy.
+Transform HTML webpages into structured Markdown documents using an AST-based approach with the unified/remark ecosystem.
 
 ## Features
 
-- Convert HTML from URLs or local files to Markdown
-- Customize conversion with schema files
-- Preserve exact links and URLs without sanitization
-- Accurate MathML to LaTeX conversion for mathematical content
-- Smart SVG to Markdown chart descriptions
-- Smart output path determination
-- Progress indicators and detailed error messages
-- Schema management and comparison tools
-- Output analysis to compare generated Markdown against expected results
-
-## Requirements
-
-- Node.js 22+ (managed with fnm)
-- PNPM package manager
+- **High-fidelity conversion** from HTML to Markdown
+- **Preserves links exactly** as they appear in the original, including query parameters
+- **Handles mathematical content** including MathML and LaTeX
+- **Schema-based customization** for fine-grained control over the conversion process
+- **Command-line interface** with professional user experience
+- **Flexible input options** supporting both URLs and local files
 
 ## Installation
 
-1. Clone this repository:
-   ```
-   git clone https://github.com/yourusername/web2md.git ~/Tools/web2md
-   ```
+### Requirements
 
-2. Install dependencies:
-   ```
-   cd ~/Tools/web2md
-   pnpm install
-   ```
+- Node.js 22.0.0 or higher
 
-3. Build the project:
-   ```
-   pnpm build
-   ```
+### Global Installation
 
-4. Add the convenience function to your `.zshrc` file:
-   ```bash
-   # Function to run web2md with automatic Node version switching
-   web2md() {
-     (
-       # Change to the web2md directory
-       cd ~/Tools/web2md || { echo "web2md directory not found"; return 1; }
-       
-       # Ensure fnm is available and auto-switch Node version based on .node-version
-       if command -v fnm >/dev/null 2>&1; then
-         eval "$(fnm env --use-on-cd)"
-       else
-         echo "Warning: fnm not found, Node version might not be correct"
-       fi
-       
-       # Run web2md with provided arguments
-       if [ -f "dist/index.js" ]; then
-         node dist/index.js "$@"
-       else
-         echo "Error: web2md is not built. Run 'cd ~/Tools/web2md && pnpm build' first."
-         return 1
-       fi
-     )
-   }
-   ```
+```bash
+npm install -g web2md
+```
 
-5. Source your `.zshrc` file:
-   ```
-   source ~/.zshrc
-   ```
+### Local Installation
+
+```bash
+npm install web2md
+```
 
 ## Usage
 
-### Convert a webpage by URL
+### Command-Line Interface
 
-```
-web2md convert -u https://example.com
-```
+```bash
+# Convert a webpage to Markdown
+web2md --url https://example.com
 
-### Convert a local HTML file
+# Convert a local HTML file to Markdown
+web2md --file path/to/file.html
 
-```
-web2md convert -f path/to/file.html
-```
+# Save the output to a file
+web2md --url https://example.com --output example.md
 
-### Specify output file
-
-```
-web2md convert -u https://example.com -o output.md
+# Use a custom schema
+web2md --url https://example.com --schema path/to/schema.json
 ```
 
-### Use a custom schema
+### Command-Line Options
 
-```
-web2md convert -u https://example.com -s path/to/schema.json
-```
+- `-u, --url <url>`: URL of the webpage to convert
+- `-f, --file <path>`: Path to the HTML file to convert
+- `-o, --output <path>`: Path to the output Markdown file
+- `-s, --schema <path>`: Path to the schema file
+- `-h, --help`: Display help information
+- `-v, --version`: Display version information
 
-### Analyze output against a reference file
+### Shell Integration
 
-```
-web2md analyze path/to/expected.md path/to/actual.md
-```
+For macOS users with Zsh, you can add the provided `web2md.zsh` function to your `.zshrc` file for more convenient usage:
 
-### Full options
+1. Copy the contents of `web2md.zsh` to your `.zshrc` file
+2. Reload your shell: `source ~/.zshrc`
+3. Use the `web2md` function as described above
 
-```
-Usage: web2md [options] [command]
+## Schema Customization
 
-Convert HTML webpages to Markdown with customizable schemas
-
-Options:
-  -V, --version         output the version number
-  -h, --help            display help for command
-
-Commands:
-  convert [options]     Convert HTML to Markdown
-  analyze <expected> <actual>  Analyze differences between expected and actual Markdown output
-  help [command]        display help for command
-
-Convert options:
-  -u, --url <url>       URL of the webpage to convert
-  -f, --file <file>     Path to the local HTML file to convert
-  -o, --output <path>   Output file path
-  -s, --schema <path>   Path to custom conversion schema JSON file
-```
-
-## Schema Management
-
-You can create custom conversion schemas to control how HTML elements are converted to Markdown.
-
-### Compare schemas
-
-```
-pnpm schema:compare path/to/schema1.json path/to/schema2.json
-```
-
-## Key Components
-
-### Enhanced Link Preservation
-
-This tool ensures links are preserved exactly as they appear in the original HTML, without sanitizing or modifying URLs that might contain special characters or encoded paths.
-
-### MathML Support
-
-The built-in MathML to LaTeX converter accurately transforms mathematical content:
-
-1. It properly translates MathML elements to LaTeX format
-2. The LaTeX is wrapped in appropriate Markdown math delimiters ($...$ for inline math, $$...$$ for block math)
-3. Complex formulas with fractions, square roots, and other symbols are properly represented
-
-### SVG Chart Descriptions
-
-SVG charts are converted to descriptive text in Markdown that explains the chart's purpose and key elements.
-
-## Custom Schemas
-
-The custom schema is a JSON file that defines how HTML elements should be converted to Markdown. It consists of rules for each HTML element type.
-
-Example custom schema:
+You can customize the conversion process by providing a schema file in JSON format. Here's an example schema:
 
 ```json
 {
   "rules": [
     {
-      "name": "heading",
-      "filter": ["h1", "h2", "h3", "h4", "h5", "h6"],
-      "replacement": "function(content, node) { const level = parseInt(node.tagName.charAt(1)); return '\\n' + '#'.repeat(level) + ' ' + content + '\\n'; }"
+      "selector": "div.code-example",
+      "action": "codeBlock",
+      "options": {
+        "language": "javascript"
+      }
     },
     {
-      "name": "paragraph",
-      "filter": "p",
-      "replacement": "function(content) { return '\\n\\n' + content + '\\n\\n'; }"
+      "selector": "table.data-table",
+      "action": "transform",
+      "options": {
+        "includeCaption": true
+      }
     }
   ],
-  "keep": [],
-  "remove": []
+  "global": {
+    "headingStyle": "atx",
+    "bulletListMarker": "-",
+    "emphasis": "*",
+    "strong": "**"
+  },
+  "remove": [
+    "div.ad",
+    "aside.sidebar"
+  ],
+  "keep": [
+    "span.keep-html"
+  ]
 }
 ```
 
+### Schema Structure
+
+- **rules**: Array of rules to apply to specific elements
+  - **selector**: CSS-like selector to target elements
+  - **action**: Action to apply to matching elements
+  - **options**: Configuration options for the action
+- **global**: Global formatting preferences for Markdown output
+- **remove**: Array of selectors for elements to remove
+- **keep**: Array of selectors for elements to keep as HTML
+
 ## Development
 
-### Run tests
+### Setup
 
-```
-pnpm test
-```
+1. Clone the repository
+2. Install dependencies: `pnpm install`
+3. Build the project: `pnpm build`
 
-### Run linting
+### Scripts
 
-```
-pnpm lint
-```
-
-### Run in development mode
-
-```
-pnpm dev -- convert -u https://example.com
-```
+- `pnpm build`: Build the project
+- `pnpm dev`: Run in development mode
+- `pnpm test`: Run tests
+- `pnpm lint`: Lint the code
 
 ## License
 

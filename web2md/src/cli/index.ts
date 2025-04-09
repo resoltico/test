@@ -1,117 +1,138 @@
+/**
+ * CLI implementation for web2md
+ * 
+ * Handles command-line arguments, displays help information,
+ * and initiates the conversion process.
+ */
+
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
+import path from 'path';
 import fs from 'fs/promises';
-import { convert } from '../converters/index.js';
-import { fetchFromUrl, fetchFromFile } from '../fetchers/index.js';
-import { determineOutputPath, expandTilde } from '../utils/path-utils.js';
-import { analyzeCommand } from '../utils/output-analyzer.js';
-// Fix: Changed 'assert' to 'with' for the import attribute
-import pkg from '../../package.json' with { type: 'json' };
-const { version } = pkg;
+import { fileURLToPath } from 'url';
+import { convert } from '../core/pipeline.js';
+import { fetchFromUrl } from '../fetchers/url.js';
+import { readFromFile } from '../fetchers/file.js';
+import { loadSchema } from '../schema/index.js';
+import { sanitizePath } from '../utils/paths.js';
+import { handleError } from '../utils/errors.js';
+
+// Get proper __dirname equivalent in ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
- * Command line interface for web2md
+ * Run the CLI application
  */
-export async function cli() {
+export async function run(): Promise<void> {
   const program = new Command();
+
+  // Try to get package version
+  let version = '1.0.0';
+  try {
+    // Get package info - using dynamic import with type assertion
+    const packageJsonPath = path.join(__dirname, '../../package.json');
+    const packageJsonContent = await fs.readFile(packageJsonPath, 'utf8');
+    const packageJson = JSON.parse(packageJsonContent);
+    version = packageJson.version;
+  } catch (error) {
+    // Use default version if package.json cannot be read
+  }
 
   program
     .name('web2md')
-    .description('Convert HTML webpages to Markdown with customizable schemas')
-    .version(version);
-
-  program
-    .command('convert')
-    .description('Convert HTML to Markdown')
+    .description('Transform HTML webpages into structured Markdown documents')
+    .version(version)
     .option('-u, --url <url>', 'URL of the webpage to convert')
-    .option('-f, --file <file>', 'Path to the local HTML file to convert')
-    .option('-o, --output <path>', 'Output file path')
-    .option('-s, --schema <path>', 'Path to custom conversion schema JSON file')
+    .option('-f, --file <path>', 'Path to the HTML file to convert')
+    .option('-o, --output <path>', 'Path to the output Markdown file')
+    .option('-s, --schema <path>', 'Path to the schema file')
     .action(async (options) => {
-      // Check if we have either a URL or a file but not both
-      if (!options.url && !options.file) {
-        console.error(chalk.red('Error: You must provide either a URL (-u) or a file path (-f)'));
-        process.exit(1);
-      }
-
-      if (options.url && options.file) {
-        console.error(chalk.red('Error: You cannot provide both a URL and a file path'));
-        process.exit(1);
-      }
-
-      // Expand tilde in file paths
-      if (options.file) {
-        options.file = expandTilde(options.file);
-      }
-      
-      if (options.output) {
-        options.output = expandTilde(options.output);
-      }
-      
-      if (options.schema) {
-        options.schema = expandTilde(options.schema);
-      }
-
-      const spinner = ora('Starting conversion...').start();
-
       try {
-        let html: string;
-        let inputSource: string;
+        // Validate that either URL or file is provided, but not both
+        if (!options.url && !options.file) {
+          console.error(chalk.red('Error: Either URL or file path must be provided.'));
+          program.help();
+          return;
+        }
+
+        if (options.url && options.file) {
+          console.error(chalk.red('Error: Cannot provide both URL and file path. Choose one.'));
+          program.help();
+          return;
+        }
+
+        // Sanitize output path if provided
+        let outputPath: string | undefined;
+        if (options.output) {
+          outputPath = sanitizePath(options.output);
+        }
+
+        // Load schema if provided
+        let schema;
+        if (options.schema) {
+          const schemaPath = sanitizePath(options.schema);
+          const spinner = ora('Loading schema...').start();
+          try {
+            schema = await loadSchema(schemaPath);
+            spinner.succeed('Schema loaded successfully');
+          } catch (error) {
+            spinner.fail('Failed to load schema');
+            handleError(error);
+            return;
+          }
+        }
 
         // Fetch HTML content
+        let html: string;
         if (options.url) {
-          spinner.text = `Fetching HTML from ${options.url}...`;
-          html = await fetchFromUrl(options.url);
-          inputSource = options.url;
+          const spinner = ora(`Fetching HTML from ${options.url}...`).start();
+          try {
+            html = await fetchFromUrl(options.url);
+            spinner.succeed(`HTML fetched from ${options.url}`);
+          } catch (error) {
+            spinner.fail(`Failed to fetch HTML from ${options.url}`);
+            handleError(error);
+            return;
+          }
         } else {
-          spinner.text = `Reading HTML from ${options.file}...`;
-          html = await fetchFromFile(options.file);
-          inputSource = options.file;
+          // Must be file path at this point
+          const filePath = sanitizePath(options.file);
+          const spinner = ora(`Reading HTML from ${filePath}...`).start();
+          try {
+            html = await readFromFile(filePath);
+            spinner.succeed(`HTML read from ${filePath}`);
+          } catch (error) {
+            spinner.fail(`Failed to read HTML from ${filePath}`);
+            handleError(error);
+            return;
+          }
         }
 
         // Convert HTML to Markdown
-        spinner.text = 'Converting HTML to Markdown...';
-        const markdown = await convert(html, options.schema);
+        const spinner = ora('Converting HTML to Markdown...').start();
+        try {
+          const markdown = await convert(html, schema);
+          spinner.succeed('HTML converted to Markdown');
 
-        // Determine output path and save the Markdown
-        const outputPath = await determineOutputPath(inputSource, options.output);
-        spinner.text = `Saving Markdown to ${outputPath}...`;
-        await fs.writeFile(outputPath, markdown, 'utf-8');
-        
-        spinner.succeed(`Conversion complete. Output saved to ${outputPath}`);
-      } catch (error) {
-        spinner.fail('Conversion failed');
-        if (error instanceof Error) {
-          console.error(chalk.red(`Error: ${error.message}`));
-        } else {
-          console.error(chalk.red('An unknown error occurred'));
+          // Either write to file or print to console
+          if (outputPath) {
+            await fs.writeFile(outputPath, markdown);
+            console.log(chalk.green(`Markdown saved to ${outputPath}`));
+          } else {
+            console.log('\n' + chalk.cyan('Markdown Output:'));
+            console.log(markdown);
+          }
+        } catch (error) {
+          spinner.fail('Failed to convert HTML to Markdown');
+          handleError(error);
         }
-        process.exit(1);
-      }
-    });
-
-  program
-    .command('analyze')
-    .description('Analyze differences between expected and actual Markdown output')
-    .argument('<expected>', 'Path to the expected Markdown file')
-    .argument('<actual>', 'Path to the actual generated Markdown file')
-    .action(async (expected, actual) => {
-      try {
-        // Make sure to await the analysis
-        await analyzeCommand(expandTilde(expected), expandTilde(actual));
       } catch (error) {
-        console.error(chalk.red('Analysis failed:'), error);
-        process.exit(1);
+        handleError(error);
       }
     });
 
-  // For backward compatibility, make 'convert' the default command
-  if (process.argv.length <= 2 || !['convert', 'analyze'].includes(process.argv[2])) {
-    // If the first argument isn't a command, assume it's for 'convert'
-    const args = process.argv.slice(2);
-    process.argv = [process.argv[0], process.argv[1], 'convert', ...args];
-  }
-
-  program.parse();
+  // Parse command-line arguments
+  await program.parseAsync(process.argv);
 }

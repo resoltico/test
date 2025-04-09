@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Document</title>
+  <style>
+    /* These styles should be ignored */
+    body { font-family: Arial, sans-serif; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Test Document for Web2MD</h1>
+    <p class="subtitle">A comprehensive test case</p>
+  </header>
+  
+  <nav>
+    <ul>
+      <li><a href="#section1">Section 1</a></li>
+      <li><a href="#section2">Section 2</a></li>
+      <li><a href="#section3">Section 3</a></li>
+    </ul>
+  </nav>
+  
+  <main>
+    <section id="section1">
+      <h2>Section 1: Basic Formatting</h2>
+      <p>This is a paragraph with <strong>bold text</strong> and <em>italic text</em>.</p>
+      <p>This is another paragraph with <a href="https://example.com?param=value&amp;another=true">a link with query parameters</a>.</p>
+      <p>This is an email link: <a href="mailto:user@example.com">Email Us</a></p>
+      
+      <h3>Lists</h3>
+      <h4>Unordered List</h4>
+      <ul>
+        <li>Item 1</li>
+        <li>Item 2 with <strong>bold</strong></li>
+        <li>Item 3 with <a href="https://example.org">a link</a></li>
+      </ul>
+      
+      <h4>Ordered List</h4>
+      <ol>
+        <li>First item</li>
+        <li>Second item</li>
+        <li>Third item</li>
+      </ol>
+    </section>
+    
+    <section id="section2">
+      <h2>Section 2: Advanced Elements</h2>
+      
+      <h3>Code</h3>
+      <p>Inline code: <code>const example = 'Hello World';</code></p>
+      
+      <pre class="code-block"><code class="language-javascript">function greet(name) {
+  return `Hello, ${name}!`;
+}
+
+// Call the function
+console.log(greet('World'));
+</code></pre>
+      
+      <h3>Blockquote</h3>
+      <blockquote>
+        <p>This is a blockquote.</p>
+        <p>It can contain multiple paragraphs.</p>
+        <footer>— <cite>Author Name</cite></footer>
+      </blockquote>
+      
+      <h3>Table</h3>
+      <table>
+        <caption>Sample Table</caption>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Age</th>
+            <th>Location</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>John Doe</td>
+            <td>30</td>
+            <td>New York</td>
+          </tr>
+          <tr>
+            <td>Jane Smith</td>
+            <td>25</td>
+            <td>London</td>
+          </tr>
+          <tr>
+            <td>Bob Johnson</td>
+            <td>35</td>
+            <td>Paris</td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <h3>Image</h3>
+      <figure>
+        <img src="https://example.com/image.jpg" alt="Example image">
+        <figcaption>An example image with a caption</figcaption>
+      </figure>
+    </section>
+    
+    <section id="section3">
+      <h2>Section 3: Math Content</h2>
+      
+      <h3>Inline Math</h3>
+      <p>The Pythagorean theorem is <span class="math math-inline">a^2 + b^2 = c^2</span> which relates the sides of a right triangle.</p>
+      
+      <h3>Block Math</h3>
+      <div class="math math-display">
+        \int_{a}^{b} f(x) \, dx = F(b) - F(a)
+      </div>
+      
+      <script type="math/tex; mode=display">
+        E = mc^2
+      </script>
+      
+      <h3>MathML Example</h3>
+      <math display="block">
+        <mrow>
+          <mi>x</mi>
+          <mo>=</mo>
+          <mfrac>
+            <mrow>
+              <mo>-</mo>
+              <mi>b</mi>
+              <mo>±</mo>
+              <msqrt>
+                <msup>
+                  <mi>b</mi>
+                  <mn>2</mn>
+                </msup>
+                <mo>-</mo>
+                <mn>4</mn>
+                <mi>a</mi>
+                <mi>c</mi>
+              </msqrt>
+            </mrow>
+            <mrow>
+              <mn>2</mn>
+              <mi>a</mi>
+            </mrow>
+          </mfrac>
+        </mrow>
+      </math>
+    </section>
+  </main>
+  
+  <aside class="sidebar">
+    <h3>Related Links</h3>
+    <ul>
+      <li><a href="https://example.com/page1">Page 1</a></li>
+      <li><a href="https://example.com/page2">Page 2</a></li>
+    </ul>
+    <div class="ad">
+      <p>Advertisement content that should be removed</p>
+    </div>
+  </aside>
+  
+  <footer>
+    <p>&copy; 2025 Example Company</p>
+  </footer>
+  
+  <script>
+    // This script should be ignored
+    console.log('Hello, world!');
+  </script>
+</body>
+</html>
