@@ -5,6 +5,7 @@ import fs from 'fs/promises';
 import { convert } from '../converters/index.js';
 import { fetchFromUrl, fetchFromFile } from '../fetchers/index.js';
 import { determineOutputPath, expandTilde } from '../utils/path-utils.js';
+import { analyzeCommand } from '../utils/output-analyzer.js';
 // Fix: Changed 'assert' to 'with' for the import attribute
 import pkg from '../../package.json' with { type: 'json' };
 const { version } = pkg;
@@ -21,6 +22,8 @@ export async function cli() {
     .version(version);
 
   program
+    .command('convert')
+    .description('Convert HTML to Markdown')
     .option('-u, --url <url>', 'URL of the webpage to convert')
     .option('-f, --file <file>', 'Path to the local HTML file to convert')
     .option('-o, --output <path>', 'Output file path')
@@ -87,6 +90,28 @@ export async function cli() {
         process.exit(1);
       }
     });
+
+  program
+    .command('analyze')
+    .description('Analyze differences between expected and actual Markdown output')
+    .argument('<expected>', 'Path to the expected Markdown file')
+    .argument('<actual>', 'Path to the actual generated Markdown file')
+    .action(async (expected, actual) => {
+      try {
+        // Make sure to await the analysis
+        await analyzeCommand(expandTilde(expected), expandTilde(actual));
+      } catch (error) {
+        console.error(chalk.red('Analysis failed:'), error);
+        process.exit(1);
+      }
+    });
+
+  // For backward compatibility, make 'convert' the default command
+  if (process.argv.length <= 2 || !['convert', 'analyze'].includes(process.argv[2])) {
+    // If the first argument isn't a command, assume it's for 'convert'
+    const args = process.argv.slice(2);
+    process.argv = [process.argv[0], process.argv[1], 'convert', ...args];
+  }
 
   program.parse();
 }

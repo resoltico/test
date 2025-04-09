@@ -2,6 +2,7 @@ import TurndownService from 'turndown';
 import { JSDOM } from 'jsdom';
 import { Schema } from '../schemas/index.js';
 import { processMathML } from './mathml-processor.js';
+import { preserveLinks } from './link-processor.js';
 
 /**
  * Creates a configured TurndownService instance
@@ -23,6 +24,24 @@ export function createTurndownService(schema?: Schema): TurndownService {
     // Fix: Add type assertion for HTML elements that don't match standard HTML element map
     filter: ['del', 's', 'strike'] as unknown as TurndownService.Filter,
     replacement: (content) => `~~${content}~~`
+  });
+
+  // Add rule for preserving links exactly as they are
+  turndownService.addRule('link', {
+    filter: (node) => {
+      return node.nodeName === 'A' && !!node.getAttribute('href');
+    },
+    replacement: (content, node) => {
+      // Check if this link has a preserved original href
+      let href;
+      if ((node as HTMLAnchorElement).hasAttribute('data-original-href')) {
+        href = (node as HTMLAnchorElement).getAttribute('data-original-href');
+      } else {
+        href = (node as HTMLAnchorElement).getAttribute('href');
+      }
+      // Dont add space after opening or before closing bracket
+      return `[${content}](${href})`;
+    }
   });
 
   // Add rule for ruby elements
@@ -92,12 +111,42 @@ export function createTurndownService(schema?: Schema): TurndownService {
       });
 
       // Add caption or footer if present
+      const caption = tableNode.querySelector('caption');
+      if (caption) {
+        markdown += `\n*${caption.textContent?.trim() || ''}*\n`;
+      }
+      
       const tfoot = tableNode.querySelector('tfoot');
       if (tfoot) {
         markdown += `\n*${tfoot.textContent?.trim() || ''}*\n`;
       }
 
       return markdown;
+    }
+  });
+
+  // Improve handling of headings
+  turndownService.addRule('heading', {
+    filter: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
+    replacement: function (content, node) {
+      const level = parseInt(node.nodeName.charAt(1));
+      return `\n\n${'#'.repeat(level)} ${content}\n\n`;
+    }
+  });
+
+  // Improve handling of paragraphs
+  turndownService.addRule('paragraph', {
+    filter: 'p',
+    replacement: function (content) {
+      return `\n\n${content}\n\n`;
+    }
+  });
+
+  // Improve handling of line breaks
+  turndownService.addRule('linebreak', {
+    filter: 'br',
+    replacement: function () {
+      return '  \n';
     }
   });
 
@@ -116,10 +165,28 @@ export function createTurndownService(schema?: Schema): TurndownService {
  */
 export async function preprocessHtml(html: string): Promise<string> {
   try {
-    // Process MathML elements
-    const processedHtml = await processMathML(html);
+    // Parse HTML with JSDOM
+    const dom = new JSDOM(html);
+    const document = dom.window.document;
     
-    // Add any additional preprocessing here
+    // Handle space preservation in pre tags
+    const preTags = document.querySelectorAll('pre');
+    for (const pre of preTags) {
+      pre.innerHTML = pre.innerHTML.replace(/\n/g, '⏎');
+    }
+    
+    // Handle SVG elements specially
+    const svgElements = document.querySelectorAll('svg');
+    for (const svg of svgElements) {
+      // Set a special attribute to identify it
+      svg.setAttribute('data-markdown-chart', 'true');
+    }
+    
+    // First preserve links to ensure they don't get modified
+    const preservedLinksHtml = preserveLinks(dom.serialize());
+    
+    // Then process MathML elements
+    const processedHtml = await processMathML(preservedLinksHtml);
     
     return processedHtml;
   } catch (error) {

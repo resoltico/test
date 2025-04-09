@@ -22,7 +22,8 @@ export function expandTilde(filePath: string): string {
  */
 export function sanitizeFilename(filename: string): string {
   // Replace invalid filename characters with underscores
-  return filename.replace(/[<>:"|?*]/g, '_');
+  // Keeping this minimal to avoid over-sanitizing
+  return filename.replace(/[\0<>:"\\|?*]/g, '_');
 }
 
 /**
@@ -91,6 +92,7 @@ export async function determineOutputPath(inputSource: string, outputPath?: stri
     fileName = path.basename(inputSource, path.extname(inputSource));
   }
   
+  // Minimal sanitization for the filename
   const sanitizedFileName = sanitizeFilename(fileName);
   const outputFile = `${sanitizedFileName}.md`;
   

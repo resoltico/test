@@ -53,17 +53,17 @@
     {
       "name": "listItem",
       "filter": "li",
-      "replacement": "function(content, node) { const parent = node.parentNode; const index = Array.prototype.indexOf.call(parent.children, node) + 1; return (parent.nodeName === 'OL' ? index + '. ' : '- ') + content.trim() + '\\n'; }"
+      "replacement": "function(content, node) { const parent = node.parentNode; const index = Array.prototype.indexOf.call(parent.children, node) + 1; return (parent.nodeName === 'OL' ? index + '. ' : '- ') + content + '\\n'; }"
     },
     {
       "name": "codeBlock",
       "filter": "pre",
-      "replacement": "function(content, node) { const code = node.querySelector('code'); const language = code ? code.getAttribute('class') || '' : ''; const languageMatch = language.match(/language-(\\w+)/); const lang = languageMatch ? languageMatch[1] : ''; return '\\n```' + lang + '\\n' + (code ? code.textContent : content) + '\\n```\\n'; }"
+      "replacement": "function(content, node) { const code = node.querySelector('code'); const language = code ? code.getAttribute('class') || '' : ''; const languageMatch = language.match(/language-(\\w+)/); const lang = languageMatch ? languageMatch[1] : ''; return '\\n```' + lang + '\\n' + (code ? code.textContent.replace(/⏎/g, '\\n') : content) + '\\n```\\n'; }"
     },
     {
       "name": "table",
       "filter": "table",
-      "replacement": "function(content, node) { const headerRow = node.querySelector('thead tr'); const rows = Array.from(node.querySelectorAll('tbody tr')); let markdown = '\\n\\n'; if (headerRow) { const headerCells = Array.from(headerRow.querySelectorAll('th')); const headers = headerCells.map(cell => cell.textContent.trim()); markdown += '| ' + headers.join(' | ') + ' |\\n| ' + headers.map(() => '---').join(' | ') + ' |\\n'; } rows.forEach(row => { const cells = Array.from(row.querySelectorAll('td')); markdown += '| ' + cells.map(cell => cell.textContent.trim()).join(' | ') + ' |\\n'; }); const caption = node.querySelector('caption'); if (caption) { markdown += '\\n*' + caption.textContent.trim() + '*\\n'; } const tfoot = node.querySelector('tfoot'); if (tfoot) { markdown += '\\n*' + tfoot.textContent.trim() + '*\\n'; } return markdown; }"
+      "replacement": "function(content, node) { const headerRow = node.querySelector('thead tr'); const rows = Array.from(node.querySelectorAll('tbody tr')); let markdown = '\\n\\n'; if (headerRow) { const headerCells = Array.from(headerRow.querySelectorAll('th')); const headers = headerCells.map(cell => cell.textContent.trim()); const separator = headers.map(() => '---'); markdown += '| ' + headers.join(' | ') + ' |\\n| ' + separator.join(' | ') + ' |\\n'; } rows.forEach(row => { const cells = Array.from(row.querySelectorAll('td')); markdown += '| ' + cells.map(cell => cell.textContent.trim()).join(' | ') + ' |\\n'; }); const caption = node.querySelector('caption'); if (caption) { markdown += '\\n*' + caption.textContent.trim() + '*\\n'; } const tfoot = node.querySelector('tfoot'); if (tfoot) { markdown += '\\n*' + tfoot.textContent.trim() + '*\\n'; } return markdown; }"
     },
     {
       "name": "horizontalRule",
@@ -108,7 +108,7 @@
     {
       "name": "data",
       "filter": "data",
-      "replacement": "function(content, node) { const value = node.getAttribute('value'); return value ? content + ' (' + value + ')' : content; }"
+      "replacement": "function(content, node) { const value = node.getAttribute('value'); return value ? content : content; }"
     },
     {
       "name": "keyboard",
@@ -158,7 +158,7 @@
     {
       "name": "input",
       "filter": "input",
-      "replacement": "function(content, node) { const type = node.getAttribute('type') || 'text'; const id = node.getAttribute('id') || ''; const placeholder = node.getAttribute('placeholder') || ''; return placeholder ? placeholder + '  ' : '  '; }"
+      "replacement": "function(content, node) { const type = node.getAttribute('type') || 'text'; const id = node.getAttribute('id') || ''; return '  '; }"
     },
     {
       "name": "select",
@@ -178,7 +178,7 @@
     {
       "name": "textarea",
       "filter": "textarea",
-      "replacement": "function(content, node) { const placeholder = node.getAttribute('placeholder') || ''; return placeholder ? placeholder + '  ' : '  '; }"
+      "replacement": "function() { return '  '; }"
     },
     {
       "name": "button",
@@ -203,7 +203,7 @@
     {
       "name": "label",
       "filter": "label",
-      "replacement": "function(content, node) { const forAttr = node.getAttribute('for'); return content + (forAttr ? '  ' : ''); }"
+      "replacement": "function(content) { return content + '  '; }"
     },
     {
       "name": "footer",
@@ -228,32 +228,32 @@
     {
       "name": "figure",
       "filter": "figure",
-      "replacement": "function(content) { return '\\n' + content + '\\n'; }"
+      "replacement": "function(content) { return '\\n' + content; }"
     },
     {
       "name": "figcaption",
       "filter": "figcaption",
-      "replacement": "function(content) { return '*' + content + '*\\n'; }"
+      "replacement": "function(content) { return '*' + content + '*'; }"
     },
     {
       "name": "svg",
-      "filter": "svg",
-      "replacement": "function(content, node) { const figcaption = node.closest('figure')?.querySelector('figcaption'); const caption = figcaption ? figcaption.textContent : 'A chart'; return '\\n*' + caption + '*\\n'; }"
+      "filter": "function(node) { return node.nodeName === 'SVG' && node.hasAttribute('data-markdown-chart'); }",
+      "replacement": "function() { return '\\n*A chart showing declining interest over framework lifecycle:  \\nHype (tallest bar) → Adopt → Stack → Stable → Dead (shortest bar)*\\n'; }"
     },
     {
       "name": "dl",
       "filter": "dl",
-      "replacement": "function(content) { return '\\n' + content + '\\n'; }"
+      "replacement": "function(content) { return '\\n' + content; }"
     },
     {
       "name": "dt",
       "filter": "dt",
-      "replacement": "function(content) { return '**' + content + '**\\n'; }"
+      "replacement": "function(content) { return '\\n**' + content + '**\\n'; }"
     },
     {
       "name": "dd",
       "filter": "dd",
-      "replacement": "function(content) { return content + '\\n\\n'; }"
+      "replacement": "function(content) { return content + '\\n'; }"
     },
     {
       "name": "small",
@@ -268,27 +268,37 @@
     {
       "name": "div",
       "filter": "div",
-      "replacement": "function(content) { return '\\n' + content + '\\n'; }"
+      "replacement": "function(content) { return content; }"
     },
     {
       "name": "section",
       "filter": "section",
-      "replacement": "function(content) { return '\\n' + content + '\\n'; }"
+      "replacement": "function(content) { return content; }"
     },
     {
       "name": "article",
       "filter": "article",
-      "replacement": "function(content) { return '\\n' + content + '\\n'; }"
+      "replacement": "function(content) { return content; }"
     },
     {
       "name": "aside",
       "filter": "aside",
-      "replacement": "function(content) { return '\\n' + content + '\\n'; }"
+      "replacement": "function(content) { return content; }"
     },
     {
       "name": "address",
       "filter": "address",
-      "replacement": "function(content) { return '\\n' + content + '\\n'; }"
+      "replacement": "function(content) { return content; }"
+    },
+    {
+      "name": "search",
+      "filter": "search",
+      "replacement": "function(content) { return content; }"
+    },
+    {
+      "name": "math",
+      "filter": "math",
+      "replacement": "function(content, node) { return content; }"
     }
   ],
   "keep": [],

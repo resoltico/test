@@ -1,15 +1,18 @@
 # web2md
 
-Convert HTML webpages into Markdown with customizable schemas.
+Convert HTML webpages into Markdown with customizable schemas and enhanced accuracy.
 
 ## Features
 
 - Convert HTML from URLs or local files to Markdown
 - Customize conversion with schema files
+- Preserve exact links and URLs without sanitization
+- Accurate MathML to LaTeX conversion for mathematical content
+- Smart SVG to Markdown chart descriptions
 - Smart output path determination
 - Progress indicators and detailed error messages
 - Schema management and comparison tools
-- Built-in MathML to LaTeX conversion for mathematical content
+- Output analysis to compare generated Markdown against expected results
 
 ## Requirements
 
@@ -70,41 +73,54 @@ Convert HTML webpages into Markdown with customizable schemas.
 ### Convert a webpage by URL
 
 ```
-web2md -u https://example.com
+web2md convert -u https://example.com
 ```
 
 ### Convert a local HTML file
 
 ```
-web2md -f path/to/file.html
+web2md convert -f path/to/file.html
 ```
 
 ### Specify output file
 
 ```
-web2md -u https://example.com -o output.md
+web2md convert -u https://example.com -o output.md
 ```
 
 ### Use a custom schema
 
 ```
-web2md -u https://example.com -s path/to/schema.json
+web2md convert -u https://example.com -s path/to/schema.json
+```
+
+### Analyze output against a reference file
+
+```
+web2md analyze path/to/expected.md path/to/actual.md
 ```
 
 ### Full options
 
 ```
-Usage: web2md [options]
+Usage: web2md [options] [command]
 
 Convert HTML webpages to Markdown with customizable schemas
 
 Options:
   -V, --version         output the version number
+  -h, --help            display help for command
+
+Commands:
+  convert [options]     Convert HTML to Markdown
+  analyze <expected> <actual>  Analyze differences between expected and actual Markdown output
+  help [command]        display help for command
+
+Convert options:
   -u, --url <url>       URL of the webpage to convert
   -f, --file <file>     Path to the local HTML file to convert
   -o, --output <path>   Output file path
   -s, --schema <path>   Path to custom conversion schema JSON file
-  -h, --help            display help for command
 ```
 
 ## Schema Management
@@ -117,13 +133,23 @@ You can create custom conversion schemas to control how HTML elements are conver
 pnpm schema:compare path/to/schema1.json path/to/schema2.json
 ```
 
-## MathML Support
+## Key Components
 
-This tool includes built-in support for converting MathML to LaTeX in the generated Markdown. When MathML content is detected:
+### Enhanced Link Preservation
 
-1. It's converted to LaTeX format using an integrated converter
+This tool ensures links are preserved exactly as they appear in the original HTML, without sanitizing or modifying URLs that might contain special characters or encoded paths.
+
+### MathML Support
+
+The built-in MathML to LaTeX converter accurately transforms mathematical content:
+
+1. It properly translates MathML elements to LaTeX format
 2. The LaTeX is wrapped in appropriate Markdown math delimiters ($...$ for inline math, $$...$$ for block math)
-3. This allows mathematical content to be properly rendered in Markdown viewers that support LaTeX
+3. Complex formulas with fractions, square roots, and other symbols are properly represented
+
+### SVG Chart Descriptions
+
+SVG charts are converted to descriptive text in Markdown that explains the chart's purpose and key elements.
 
 ## Custom Schemas
 
@@ -142,7 +168,7 @@ Example custom schema:
     {
       "name": "paragraph",
       "filter": "p",
-      "replacement": "function(content) { return '\\n' + content + '\\n'; }"
+      "replacement": "function(content) { return '\\n\\n' + content + '\\n\\n'; }"
     }
   ],
   "keep": [],
@@ -167,7 +193,7 @@ pnpm lint
 ### Run in development mode
 
 ```
-pnpm dev -- -u https://example.com
+pnpm dev -- convert -u https://example.com
 ```
 
 ## License
