@@ -9,6 +9,7 @@ Convert HTML webpages into Markdown with customizable schemas.
 - Smart output path determination
 - Progress indicators and detailed error messages
 - Schema management and comparison tools
+- Built-in MathML to LaTeX conversion for mathematical content
 
 ## Requirements
 
@@ -115,6 +116,14 @@ You can create custom conversion schemas to control how HTML elements are conver
 ```
 pnpm schema:compare path/to/schema1.json path/to/schema2.json
 ```
+
+## MathML Support
+
+This tool includes built-in support for converting MathML to LaTeX in the generated Markdown. When MathML content is detected:
+
+1. It's converted to LaTeX format using an integrated converter
+2. The LaTeX is wrapped in appropriate Markdown math delimiters ($...$ for inline math, $$...$$ for block math)
+3. This allows mathematical content to be properly rendered in Markdown viewers that support LaTeX
 
 ## Custom Schemas
 

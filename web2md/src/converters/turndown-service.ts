@@ -1,6 +1,7 @@
 import TurndownService from 'turndown';
 import { JSDOM } from 'jsdom';
 import { Schema } from '../schemas/index.js';
+import { processMathML } from './mathml-processor.js';
 
 /**
  * Creates a configured TurndownService instance
@@ -24,22 +25,57 @@ export function createTurndownService(schema?: Schema): TurndownService {
     replacement: (content) => `~~${content}~~`
   });
 
+  // Add rule for ruby elements
   turndownService.addRule('ruby', {
     filter: ['ruby'],
     replacement: (content, node) => {
       const rubyNode = node as HTMLElement;
       const rt = rubyNode.querySelector('rt');
-      return rt ? `${content.replace(rt.textContent || '', '')} (${rt.textContent})` : content;
+      if (rt) {
+        const baseText = content.replace(rt.textContent || '', '').trim();
+        return `${baseText} (${rt.textContent})`;
+      }
+      return content;
     }
   });
 
+  // Add rule for math content
+  turndownService.addRule('markdown-math', {
+    filter: (node) => 
+      node.nodeName === 'SPAN' && 
+      node.classList.contains('markdown-math'),
+    replacement: (content) => content
+  });
+
+  // Add rule for abbr elements
+  turndownService.addRule('abbr', {
+    filter: ['abbr'],
+    replacement: (content, node) => {
+      const title = (node as HTMLElement).getAttribute('title');
+      return title ? `${content} (${title})` : content;
+    }
+  });
+
+  // Add rule for mark elements
+  turndownService.addRule('mark', {
+    filter: ['mark'],
+    replacement: (content) => `**${content}**`
+  });
+
+  // Add rule for kbd elements
+  turndownService.addRule('kbd', {
+    filter: ['kbd'],
+    replacement: (content) => `\`${content}\``
+  });
+
+  // Add rule for table conversion
   turndownService.addRule('table', {
     filter: 'table',
     replacement: function (content, node) {
       const tableNode = node as HTMLTableElement;
       const headerRow = tableNode.querySelector('thead tr');
       const rows = Array.from(tableNode.querySelectorAll('tbody tr'));
-      let markdown = '\n';
+      let markdown = '\n\n';
 
       if (headerRow) {
         const headerCells = Array.from(headerRow.querySelectorAll('th'));
@@ -55,6 +91,12 @@ export function createTurndownService(schema?: Schema): TurndownService {
         markdown += `| ${cellContents.join(' | ')} |\n`;
       });
 
+      // Add caption or footer if present
+      const tfoot = tableNode.querySelector('tfoot');
+      if (tfoot) {
+        markdown += `\n*${tfoot.textContent?.trim() || ''}*\n`;
+      }
+
       return markdown;
     }
   });
@@ -65,6 +107,26 @@ export function createTurndownService(schema?: Schema): TurndownService {
   }
 
   return turndownService;
+}
+
+/**
+ * Preprocesses HTML content before conversion
+ * @param html The HTML content to preprocess
+ * @returns The preprocessed HTML content
+ */
+export async function preprocessHtml(html: string): Promise<string> {
+  try {
+    // Process MathML elements
+    const processedHtml = await processMathML(html);
+    
+    // Add any additional preprocessing here
+    
+    return processedHtml;
+  } catch (error) {
+    console.error('Error during HTML preprocessing:', error);
+    // If preprocessing fails, return the original HTML
+    return html;
+  }
 }
 
 /**
