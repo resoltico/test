@@ -6,8 +6,9 @@
  */
 
 import { visit } from 'unist-util-visit';
+import { SKIP } from 'unist-util-visit';
 import { unified, Processor } from 'unified';
-import { Node } from 'unist';
+import type { Node } from 'unist';
 import { Schema } from './validation.js';
 
 type ProcessorStage = 'html' | 'markdown';
@@ -52,31 +53,37 @@ export function applySchema(
   
   // Apply rules if any exist
   if (schema.rules && schema.rules.length > 0) {
-    processor = processor.use(() => (tree: Node) => {
-      // Process each rule
-      for (const rule of schema.rules!) {
-        applyRule(tree, rule, stage);
-      }
+    processor = processor.use(() => {
+      return (tree: Node) => {
+        // Process each rule
+        for (const rule of schema.rules!) {
+          applyRule(tree, rule, stage);
+        }
+      };
     });
   }
   
   // Apply remove patterns if any exist
   if (schema.remove && schema.remove.length > 0) {
-    processor = processor.use(() => (tree: Node) => {
-      // Only apply in HTML stage
-      if (stage === 'html') {
-        applyRemovePatterns(tree, schema.remove!);
-      }
+    processor = processor.use(() => {
+      return (tree: Node) => {
+        // Only apply in HTML stage
+        if (stage === 'html') {
+          applyRemovePatterns(tree, schema.remove!);
+        }
+      };
     });
   }
   
   // Apply keep patterns if any exist
   if (schema.keep && schema.keep.length > 0) {
-    processor = processor.use(() => (tree: Node) => {
-      // Only apply in HTML stage
-      if (stage === 'html') {
-        applyKeepPatterns(tree, schema.keep!);
-      }
+    processor = processor.use(() => {
+      return (tree: Node) => {
+        // Only apply in HTML stage
+        if (stage === 'html') {
+          applyKeepPatterns(tree, schema.keep!);
+        }
+      };
     });
   }
   
@@ -135,7 +142,7 @@ function applyRule(tree: Node, rule: Rule, stage: ProcessorStage): void {
     const elementNode = node as Element;
     if (elementNode.remove && parent && typeof index === 'number') {
       (parent as Element).children.splice(index, 1);
-      return [visit.SKIP, index];
+      return [SKIP, index];
     }
     return undefined;
   });
@@ -315,7 +322,7 @@ function applyRemovePatterns(tree: Node, patterns: string[]): void {
     const elementNode = node as Element;
     if (elementNode.remove && parent && typeof index === 'number') {
       (parent as Element).children.splice(index, 1);
-      return [visit.SKIP, index];
+      return [SKIP, index];
     }
     return undefined;
   });

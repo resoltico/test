@@ -6,8 +6,9 @@
  */
 
 import { visit } from 'unist-util-visit';
-import { Plugin } from 'unified';
-import { Node } from 'unist';
+import { SKIP } from 'unist-util-visit';
+import { Plugin, Transformer } from 'unified';
+import type { Node } from 'unist';
 
 interface TextNode extends Node {
   type: 'text';
@@ -38,7 +39,7 @@ interface LinkNode extends ParentNode {
  * Plugin to clean up the Markdown AST before stringification
  */
 export function cleanupMarkdown(): Plugin {
-  return (tree: Node) => {
+  return function transformer(tree: Node): void {
     // Remove extra whitespace in text nodes
     visit(tree, 'text', (node: TextNode) => {
       // Clean up whitespace but preserve necessary spacing

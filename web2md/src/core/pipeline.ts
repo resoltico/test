@@ -31,12 +31,12 @@ export async function convert(html: string, schema?: Schema): Promise<string> {
     .use(rehypeParse, { fragment: true })
     
     // Apply HTML AST transformations
-    .use(preserveLinks)
-    .use(handleMath);
+    .use(preserveLinks())
+    .use(handleMath());
 
   // Apply schema transformations to HTML AST if schema is provided
   if (schema) {
-    processor = applySchema(processor as any, schema, 'html');
+    processor = applySchema(processor, schema, 'html');
   }
 
   // Continue with Markdown conversion
@@ -47,11 +47,11 @@ export async function convert(html: string, schema?: Schema): Promise<string> {
     // Apply Markdown AST transformations
     .use(remarkGfm)
     .use(remarkMath)
-    .use(cleanupMarkdown);
+    .use(cleanupMarkdown());
   
   // Apply schema transformations to Markdown AST if schema is provided
   if (schema) {
-    processor = applySchema(processor as any, schema, 'markdown');
+    processor = applySchema(processor, schema, 'markdown');
   }
   
   // Stringify Markdown AST to Markdown text
