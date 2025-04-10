@@ -1,12 +1,13 @@
 # web2md
 
-Transform HTML webpages into structured Markdown documents using an AST-based approach with the unified/remark ecosystem.
+A powerful tool for transforming HTML webpages into structured Markdown documents using an AST-based approach with the unified/remark ecosystem.
 
 ## Features
 
 - **High-fidelity conversion** from HTML to Markdown
 - **Preserves links exactly** as they appear in the original, including query parameters
-- **Handles mathematical content** including MathML and LaTeX
+- **Handles mathematical content** including MathML and LaTeX notation
+- **Supports HTML5 elements** with appropriate Markdown representations
 - **Schema-based customization** for fine-grained control over the conversion process
 - **Command-line interface** with professional user experience
 - **Flexible input options** supporting both URLs and local files
@@ -111,6 +112,33 @@ You can customize the conversion process by providing a schema file in JSON form
 - **global**: Global formatting preferences for Markdown output
 - **remove**: Array of selectors for elements to remove
 - **keep**: Array of selectors for elements to keep as HTML
+
+## Mathematical Content
+
+web2md properly handles mathematical content in various formats:
+
+- **MathML**: `<math>` elements are converted to LaTeX notation
+- **LaTeX**: Math content in script tags or elements with math classes
+- **Display vs. Inline**: Block-level math is wrapped in double dollars (`$$...$$`), while inline math uses single dollars (`$...$`)
+
+## Link Preservation
+
+web2md preserves links exactly as they appear in the source HTML:
+
+- **Query parameters**: URL parameters like `?param=value&another=true` are preserved
+- **URL encoding**: Special characters in URLs remain encoded
+- **Email links**: `mailto:` links are properly preserved
+- **Fragment identifiers**: Anchor links with `#` fragments remain intact
+
+## HTML5 Support
+
+web2md handles HTML5 elements with appropriate Markdown representations:
+
+- **Semantic elements**: `<article>`, `<section>`, `<aside>`, etc.
+- **Ruby annotations**: East Asian typography with pronunciation guides
+- **Figures and captions**: `<figure>` and `<figcaption>` elements
+- **Definition lists**: `<dl>`, `<dt>`, and `<dd>` elements
+- **And more**: Time, abbreviations, bidirectional text, etc.
 
 ## Development
 

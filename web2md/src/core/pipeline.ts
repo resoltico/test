@@ -13,8 +13,9 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import { Schema } from '../schema/validation.js';
 import { applySchema } from '../schema/processor.js';
-import { preserveLinks } from '../plugins/rehype/link-processor.js';
+import { preserveLinks, restoreLinks } from '../plugins/rehype/link-processor.js';
 import { handleMath } from '../plugins/rehype/math-processor.js';
+import { handleHtml5Elements } from '../plugins/rehype/html5-processor.js';
 import { cleanupMarkdown } from '../plugins/remark/cleanup.js';
 
 /**
@@ -28,11 +29,18 @@ export async function convert(html: string, schema?: Schema): Promise<string> {
   // Create a unified processor pipeline
   const processor = unified()
     // Parse HTML into AST
-    .use(rehypeParse, { fragment: true })
+    .use(rehypeParse, { 
+      fragment: true,
+      // Parse as HTML5
+      space: 'html',
+      // Be more forgiving with HTML errors
+      verbose: false
+    })
     
     // Apply HTML AST transformations
-    .use(preserveLinks)
-    .use(handleMath)
+    .use(preserveLinks)      // Preserve original links
+    .use(handleHtml5Elements) // Handle HTML5 elements
+    .use(handleMath)         // Handle math content
     
     // Apply schema transformations to HTML AST if schema is provided
     .use(schema ? () => (tree) => {
@@ -41,12 +49,18 @@ export async function convert(html: string, schema?: Schema): Promise<string> {
     } : () => (tree) => tree)
     
     // Convert HTML AST to Markdown AST
-    .use(rehypeRemark)
+    .use(rehypeRemark, {
+      // Preserve as much information as possible
+      handlers: {
+        // Custom handlers can be added here if needed
+      }
+    })
     
     // Apply Markdown AST transformations
-    .use(remarkGfm)
-    .use(remarkMath)
-    .use(cleanupMarkdown)
+    .use(remarkGfm)           // GitHub Flavored Markdown support
+    .use(remarkMath)          // Math support
+    .use(restoreLinks)        // Restore original links
+    .use(cleanupMarkdown)     // Clean up Markdown formatting
     
     // Apply schema transformations to Markdown AST if schema is provided
     .use(schema ? () => (tree) => {
@@ -56,7 +70,9 @@ export async function convert(html: string, schema?: Schema): Promise<string> {
     
     // Stringify Markdown AST to Markdown text with options
     .use(remarkStringify, ({
+      // Merge in global settings from schema if provided
       ...(schema?.global || {}),
+      // Default settings
       bullet: '-',
       emphasis: '*',
       strong: '*',  // Single character that will be doubled
@@ -64,7 +80,16 @@ export async function convert(html: string, schema?: Schema): Promise<string> {
       fences: true,
       incrementListMarker: true,
       listItemIndent: 'one',
-      setext: false
+      setext: false,
+      // Preserve original content as much as possible
+      resourceLink: true,
+      rule: '-',
+      ruleSpaces: false,
+      // Table settings
+      tableCellPadding: true,
+      tablePipeAlign: false,
+      // Math settings
+      math: true
     } as any));
   
   // Process the HTML and return the resulting Markdown

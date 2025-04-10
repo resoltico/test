@@ -2,11 +2,10 @@
  * Link Processor Plugin
  * 
  * A rehype plugin that preserves original link attributes during HTML to Markdown conversion.
- * This prevents the loss of query parameters and other special URL characters.
+ * This ensures exact preservation of query parameters and other special URL characters.
  */
 
 import { visit } from 'unist-util-visit';
-import type { Plugin } from 'unified';
 import type { Node } from 'unist';
 
 interface Element extends Node {
@@ -30,41 +29,74 @@ interface TextNode extends Node {
  */
 export function preserveLinks() {
   return function transformer(tree: Node) {
+    // First pass: store original URLs
     visit(tree, 'element', (node: Element) => {
       // Handle anchor elements
       if (node.tagName === 'a' && node.properties && node.properties.href) {
-        // Store the original href to ensure it's preserved exactly
-        node.properties.originalHref = node.properties.href;
+        const originalHref = node.properties.href;
         
         // Create data object if it doesn't exist
         if (!node.data) {
           node.data = {};
         }
         
-        // Store the original href in the data object as well (for rehype-remark)
-        node.data.originalHref = node.properties.href;
+        // Store the original href in the node data
+        // This ensures it will survive the rehype-remark conversion
+        node.data.hName = 'a';
+        node.data.hProperties = {
+          ...node.properties,
+          originalHref: originalHref
+        };
         
-        // Handle email links (mailto:)
-        if (typeof node.properties.href === 'string' && node.properties.href.startsWith('mailto:')) {
-          // Special handling for email links to prevent obfuscation
-          const email = node.properties.href.replace('mailto:', '');
-          node.properties.href = email; // Store clean email
-          node.data.isEmail = true;
-        }
+        // Also store it directly on the node for good measure
+        node.data.originalHref = originalHref;
       }
     });
 
-    // Second pass to handle edge cases and apply additional transformations
-    visit(tree, 'element', (node: Element, index: number | null, parent: Element | null) => {
-      // Restore or transform links now that we have the full context
-      if (node.tagName === 'a' && node.properties) {
-        // If this is an email link, ensure it's properly formatted for Markdown conversion
-        if (node.data && node.data.isEmail) {
-          // Create a text node with the email address if there isn't already content
+    // Second pass: handle special link types
+    visit(tree, 'element', (node: Element) => {
+      if (node.tagName === 'a' && node.data && node.data.originalHref) {
+        const href = node.data.originalHref;
+        
+        // Special handling for email links
+        if (typeof href === 'string' && href.startsWith('mailto:')) {
+          node.data.isEmail = true;
+          
+          // Ensure the node has the proper URL structure
+          // The href should remain intact with mailto: prefix
+          if (!node.properties) {
+            node.properties = {};
+          }
+          node.properties.href = href;
+          
+          // If there's no text content, use the email address
           if (node.children.length === 0) {
-            node.children.push({ type: 'text', value: node.properties.href } as TextNode);
+            const email = href.replace(/^mailto:/, '');
+            node.children.push({ type: 'text', value: email } as TextNode);
           }
         }
+      }
+    });
+  };
+}
+
+/**
+ * Plugin to restore original links in Markdown AST after conversion
+ * This is used as a remark plugin after rehype-remark
+ */
+export function restoreLinks() {
+  return function transformer(tree: Node) {
+    visit(tree, 'link', (node: any) => {
+      // Restore the original href if available
+      if (node.data && node.data.originalHref) {
+        node.url = node.data.originalHref;
+      } else if (node.data && node.data.hProperties && node.data.hProperties.originalHref) {
+        node.url = node.data.hProperties.originalHref;
+      }
+      
+      // Ensure email links are properly formatted
+      if (node.data && node.data.isEmail && !node.url.startsWith('mailto:')) {
+        node.url = 'mailto:' + node.url;
       }
     });
   };
