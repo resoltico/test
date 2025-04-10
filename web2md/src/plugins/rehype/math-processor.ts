@@ -6,7 +6,7 @@
  */
 
 import { visit } from 'unist-util-visit';
-import { Plugin, Transformer } from 'unified';
+import type { Plugin } from 'unified';
 import type { Node } from 'unist';
 
 interface Element extends Node {
@@ -31,8 +31,8 @@ interface TextNode extends Node {
 /**
  * Plugin to handle mathematical content in HTML AST
  */
-export function handleMath(): Plugin {
-  return function transformer(tree: Node): void {
+export function handleMath() {
+  return function transformer(tree: Node) {
     visit(tree, 'element', (node: Element) => {
       // Handle MathML elements
       if (node.tagName === 'math') {

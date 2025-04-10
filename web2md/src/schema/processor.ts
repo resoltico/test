@@ -5,8 +5,7 @@
  * This handles both HTML and Markdown AST transformations based on the schema.
  */
 
-import { visit } from 'unist-util-visit';
-import { SKIP } from 'unist-util-visit';
+import { visit, SKIP } from 'unist-util-visit';
 import { unified, Processor } from 'unified';
 import type { Node } from 'unist';
 import { Schema } from './validation.js';
@@ -53,41 +52,44 @@ export function applySchema(
   
   // Apply rules if any exist
   if (schema.rules && schema.rules.length > 0) {
-    processor = processor.use(() => {
+    processor = (processor.use(() => {
       return (tree: Node) => {
         // Process each rule
         for (const rule of schema.rules!) {
           applyRule(tree, rule, stage);
         }
+        return tree;
       };
-    });
+    }) as any);
   }
   
   // Apply remove patterns if any exist
   if (schema.remove && schema.remove.length > 0) {
-    processor = processor.use(() => {
+    processor = (processor.use(() => {
       return (tree: Node) => {
         // Only apply in HTML stage
         if (stage === 'html') {
           applyRemovePatterns(tree, schema.remove!);
         }
+        return tree;
       };
-    });
+    }) as any);
   }
   
   // Apply keep patterns if any exist
   if (schema.keep && schema.keep.length > 0) {
-    processor = processor.use(() => {
+    processor = (processor.use(() => {
       return (tree: Node) => {
         // Only apply in HTML stage
         if (stage === 'html') {
           applyKeepPatterns(tree, schema.keep!);
         }
+        return tree;
       };
-    });
+    }) as any);
   }
   
-  return processor;
+  return processor as any;
 }
 
 /**
@@ -138,7 +140,7 @@ function applyRule(tree: Node, rule: Rule, stage: ProcessorStage): void {
   }
   
   // Remove nodes marked for removal
-  visit(tree, (node: Node, index: number | null, parent: Node | null) => {
+  visit(tree, 'element', (node: Node, index: number | null, parent: Node | null) => {
     const elementNode = node as Element;
     if (elementNode.remove && parent && typeof index === 'number') {
       (parent as Element).children.splice(index, 1);
@@ -318,7 +320,7 @@ function applyRemovePatterns(tree: Node, patterns: string[]): void {
   }
   
   // Remove nodes marked for removal
-  visit(tree, (node: Node, index: number | null, parent: Node | null) => {
+  visit(tree, 'element', (node: Node, index: number | null, parent: Node | null) => {
     const elementNode = node as Element;
     if (elementNode.remove && parent && typeof index === 'number') {
       (parent as Element).children.splice(index, 1);

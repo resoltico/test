@@ -6,7 +6,7 @@
  */
 
 import { visit } from 'unist-util-visit';
-import { Plugin, Transformer } from 'unified';
+import type { Plugin } from 'unified';
 import type { Node } from 'unist';
 
 interface Element extends Node {
@@ -28,8 +28,8 @@ interface TextNode extends Node {
 /**
  * Plugin to preserve links in HTML AST before conversion to Markdown
  */
-export function preserveLinks(): Plugin {
-  return function transformer(tree: Node): void {
+export function preserveLinks() {
+  return function transformer(tree: Node) {
     visit(tree, 'element', (node: Element) => {
       // Handle anchor elements
       if (node.tagName === 'a' && node.properties && node.properties.href) {

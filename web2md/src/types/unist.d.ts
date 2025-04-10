@@ -18,7 +18,10 @@ declare module 'unist' {
   }
 }
 
-// Declare the SKIP constant from unist-util-visit
+// Declare the exports from unist-util-visit
 declare module 'unist-util-visit' {
+  // Visit takes test as an optional parameter
+  export function visit(tree: any, visitor: any): void;
+  export function visit(tree: any, test: any, visitor: any, reverse?: boolean): void;
   export const SKIP: symbol;
 }

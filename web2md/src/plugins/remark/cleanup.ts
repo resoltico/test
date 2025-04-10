@@ -5,9 +5,8 @@
  * to improve formatting and fix common conversion issues.
  */
 
-import { visit } from 'unist-util-visit';
-import { SKIP } from 'unist-util-visit';
-import { Plugin, Transformer } from 'unified';
+import { visit, SKIP } from 'unist-util-visit';
+import type { Plugin } from 'unified';
 import type { Node } from 'unist';
 
 interface TextNode extends Node {
@@ -38,8 +37,8 @@ interface LinkNode extends ParentNode {
 /**
  * Plugin to clean up the Markdown AST before stringification
  */
-export function cleanupMarkdown(): Plugin {
-  return function transformer(tree: Node): void {
+export function cleanupMarkdown() {
+  return function transformer(tree: Node) {
     // Remove extra whitespace in text nodes
     visit(tree, 'text', (node: TextNode) => {
       // Clean up whitespace but preserve necessary spacing

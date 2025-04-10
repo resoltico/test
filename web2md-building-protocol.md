@@ -319,23 +319,28 @@ web2md/
 │   │   └── pipeline.ts          # Core transformation pipeline
 │   ├── plugins/                 # Custom plugins as needed
 │   │   ├── rehype/              # HTML AST plugins
+│   │   │   ├── link-processor.ts  # Handles link preservation
+│   │   │   └── math-processor.ts  # Handles mathematical content
 │   │   └── remark/              # Markdown AST plugins
+│   │       └── cleanup.ts       # Post-processing cleanup
 │   ├── schema/
 │   │   ├── index.ts             # Schema handling
 │   │   ├── validation.ts        # Zod schema validation
 │   │   ├── processor.ts         # Schema application
-│   │   └── default.json         # Default schema
+│   │   └── default.ts           # Default schema
 │   ├── cli/
 │   │   └── index.ts             # CLI implementation
 │   ├── fetchers/
 │   │   ├── url.ts               # URL content fetching
 │   │   └── file.ts              # File content reading
+│   ├── types/
+│   │   └── unist.d.ts           # Type declarations for unist modules
 │   └── utils/                   # Utility functions
 │       ├── paths.ts             # Path handling utilities
 │       └── errors.ts            # Error handling utilities
 └── test/
     ├── core.test.ts             # Core pipeline tests
-    ├── plugins.test.ts          # Plugin tests
+    ├── reference.test.ts        # Reference tests
     ├── schema.test.ts           # Schema tests
     └── fixtures/                # Test fixtures
         ├── input.html           # Test input HTML
@@ -343,6 +348,20 @@ web2md/
 ```
 
 This structure organizes the codebase by responsibility, separating core pipeline logic from plugins, schema handling, and utilities. This modular approach improves maintainability and testability.
+
+## TYPE COMPATIBILITY CONSIDERATIONS
+
+When working with the unified/remark ecosystem, be aware of the following type compatibility issues:
+
+1. **Processor Type Parameters**: The `Processor` type in unified has strict generic parameters that can cause compatibility issues. Use type assertions (`as any`) judiciously to bypass overly strict type checking where necessary.
+
+2. **Plugin Return Types**: Plugin functions should not be explicitly typed with `Plugin` as their return type. Instead, let TypeScript infer the return type.
+
+3. **Visit Function Usage**: The `unist-util-visit` package in v5.0.0+ requires proper type declarations. Ensure your types directory has an updated unist.d.ts file.
+
+4. **Remarkify Configuration**: When configuring `remarkStringify`, remember that:
+   - For the `strong` option, provide a single character (`*` or `_`), not the full representation (`**` or `__`)
+   - For the `fence` option, provide a single character (`` ` `` or `~`), not the full fence (`` ``` `` or `~~~`)
 
 ## TESTING STRATEGY
 
@@ -444,7 +463,7 @@ The incremental enhancement strategy ensures we build only what we need based on
 
 By addressing the key challenges of link preservation and mathematical content handling, while providing a flexible schema system, this implementation will significantly improve upon the previous approach, delivering a more accurate and customizable HTML-to-Markdown conversion tool.
 
-Ensure URL input and file input both have own argument switches (for example “-u” for URL and “-f” for file).
+Ensure URL input and file input both have own argument switches (for example "-u" for URL and "-f" for file).
 
 Ensure path sanitization.
 
