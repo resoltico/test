@@ -30,8 +30,10 @@ interface LinkNode extends ParentNode {
   data?: {
     originalHref?: string;
     isEmail?: boolean;
+    attributes?: Record<string, any>;
     hProperties?: {
       originalHref?: string;
+      href?: string;
     };
   };
 }
@@ -44,6 +46,7 @@ interface MathNode extends ParentNode {
       display?: string;
     };
   };
+  meta?: string;
 }
 
 /**
@@ -103,8 +106,8 @@ export function cleanupMarkdown() {
       // Restore original href if it was preserved
       if (node.data?.originalHref) {
         node.url = node.data.originalHref;
-      } else if (node.data?.hProperties?.originalHref) {
-        node.url = node.data.hProperties.originalHref;
+      } else if (node.data?.hProperties?.href) {
+        node.url = node.data.hProperties.href;
       }
       
       // Handle email links
@@ -129,10 +132,20 @@ export function cleanupMarkdown() {
         node.value = node.value.trim();
         
         // Add line breaks for display math
-        const isDisplay = node.data?.hProperties?.display === 'block';
+        const isDisplay = node.data?.hProperties?.display === 'block' || 
+                          node.meta === 'display';
+                          
         if (isDisplay && !node.value.includes('\n')) {
           node.value = '\n' + node.value + '\n';
         }
+      }
+    });
+    
+    // Handle inline math nodes
+    visit(tree, 'inlineMath', (node: any) => {
+      if (node.value) {
+        // Clean up whitespace in inline math expressions
+        node.value = node.value.trim();
       }
     });
     
@@ -146,6 +159,33 @@ export function cleanupMarkdown() {
     
     // Fix inconsistent list items
     fixListItems(tree);
+    
+    // Fix raw HTML containing math (post-process to ensure proper math display)
+    visit(tree, 'html', (node: any) => {
+      if (node.value && 
+          (node.value.includes('class="math') || 
+           node.value.includes('data-math') ||
+           node.value.includes('MathJax'))) {
+        
+        // Try to extract math content from HTML
+        const mathContent = extractMathContent(node.value);
+        if (mathContent) {
+          // Determine if this is display math
+          const isDisplay = node.value.includes('math-display') || 
+                           node.value.includes('display="block"') ||
+                           node.value.includes('MathJax_Display');
+          
+          // Replace with proper math node
+          if (isDisplay) {
+            node.type = 'html';
+            node.value = `$$\n${mathContent}\n$$`;
+          } else {
+            node.type = 'html';
+            node.value = `$${mathContent}$`;
+          }
+        }
+      }
+    });
   };
 }
 
@@ -180,6 +220,18 @@ function fixListItems(tree: Node): void {
       }
     }
   });
+}
+
+/**
+ * Extract math content from HTML
+ */
+function extractMathContent(html: string): string | null {
+  // Simple regex-based extraction (could be enhanced for more complex cases)
+  const mathMatch = html.match(/<[^>]*>(.*?)<\/[^>]*>/);
+  if (mathMatch && mathMatch[1]) {
+    return mathMatch[1].trim();
+  }
+  return null;
 }
 
 /**

@@ -167,7 +167,7 @@ function calculateHumor(technicalAccuracy, sharedSuffering, punQuality, audience
 
 ---
 
-Contact the [Humor Research Department](/cdn-cgi/l/email-protection#781617161d00110b0c1d160c380c10110b110b19161115191f1116190a010f1d1a0b110c1d561b1715)\
+Contact the [Humor Research Department](/cdn-cgi/l/email-protection#3b5554555e4352484f5e554f7b4f53524852485a5552565a5c52555a49424c5e5948524f5e15585456)\
 International Institute of Programmer Psychology\
 123 Binary Road, Null Island
 

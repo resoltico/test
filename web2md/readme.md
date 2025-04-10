@@ -5,8 +5,8 @@ A powerful tool for transforming HTML webpages into structured Markdown document
 ## Features
 
 - **High-fidelity conversion** from HTML to Markdown
-- **Preserves links exactly** as they appear in the original, including query parameters
-- **Handles mathematical content** including MathML and LaTeX notation
+- **Preserves links exactly** as they appear in the original, including query parameters and email links
+- **Handles mathematical content** including MathML and LaTeX notation with accurate conversion
 - **Supports HTML5 elements** with appropriate Markdown representations
 - **Schema-based customization** for fine-grained control over the conversion process
 - **Command-line interface** with professional user experience
@@ -117,18 +117,60 @@ You can customize the conversion process by providing a schema file in JSON form
 
 web2md properly handles mathematical content in various formats:
 
-- **MathML**: `<math>` elements are converted to LaTeX notation
+- **MathML**: `<math>` elements are accurately converted to LaTeX notation
 - **LaTeX**: Math content in script tags or elements with math classes
 - **Display vs. Inline**: Block-level math is wrapped in double dollars (`$$...$$`), while inline math uses single dollars (`$...$`)
+
+### Example MathML Conversion
+
+```html
+<math xmlns="http://www.w3.org/1998/Math/MathML">
+  <mrow>
+    <mi>J</mi>
+    <mo>=</mo>
+    <mi>T</mi>
+    <mo>×</mo>
+    <msqrt>
+      <mi>S</mi>
+    </msqrt>
+    <mo>×</mo>
+    <mfrac>
+      <mi>P</mi>
+      <mrow>
+        <mi>log</mi>
+        <mo>(</mo>
+        <mi>audience</mi>
+        <mo>)</mo>
+      </mrow>
+    </mfrac>
+  </mrow>
+</math>
+```
+
+Converts to:
+
+```markdown
+$$
+J = T \times \sqrt{S} \times \frac{P}{log(audience)}
+$$
+```
 
 ## Link Preservation
 
 web2md preserves links exactly as they appear in the source HTML:
 
-- **Query parameters**: URL parameters like `?param=value&another=true` are preserved
+- **Query parameters**: URL parameters like `?param=value&another=true` are preserved exactly
 - **URL encoding**: Special characters in URLs remain encoded
-- **Email links**: `mailto:` links are properly preserved
+- **Email links**: `mailto:` links are properly preserved with the mailto prefix
 - **Fragment identifiers**: Anchor links with `#` fragments remain intact
+
+### Link Examples
+
+| HTML | Markdown |
+|------|----------|
+| `<a href="https://example.com?q=test&p=1">Link</a>` | `[Link](https://example.com?q=test&p=1)` |
+| `<a href="mailto:user@example.com">Email</a>` | `[Email](mailto:user@example.com)` |
+| `<a href="#section">Jump</a>` | `[Jump](#section)` |
 
 ## HTML5 Support
 

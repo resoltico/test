@@ -160,11 +160,6 @@ function convertClassedMath(node: Element): void {
  * Convert MathML to LaTeX notation
  */
 function convertMathMLToLatex(node: Element): string {
-  // This is a more comprehensive implementation to handle MathML
-  
-  // Start with an empty LaTeX string
-  let latex = '';
-  
   // Process the MathML node recursively
   function processMathML(node: Element): string {
     switch (node.tagName) {
@@ -307,7 +302,7 @@ function convertMathMLToLatex(node: Element): string {
   }
   
   // Start processing from the root MathML node
-  latex = processMathML(node);
+  let latex = processMathML(node);
   
   // Handle special characters and operators
   latex = latex

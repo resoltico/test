@@ -29,7 +29,7 @@ interface TextNode extends Node {
  */
 export function preserveLinks() {
   return function transformer(tree: Node) {
-    // First pass: store original URLs
+    // First pass: store original URLs and all attributes
     visit(tree, 'element', (node: Element) => {
       // Handle anchor elements
       if (node.tagName === 'a' && node.properties && node.properties.href) {
@@ -44,12 +44,14 @@ export function preserveLinks() {
         // This ensures it will survive the rehype-remark conversion
         node.data.hName = 'a';
         node.data.hProperties = {
-          ...node.properties,
-          originalHref: originalHref
+          ...node.properties
         };
         
-        // Also store it directly on the node for good measure
+        // Store original href directly for easier access
         node.data.originalHref = originalHref;
+        
+        // Store all original attributes for preservation
+        node.data.originalAttributes = { ...node.properties };
       }
     });
 
@@ -69,7 +71,7 @@ export function preserveLinks() {
           }
           node.properties.href = href;
           
-          // If there's no text content, use the email address
+          // If there's no text content, use the email address as the text
           if (node.children.length === 0) {
             const email = href.replace(/^mailto:/, '');
             node.children.push({ type: 'text', value: email } as TextNode);
@@ -90,13 +92,22 @@ export function restoreLinks() {
       // Restore the original href if available
       if (node.data && node.data.originalHref) {
         node.url = node.data.originalHref;
-      } else if (node.data && node.data.hProperties && node.data.hProperties.originalHref) {
-        node.url = node.data.hProperties.originalHref;
+      } else if (node.data && node.data.hProperties && node.data.hProperties.href) {
+        node.url = node.data.hProperties.href;
       }
       
-      // Ensure email links are properly formatted
-      if (node.data && node.data.isEmail && !node.url.startsWith('mailto:')) {
-        node.url = 'mailto:' + node.url;
+      // Ensure email links are properly preserved with mailto: prefix
+      if (node.data && node.data.isEmail) {
+        const emailUrl = node.url;
+        if (!emailUrl.startsWith('mailto:')) {
+          node.url = 'mailto:' + emailUrl;
+        }
+      }
+      
+      // Preserve other link attributes by storing them in node.data
+      // These can be used by custom markdown renderers or in post-processing
+      if (node.data && node.data.originalAttributes) {
+        node.data.attributes = node.data.originalAttributes;
       }
     });
   };

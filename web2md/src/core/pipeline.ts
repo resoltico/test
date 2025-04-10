@@ -16,6 +16,7 @@ import { applySchema } from '../schema/processor.js';
 import { preserveLinks, restoreLinks } from '../plugins/rehype/link-processor.js';
 import { handleMath } from '../plugins/rehype/math-processor.js';
 import { handleHtml5Elements } from '../plugins/rehype/html5-processor.js';
+import { preserveHtmlAttributes, restoreHtmlAttributes } from '../plugins/rehype/html-attribute-processor.js';
 import { cleanupMarkdown } from '../plugins/remark/cleanup.js';
 
 /**
@@ -39,6 +40,7 @@ export async function convert(html: string, schema?: Schema): Promise<string> {
     
     // Apply HTML AST transformations
     .use(preserveLinks)      // Preserve original links
+    .use(preserveHtmlAttributes) // Preserve important HTML attributes
     .use(handleHtml5Elements) // Handle HTML5 elements
     .use(handleMath)         // Handle math content
     
@@ -60,6 +62,7 @@ export async function convert(html: string, schema?: Schema): Promise<string> {
     .use(remarkGfm)           // GitHub Flavored Markdown support
     .use(remarkMath)          // Math support
     .use(restoreLinks)        // Restore original links
+    .use(restoreHtmlAttributes) // Restore preserved HTML attributes
     .use(cleanupMarkdown)     // Clean up Markdown formatting
     
     // Apply schema transformations to Markdown AST if schema is provided
