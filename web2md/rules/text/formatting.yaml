@@ -1,0 +1,28 @@
+rules:
+  bold:
+    filter: "strong, b"
+    replacement: "**{content}**"
+    
+  italic:
+    filter: "em, i"
+    replacement: "*{content}*"
+    
+  strikethrough:
+    filter: "del, s, strike"
+    replacement: "~~{content}~~"
+    
+  superscript:
+    filter: "sup"
+    replacement: "^{content}"
+    
+  subscript:
+    filter: "sub"
+    replacement: "~{content}"
+    
+  highlight:
+    filter: "mark, span.highlight"
+    replacement: "=={content}=="
+    
+  code:
+    filter: "code"
+    replacement: "`{content}`"

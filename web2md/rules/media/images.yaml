@@ -1,0 +1,15 @@
+rules:
+  image:
+    filter: "img"
+    replacement: "![{attr:alt}]({attr:src})"
+    attributes:
+      - src
+      - alt
+      
+  figure:
+    filter: "figure"
+    replacement: "{content}\n\n"
+    
+  figcaption:
+    filter: "figcaption"
+    replacement: "*{content}*\n\n"

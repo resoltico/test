@@ -1,0 +1,16 @@
+rules:
+  preCode:
+    filter: "pre code"
+    replacement: "```{attr:class}\n{content}\n```\n\n"
+    attributes:
+      - class
+      
+  pre:
+    filter: "pre"
+    replacement: "```\n{content}\n```\n\n"
+    
+  codeBlock:
+    filter: "div.code, div.codeblock, div.highlight"
+    replacement: "```{attr:data-language}\n{content}\n```\n\n"
+    attributes:
+      - data-language

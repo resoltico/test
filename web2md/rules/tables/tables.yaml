@@ -1,0 +1,20 @@
+rules:
+  tableHeader:
+    filter: "th"
+    replacement: " {content} |"
+    
+  tableCell:
+    filter: "td"
+    replacement: " {content} |"
+    
+  tableRow:
+    filter: "tr"
+    replacement: "|{content}\n"
+    
+  tableHeaderRow:
+    filter: "thead tr"
+    replacement: "|{content}|---|\n"
+    
+  table:
+    filter: "table"
+    replacement: "\n{content}\n"

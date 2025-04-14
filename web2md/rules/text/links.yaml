@@ -1,0 +1,14 @@
+rules:
+  link:
+    filter: "a"
+    replacement: "[{content}]({attr:href})"
+    attributes:
+      - href
+      
+  imageLink:
+    filter: "a:has(img)"
+    replacement: "[![{attr:alt}]({attr:src})]({attr:href})"
+    attributes:
+      - href
+      - src
+      - alt
