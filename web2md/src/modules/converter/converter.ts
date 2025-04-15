@@ -31,9 +31,18 @@ export class Converter {
       for (const tag of config.ignoreTags) {
         turndownService.remove(tag);
       }
+
+      // Determine if we should use raw links rule
+      const useRawLinks = config.preserveRawUrls;
       
       // Apply custom rules
       for (const rule of rules) {
+        // Skip text-links rule if we're using raw-links and this is the standard link rule
+        if (useRawLinks && (rule.name === 'link' || rule.name === 'imageLink')) {
+          this.logger.debug(`Skipping ${rule.name} rule to use raw links instead`);
+          continue;
+        }
+        
         this.logger.debug(`Applying rule: ${rule.name}`);
         turndownService.addRule(rule.name, {
           filter: rule.filter,
@@ -44,9 +53,16 @@ export class Converter {
         });
       }
       
-      // Parse HTML with JSDOM
+      // Parse HTML with JSDOM using options that prevent URL modification
       this.logger.debug('Parsing HTML with JSDOM');
-      const { document } = new JSDOM(html).window;
+      const jsdomOptions = {
+        url: 'http://localhost', // Use a consistent base URL
+        runScripts: 'outside-only' as const, // Don't run scripts
+        resources: 'usable' as const, // Don't load external resources
+        storageQuota: 10000000
+      };
+      
+      const { document } = new JSDOM(html, jsdomOptions).window;
       
       // Convert to Markdown
       this.logger.debug('Converting to Markdown');

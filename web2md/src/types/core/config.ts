@@ -65,4 +65,10 @@ export interface Config {
    * Enable debug mode for detailed logging
    */
   debug: boolean;
+
+  /**
+   * Whether to preserve raw URLs in links exactly as they appear in the HTML
+   * When true, links won't be sanitized or modified in any way
+   */
+  preserveRawUrls: boolean;
 }

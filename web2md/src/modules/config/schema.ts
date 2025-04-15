@@ -13,7 +13,8 @@ export const configSchema = z.object({
   useBuiltInRules: z.boolean().optional(),
   builtInRules: z.array(z.string()).optional(),
   customRules: z.array(z.string()).optional(),
-  debug: z.boolean().default(false)
+  debug: z.boolean().default(false),
+  preserveRawUrls: z.boolean().default(true) // Default to preserving raw URLs
 }).transform((data): Config => {
   // Handle mutual exclusivity between useBuiltInRules and builtInRules
   if (data.builtInRules !== undefined && data.builtInRules.length > 0) {
@@ -44,5 +45,6 @@ export const defaultConfig: Config = {
   preserveTableAlignment: true,
   ignoreTags: ['script', 'style', 'noscript', 'iframe'],
   useBuiltInRules: true,
-  debug: false
+  debug: false,
+  preserveRawUrls: true // Default to preserving raw URLs
 };

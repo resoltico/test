@@ -55,18 +55,60 @@ export class RulesManager {
     }
 
     // Load built-in rules based on configuration
-    const { useBuiltInRules, builtInRules } = config;
+    const { useBuiltInRules, builtInRules, preserveRawUrls } = config;
 
     if (useBuiltInRules || (!builtInRules && !config.customRules)) {
-      // Load all built-in rules from registry
-      this.logger.info('Loading all built-in rules from registry');
-      const rulePaths = this.registry.getAllBuiltInRulePaths();
-      const loadedRules = await this.loadRuleFiles(rulePaths);
-      this.rules.push(...loadedRules);
+      // If preserveRawUrls is true, modify the rule set
+      if (preserveRawUrls) {
+        this.logger.info('Loading built-in rules with raw link preservation');
+        
+        // Get all rules
+        let rulePaths = this.registry.getAllBuiltInRulePaths();
+        
+        // Filter out text-links rule if we're using raw-links
+        const textLinksPath = this.registry.getBuiltInRulePath('text-links');
+        if (textLinksPath) {
+          rulePaths = rulePaths.filter(path => path !== textLinksPath);
+        }
+        
+        // Make sure raw-links is included
+        const rawLinksPath = this.registry.getBuiltInRulePath('raw-links');
+        if (rawLinksPath && !rulePaths.includes(rawLinksPath)) {
+          rulePaths.push(rawLinksPath);
+        }
+        
+        const loadedRules = await this.loadRuleFiles(rulePaths);
+        this.rules.push(...loadedRules);
+      } else {
+        // Load all built-in rules from registry as normal
+        this.logger.info('Loading all built-in rules from registry');
+        const rulePaths = this.registry.getAllBuiltInRulePaths().filter(
+          path => !path.includes('raw-links.js')
+        );
+        const loadedRules = await this.loadRuleFiles(rulePaths);
+        this.rules.push(...loadedRules);
+      }
     } else if (builtInRules && builtInRules.length > 0) {
       // Load specific built-in rules from registry
       this.logger.info(`Loading ${builtInRules.length} built-in rule sets from registry`);
-      const rulePaths = this.registry.getSpecificBuiltInRulePaths(builtInRules);
+      
+      // If preserveRawUrls is true, replace text-links with raw-links
+      let ruleSets = [...builtInRules];
+      if (preserveRawUrls) {
+        // Replace text-links with raw-links if present
+        const textLinksIndex = ruleSets.indexOf('text-links');
+        if (textLinksIndex >= 0) {
+          ruleSets[textLinksIndex] = 'raw-links';
+        } else if (!ruleSets.includes('raw-links')) {
+          // Add raw-links if not already included
+          ruleSets.push('raw-links');
+        }
+      } else {
+        // Remove raw-links if present
+        ruleSets = ruleSets.filter(name => name !== 'raw-links');
+      }
+      
+      const rulePaths = this.registry.getSpecificBuiltInRulePaths(ruleSets);
       const loadedRules = await this.loadRuleFiles(rulePaths);
       this.rules.push(...loadedRules);
     }

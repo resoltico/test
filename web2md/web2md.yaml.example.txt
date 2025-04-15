@@ -6,6 +6,9 @@ listMarker: "-"        # -, *, or +
 codeBlockStyle: fenced # fenced (```) or indented (4 spaces)
 preserveTableAlignment: true
 
+# URL handling
+preserveRawUrls: true  # Preserve URLs exactly as they appear in the HTML (no sanitization)
+
 # Tags to completely ignore during conversion
 ignoreTags:
   - script
@@ -20,7 +23,8 @@ useBuiltInRules: true
 # builtInRules:
 #   - common-elements    # Basic HTML elements (headings, paragraphs, lists)
 #   - text-formatting    # Bold, italic, etc.
-#   - text-links         # Hyperlinks and references
+#   - text-links         # Standard link formatting (not used when preserveRawUrls is true)
+#   - raw-links          # Raw link preservation (used when preserveRawUrls is true)
 #   - media-images       # Images and figures
 #   - tables             # Table formatting
 #   - code-blocks        # Code blocks with language highlighting

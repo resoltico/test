@@ -19,6 +19,7 @@ export class RuleRegistry {
       'common-elements': path.join(this.rulesDir, 'common-elements.yaml'),
       'text-formatting': path.join(this.rulesDir, 'text-formatting.yaml'),
       'text-links': path.join(this.rulesDir, 'text-links.yaml'),
+      'raw-links': path.join(this.rulesDir, 'raw-links.js'), // Added raw-links
       'media-images': path.join(this.rulesDir, 'media-images.yaml'),
       'tables': path.join(this.rulesDir, 'tables.yaml'),
       'code-blocks': path.join(this.rulesDir, 'code-blocks.yaml'),
