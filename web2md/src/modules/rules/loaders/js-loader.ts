@@ -1,68 +1,94 @@
-import { Rule } from '../../../types.js';
-import { Logger } from '../../../shared/logger/index.js';
+import { Rule } from '../../../types/core/rule.js';
+import { JSRuleExport } from '../../../types/modules/rules.js';
+import { Logger } from '../../../shared/logger/console.js';
+import { RuleError } from '../../../shared/errors/app-error.js';
+import { DOMNode } from '../../../types/vendor/dom.js';
 
+/**
+ * JavaScript rule loader
+ */
 export class JSRuleLoader {
   constructor(private logger: Logger) {}
-  
+
   /**
-   * Load rules from a JavaScript file
+   * Load rules from JavaScript file
    */
   async loadRules(filePath: string): Promise<Rule[]> {
     try {
-      // Import the JavaScript module
-      const module = await import(filePath);
-      
+      // Import JS module
+      // Using dynamic import with file URL
+      const fileUrl = new URL(`file://${filePath}`);
+      const module = await import(fileUrl.href);
+
       // Check if it's a default export
       if (module.default) {
-        if (this.isValidRule(module.default)) {
-          this.logger.debug(`Loaded rule from ${filePath}`);
-          return [module.default];
-        }
+        const rule = this.validateRule(module.default, filePath);
+        return [rule];
       }
-      
+
       // Check if it's an array of rules
-      if (Array.isArray(module.default)) {
-        const rules = module.default.filter((rule: unknown) => this.isValidRule(rule));
-        this.logger.debug(`Loaded ${rules.length} rules from ${filePath}`);
-        return rules;
+      if (Array.isArray(module)) {
+        return module.map(r => this.validateRule(r, filePath));
       }
-      
-      // Check if the module exports multiple rules
+
+      // Check if it exports individual rules
       const rules: Rule[] = [];
       for (const [key, value] of Object.entries(module)) {
-        if (key !== 'default' && this.isValidRule(value)) {
-          rules.push(value);
+        if (
+          typeof value === 'object' && 
+          value !== null && 
+          'filter' in value && 
+          'replacement' in value
+        ) {
+          try {
+            const rule = this.validateRule(value as JSRuleExport, filePath, key);
+            rules.push(rule);
+          } catch (ruleError) {
+            this.logger.warn(`Skipping invalid rule "${key}" in ${filePath}: ${ruleError}`);
+          }
         }
       }
-      
-      if (rules.length > 0) {
-        this.logger.debug(`Loaded ${rules.length} rules from ${filePath}`);
-        return rules;
+
+      if (rules.length === 0) {
+        throw new RuleError(`No valid rules found in ${filePath}`);
       }
-      
-      this.logger.warn(`No valid rules found in ${filePath}`);
-      return [];
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Failed to load JavaScript rules from ${filePath}: ${errorMessage}`);
-      return [];
+
+      this.logger.debug(`Loaded ${rules.length} rules from ${filePath}`);
+      return rules;
+    } catch (error) {
+      if (error instanceof RuleError) {
+        throw error;
+      }
+      throw new RuleError(`Failed to load rules from ${filePath}: ${error}`);
     }
   }
-  
+
   /**
-   * Check if an object is a valid rule
+   * Validate a rule from a JavaScript export
    */
-  private isValidRule(obj: unknown): obj is Rule {
-    return (
-      obj !== null &&
-      typeof obj === 'object' &&
-      'name' in obj && typeof obj.name === 'string' &&
-      'filter' in obj && (
-        typeof obj.filter === 'string' ||
-        Array.isArray(obj.filter) ||
-        typeof obj.filter === 'function'
-      ) &&
-      'replacement' in obj && typeof obj.replacement === 'function'
-    );
+  private validateRule(rule: unknown, filePath: string, defaultName?: string): Rule {
+    if (!rule || typeof rule !== 'object') {
+      throw new RuleError(`Invalid rule object in ${filePath}`);
+    }
+
+    const jsRule = rule as JSRuleExport;
+
+    // Validate required properties
+    if (!jsRule.filter) {
+      throw new RuleError(`Missing filter in rule from ${filePath}`);
+    }
+
+    if (typeof jsRule.replacement !== 'function') {
+      throw new RuleError(`Replacement must be a function in rule from ${filePath}`);
+    }
+
+    // Use explicit name or default name or generate one
+    const name = jsRule.name || defaultName || `js-rule-${Date.now()}`;
+
+    return {
+      name,
+      filter: jsRule.filter,
+      replacement: jsRule.replacement
+    };
   }
 }

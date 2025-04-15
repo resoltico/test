@@ -1,69 +1,63 @@
+import { JSDOM } from 'jsdom';
 import TurndownService from 'turndown';
-import { Rule, Config } from '../../types.js';
-import { Logger } from '../../shared/logger/index.js';
+import { Config } from '../../types/core/config.js';
+import { Rule } from '../../types/core/rule.js';
+import { Logger } from '../../shared/logger/console.js';
+import { ConversionError } from '../../shared/errors/app-error.js';
+import { DOMNode } from '../../types/vendor/dom.js';
 
+/**
+ * HTML to Markdown converter
+ */
 export class Converter {
   constructor(private logger: Logger) {}
-  
+
   /**
-   * Convert HTML to Markdown using rules
+   * Convert HTML to Markdown
    */
   async convert(html: string, rules: Rule[], config: Config): Promise<string> {
-    this.logger.debug('Initializing Turndown service');
-    
-    // Initialize Turndown service with configuration
-    const turndownService = new TurndownService({
-      headingStyle: config.headingStyle,
-      bulletListMarker: config.listMarker,
-      codeBlockStyle: config.codeBlockStyle,
-      emDelimiter: '*',
-      strongDelimiter: '**',
-    });
-    
-    // Set up ignore tags
-    for (const tag of config.ignoreTags) {
-      this.logger.debug(`Configuring to ignore tag: ${tag}`);
-      // Use a filter function to properly match the tag
-      turndownService.remove((node) => {
-        return node.nodeName.toLowerCase() === tag.toLowerCase();
+    try {
+      this.logger.debug('Creating Turndown service with configuration');
+      
+      // Create Turndown service with configuration
+      const turndownService = new TurndownService({
+        headingStyle: config.headingStyle,
+        bulletListMarker: config.listMarker,
+        codeBlockStyle: config.codeBlockStyle,
+        // Add other Turndown options from config as needed
       });
-    }
-    
-    // Apply rules
-    this.logger.debug(`Applying ${rules.length} rules`);
-    for (const rule of rules) {
-      turndownService.addRule(rule.name, {
-        filter: this.normalizeFilter(rule.filter),
-        replacement: (content, node) => rule.replacement(content, node)
-      });
-    }
-    
-    // Convert HTML to Markdown
-    this.logger.debug('Converting HTML to Markdown');
-    const markdown = turndownService.turndown(html);
-    
-    return markdown;
-  }
-  
-  /**
-   * Normalize rule filter for Turndown
-   */
-  private normalizeFilter(filter: Rule['filter']): any {
-    if (typeof filter === 'string') {
-      // Single tag name or CSS selector
-      return filter;
-    } else if (Array.isArray(filter)) {
-      // Array of tag names or CSS selectors
-      return {
-        [Symbol.iterator]: function* () {
-          for (const item of filter) {
-            yield item;
+      
+      // Configure tags to ignore
+      for (const tag of config.ignoreTags) {
+        turndownService.remove(tag);
+      }
+      
+      // Apply custom rules
+      for (const rule of rules) {
+        this.logger.debug(`Applying rule: ${rule.name}`);
+        turndownService.addRule(rule.name, {
+          filter: rule.filter,
+          replacement: (content, node) => {
+            // Ensure we're passing the node correctly
+            return rule.replacement(content, node as unknown as DOMNode);
           }
-        }
-      };
-    } else {
-      // Function filter
-      return filter;
+        });
+      }
+      
+      // Parse HTML with JSDOM
+      this.logger.debug('Parsing HTML with JSDOM');
+      const { document } = new JSDOM(html).window;
+      
+      // Convert to Markdown
+      this.logger.debug('Converting to Markdown');
+      const markdown = turndownService.turndown(document.body);
+      
+      return markdown;
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new ConversionError(`Conversion failed: ${error.message}`);
+      }
+      throw new ConversionError('Conversion failed with unknown error');
     }
   }
 }

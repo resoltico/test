@@ -1,6 +1,6 @@
-# WEB2MD Configuration
+# WEB2MD Configuration File Example
 
-# Markdown formatting options
+# Markdown style options
 headingStyle: atx      # atx (#) or setext (===)
 listMarker: "-"        # -, *, or +
 codeBlockStyle: fenced # fenced (```) or indented (4 spaces)
@@ -18,15 +18,15 @@ useBuiltInRules: true
 
 # Or explicitly select which built-in rule sets to use
 # builtInRules:
-#   - common/elements    # Basic HTML elements (headings, paragraphs, lists)
-#   - text/formatting    # Bold, italic, etc.
-#   - text/links         # Hyperlinks and references
-#   - media/images       # Images and figures
-#   - tables/tables      # Table formatting
-#   - code/blocks        # Code blocks with language highlighting
-#   - math/math          # Mathematical expressions
+#   - common-elements    # Basic HTML elements (headings, paragraphs, lists)
+#   - text-formatting    # Bold, italic, etc.
+#   - text-links         # Hyperlinks and references
+#   - media-images       # Images and figures
+#   - tables             # Table formatting
+#   - code-blocks        # Code blocks with language highlighting
+#   - math               # Mathematical expressions
 
-# Custom rules to extend or override built-ins
+# Custom rules to extend or override built-ins (must be absolute paths or relative to working directory)
 # customRules:
 #   - ./my-rules/special-blocks.yaml  # Custom YAML rules
 #   - ./my-rules/math-enhanced.js     # Custom JS rules

@@ -1,10 +1,15 @@
 /**
- * Math expressions rule
+ * Rule for converting math expressions to Markdown
  */
 export default {
   name: 'math',
   
   filter: (node) => {
+    // Make sure it's an element node before trying to access properties
+    if (node.nodeType !== node.ELEMENT_NODE) {
+      return false;
+    }
+    
     const nodeName = node.nodeName.toLowerCase();
     
     // Match common math element types

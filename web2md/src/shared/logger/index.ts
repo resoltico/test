@@ -1,1 +1,1 @@
-export { Logger, ConsoleLogger } from './console.js';
+export { ConsoleLogger, type Logger } from './console.js';

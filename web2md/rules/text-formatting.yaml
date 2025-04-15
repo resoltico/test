@@ -18,15 +18,3 @@ rules:
   code:
     filter: "code"
     replacement: "`{content}`"
-    
-  subscript:
-    filter: "sub"
-    replacement: "~{content}~"
-    
-  superscript:
-    filter: "sup"
-    replacement: "^{content}^"
-    
-  underline:
-    filter: "u"
-    replacement: "__{content}__"

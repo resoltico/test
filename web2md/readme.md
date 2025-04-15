@@ -1,77 +1,67 @@
 # WEB2MD
 
-Convert HTML webpages into semantically structured Markdown documents with a flexible YAML-based rules system.
+A powerful Node.js CLI application that transforms HTML webpages into semantically structured Markdown documents using a YAML-based rules system.
 
 ## Features
 
-- Convert HTML files or web pages to clean, semantic Markdown
-- Flexible YAML-based rules system for customization
-- Smart defaults for common HTML elements
-- Selective rule activation for fine-grained control
-- Custom rules for specialized HTML structures
-- Support for math expressions, tables, code blocks, and more
+- Convert HTML files and web pages to clean, well-structured Markdown
+- Smart defaults for excellent results with zero configuration
+- Highly customizable YAML-based rules system
+- Built-in rules for common HTML elements
+- Support for custom rule extensions
+- Security-focused design with explicit rule loading
 
 ## Installation
 
 ### Prerequisites
 
 - Node.js v22.14.0 or higher
-- npm or pnpm for package management
 
-### Global Installation
+### Install from NPM
 
 ```bash
 npm install -g web2md
 ```
 
-### Local Installation
+### Install from Source
 
 ```bash
-npm install web2md
+git clone https://github.com/yourusername/web2md.git
+cd web2md
+npm install
+npm run build
+npm link
 ```
 
-## Usage
+## Basic Usage
 
-### Basic Usage
-
-Convert an HTML file to Markdown:
+### Convert an HTML File
 
 ```bash
 web2md -f input.html -o output.md
 ```
 
-Convert a web page to Markdown:
+### Convert a Web Page
 
 ```bash
 web2md -u https://example.com -o example.md
 ```
 
-### Options
+### Show Output in Terminal
 
-```
-Usage: web2md [options]
-
-Options:
-  -f, --file <path>       HTML file to convert
-  -u, --url <url>         URL to convert
-  -o, --output <file>     Output file (default: stdout)
-  --rules-dir <directory> Use rules from this directory (overrides config)
-  --debug                 Enable debug mode with detailed logging
-  -h, --help              Display help
-  -V, --version           Display version
+```bash
+web2md -f input.html
 ```
 
 ## Configuration
 
-Create a `web2md.yaml` file in your project directory to customize the conversion process.
-
-### Basic Configuration
+WEB2MD can be customized by creating a `web2md.yaml` file in your project directory:
 
 ```yaml
-# web2md.yaml
-headingStyle: atx        # atx (#) or setext (===)
-listMarker: "-"          # -, *, or +
-codeBlockStyle: fenced   # fenced (```) or indented (4 spaces)
+# Markdown style options
+headingStyle: atx      # atx (#) or setext (===)
+listMarker: "-"        # -, *, or +
+codeBlockStyle: fenced # fenced (```) or indented (4 spaces)
 preserveTableAlignment: true
 
 # Tags to completely ignore during conversion
@@ -81,42 +71,36 @@ ignoreTags:
   - noscript
   - iframe
 
-# Use all built-in rules
-useBuiltInRules: true
-```
-
-### Selective Rule Activation
-
-```yaml
-# web2md.yaml
-# Only use heading, formatting, and link rules
-builtInRules:
-  - common/elements  # For headings, paragraphs, etc.
-  - text/formatting  # For bold, italic, etc.
-  - text/links       # For hyperlinks
-```
-
-### Custom Rules
-
-```yaml
-# web2md.yaml
-# Use all built-in rules
+# Either use all built-ins (default if this section is omitted)
 useBuiltInRules: true
 
-# Add custom rules
-customRules:
-  - ./my-rules/note-boxes.yaml
-  - ./my-rules/custom-callouts.js
+# Or explicitly select which built-in rule sets to use
+# builtInRules:
+#   - common-elements    # Basic HTML elements (headings, paragraphs, lists)
+#   - text-formatting    # Bold, italic, etc.
+#   - text-links         # Hyperlinks and references
+#   - media-images       # Images and figures
+#   - tables             # Table formatting
+#   - code-blocks        # Code blocks with language highlighting
+#   - math               # Mathematical expressions
+
+# Custom rules to extend or override built-ins
+# customRules:
+#   - ./my-rules/special-blocks.yaml  # Custom YAML rules
+#   - ./my-rules/math-enhanced.js     # Custom JS rules
+
+# Debug mode for detailed logging
+debug: false
 ```
 
 ## Custom Rules
 
 ### YAML Rules
 
-Create custom rules using YAML:
+Create a YAML file with your custom rules:
 
 ```yaml
-# ./my-rules/note-boxes.yaml
+# my-rules/note-boxes.yaml
 rules:
   note:
     filter: "div.note, aside.note"
@@ -133,10 +117,10 @@ rules:
 
 ### JavaScript Rules
 
-For more complex rules, use JavaScript:
+For more complex rules, create a JavaScript file:
 
 ```javascript
-// ./my-rules/custom-callouts.js
+// my-rules/custom-callouts.js
 export default {
   name: 'callout',
   
@@ -154,24 +138,26 @@ export default {
 };
 ```
 
-## Built-in Rule Sets
+## CLI Options
 
-WEB2MD includes the following built-in rule sets:
+```
+Usage: web2md [options]
 
-- `common/elements` - Basic HTML elements (headings, paragraphs, lists)
-- `text/formatting` - Text styling (bold, italic, etc.)
-- `text/links` - Hyperlinks
-- `media/images` - Images and figures
-- `tables/tables` - Table formatting
-- `code/blocks` - Code blocks with language highlighting
-- `math/math` - Mathematical expressions
+Options:
+  -f, --file <path>       HTML file to convert
+  -u, --url <url>         URL to convert
+  -o, --output <file>     Output file (default: stdout)
+  --rules-dir <directory> Use rules from directory manifest (overrides config)
+  --debug                 Enable debug mode with detailed logging
+  -h, --help              Display help
+  -V, --version           Display version
+```
 
-## Shell Setup for macOS/Linux
+## Using with fnm on macOS/Linux
 
-Add this function to your `~/.zshrc` file for easy access with automatic Node version switching:
+If you're using `fnm` for Node.js version management, add this function to your `.zshrc`:
 
 ```bash
-# web2md zsh function with fnm support
 web2md() {
   # Define the path to your web2md installation
   local web2md_dir="$HOME/Tools/web2md"
@@ -205,40 +191,6 @@ web2md() {
 }
 ```
 
-## Development
-
-### Setup
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/web2md.git
-cd web2md
-
-# Install dependencies
-pnpm install
-
-# Build the project
-pnpm build
-
-# Make the CLI executable
-chmod +x bin/web2md.js
-
-# Optional: Link for global use
-npm link
-```
-
-### Development Mode
-
-```bash
-pnpm dev
-```
-
-### Building
-
-```bash
-pnpm build
-```
-
 ## License
 
-Released under the MIT License.
+MIT

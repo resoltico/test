@@ -1,104 +1,151 @@
-import { execSync } from 'child_process';
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { execSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
-// ANSI color codes for output
+// ANSI colors for console output
 const colors = {
-  reset: '\x1b[0m',
   bright: '\x1b[1m',
   green: '\x1b[32m',
-  cyan: '\x1b[36m',
   yellow: '\x1b[33m',
-  red: '\x1b[31m'
+  red: '\x1b[31m',
+  reset: '\x1b[0m'
 };
 
-// Log with a timestamp
+// Get __dirname equivalent in ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rootDir = path.resolve(__dirname, '..');
+
+/**
+ * Log a message with color
+ */
 function log(message, color = colors.reset) {
-  const timestamp = new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '');
-  console.log(`${colors.cyan}[${timestamp}]${colors.reset} ${color}${message}${colors.reset}`);
+  console.log(`${color}${message}${colors.reset}`);
 }
 
-// Execute a command and log its output
+/**
+ * Execute a command
+ */
 function execute(command, errorMessage) {
   try {
-    log(`Executing: ${command}`, colors.yellow);
-    execSync(command, { stdio: 'inherit' });
+    execSync(command, { stdio: 'inherit', cwd: rootDir });
     return true;
   } catch (error) {
-    log(`${errorMessage}: ${error.message}`, colors.red);
+    log(errorMessage, colors.red);
     return false;
   }
 }
 
-// Ensure dist directory exists and is clean
-function prepareDistDirectory() {
-  const distDir = path.resolve('dist');
-  log('Preparing distribution directory', colors.bright);
+/**
+ * Prepare the dist directory
+ */
+async function prepareDistDirectory() {
+  log('Preparing dist directory', colors.bright);
   
-  // Create dist directory if it doesn't exist
-  if (!fs.existsSync(distDir)) {
-    fs.mkdirSync(distDir, { recursive: true });
-    log('Created dist directory', colors.green);
-  } else {
-    // Clean dist directory
-    fs.readdirSync(distDir).forEach(file => {
-      const filePath = path.join(distDir, file);
-      fs.rmSync(filePath, { recursive: true, force: true });
-    });
-    log('Cleaned dist directory', colors.green);
-  }
-}
-
-// Make bin script executable
-function makeExecutable() {
-  log('Making bin script executable', colors.bright);
-  fs.chmodSync('bin/web2md.js', '755');
-  log('Made bin/web2md.js executable', colors.green);
-}
-
-// Copy rules to dist
-function copyRules() {
-  log('Copying rules to distribution', colors.bright);
-  const rulesDir = path.resolve('rules');
-  const distRulesDir = path.resolve('dist/rules');
-  
-  // Create dist/rules directory
-  if (!fs.existsSync(distRulesDir)) {
-    fs.mkdirSync(distRulesDir, { recursive: true });
-  }
-  
-  // Copy rules recursively
-  function copyRecursive(src, dest) {
-    const exists = fs.existsSync(src);
-    const stats = exists && fs.statSync(src);
-    const isDirectory = exists && stats.isDirectory();
+  try {
+    // Remove existing dist directory
+    await fs.rm(path.resolve(rootDir, 'dist'), { recursive: true, force: true });
     
-    if (isDirectory) {
-      if (!fs.existsSync(dest)) {
-        fs.mkdirSync(dest, { recursive: true });
-      }
-      
-      fs.readdirSync(src).forEach(childItemName => {
-        copyRecursive(
-          path.join(src, childItemName),
-          path.join(dest, childItemName)
-        );
-      });
-    } else {
-      fs.copyFileSync(src, dest);
-    }
+    // Create fresh dist directory
+    await fs.mkdir(path.resolve(rootDir, 'dist'), { recursive: true });
+    
+    // Create dist/rules directory
+    await fs.mkdir(path.resolve(rootDir, 'dist/rules'), { recursive: true });
+    
+    log('Dist directory prepared', colors.green);
+  } catch (error) {
+    log(`Error preparing dist directory: ${error.message}`, colors.red);
+    process.exit(1);
   }
-  
-  copyRecursive(rulesDir, distRulesDir);
-  log('Copied rules to dist/rules', colors.green);
 }
 
-// Build the project
+/**
+ * Copy rules to dist directory
+ */
+async function copyRulesToDist() {
+  log('Copying rules to distribution', colors.bright);
+  
+  try {
+    // Get all rule files
+    const rulesDir = path.resolve(rootDir, 'rules');
+    const files = await fs.readdir(rulesDir);
+    
+    // Copy each file
+    for (const file of files) {
+      const sourcePath = path.join(rulesDir, file);
+      const destPath = path.join(rootDir, 'dist/rules', file);
+      
+      await fs.copyFile(sourcePath, destPath);
+      log(`Copied ${file} to dist/rules`, colors.green);
+    }
+  } catch (error) {
+    log(`Error copying rules: ${error.message}`, colors.red);
+    process.exit(1);
+  }
+}
+
+/**
+ * Create bin directory and script
+ */
+async function createBinScript() {
+  log('Creating executable bin script', colors.bright);
+  
+  try {
+    // Create bin directory
+    await fs.mkdir(path.resolve(rootDir, 'bin'), { recursive: true });
+    
+    // Create web2md.js script
+    const binScript = `#!/usr/bin/env node
+
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+import { createApp } from '../dist/app.js';
+
+// Calculate root directory
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rootDir = path.resolve(__dirname, '../dist/rules');
+
+// Create and run app
+const app = createApp({ rootDir });
+app.run(process.argv).catch(error => {
+  console.error(error);
+  process.exit(1);
+});
+`;
+    
+    await fs.writeFile(path.resolve(rootDir, 'bin/web2md.js'), binScript, 'utf8');
+    log('Created bin/web2md.js', colors.green);
+  } catch (error) {
+    log(`Error creating bin script: ${error.message}`, colors.red);
+    process.exit(1);
+  }
+}
+
+/**
+ * Make bin script executable
+ */
+async function makeExecutable() {
+  log('Making bin script executable', colors.bright);
+  
+  try {
+    await fs.chmod(path.resolve(rootDir, 'bin/web2md.js'), 0o755);
+    log('Made bin/web2md.js executable', colors.green);
+  } catch (error) {
+    log(`Error making bin script executable: ${error.message}`, colors.red);
+    process.exit(1);
+  }
+}
+
+/**
+ * Main build function
+ */
 async function build() {
   log('Starting production build', colors.bright + colors.green);
   
   // Prepare the dist directory
-  prepareDistDirectory();
+  await prepareDistDirectory();
   
   // Run TypeScript compiler
   if (!execute('tsc --project tsconfig.json', 'TypeScript compilation failed')) {
@@ -106,15 +153,18 @@ async function build() {
   }
   
   // Copy rules to dist
-  copyRules();
+  await copyRulesToDist();
+  
+  // Create bin script
+  await createBinScript();
   
   // Make bin script executable
-  makeExecutable();
+  await makeExecutable();
   
   log('Production build completed successfully', colors.bright + colors.green);
 }
 
-// Run the build
+// Execute build
 build().catch(error => {
   log(`Build failed: ${error.message}`, colors.red);
   process.exit(1);

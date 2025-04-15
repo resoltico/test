@@ -1,65 +1,60 @@
-import { writeFile } from 'fs/promises';
-import * as path from 'path';
-import { WriteOptions } from './types.js';
-import { Logger } from '../../shared/logger/index.js';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { WriteOptions } from '../../types/core/io.js';
+import { IOError } from '../../shared/errors/app-error.js';
+import { Logger } from '../../shared/logger/console.js';
 
+/**
+ * Output writer
+ */
 export class OutputWriter {
   constructor(private logger: Logger) {}
-  
+
   /**
-   * Write content to output (file or stdout)
+   * Write output to file or stdout
    */
   async write(content: string, options: WriteOptions): Promise<void> {
-    const { outputPath } = options;
-    
-    if (outputPath) {
-      await this.writeToFile(content, outputPath);
-    } else {
-      this.writeToStdout(content);
+    const { outputPath, createDirs } = options;
+
+    if (!outputPath) {
+      // Write to stdout
+      process.stdout.write(content);
+      return;
     }
-  }
-  
-  /**
-   * Write content to a file
-   */
-  private async writeToFile(content: string, outputPath: string): Promise<void> {
+
     try {
-      await writeFile(outputPath, content, 'utf8');
-      this.logger.debug(`Wrote ${content.length} bytes to file ${outputPath}`);
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Failed to write to file ${outputPath}: ${errorMessage}`);
-      throw new Error(`Failed to write to file ${outputPath}: ${errorMessage}`);
+      // Create directories if needed
+      if (createDirs) {
+        const dirPath = path.dirname(outputPath);
+        await fs.mkdir(dirPath, { recursive: true });
+      }
+
+      // Write to file
+      await fs.writeFile(outputPath, content, 'utf8');
+      this.logger.info(`Output written to ${outputPath}`);
+    } catch (error) {
+      throw new IOError(`Failed to write output to ${outputPath}: ${error}`);
     }
   }
-  
+
   /**
-   * Write content to stdout
+   * Determine output path based on source path
    */
-  private writeToStdout(content: string): void {
-    process.stdout.write(content);
-    this.logger.debug(`Wrote ${content.length} bytes to stdout`);
-  }
-  
-  /**
-   * Determine output path based on input path
-   */
-  static determineOutputPath(inputPath: string, isUrl: boolean): string {
-    let baseName: string;
-    
+  static determineOutputPath(sourcePath: string, isUrl: boolean): string {
     if (isUrl) {
-      const url = new URL(inputPath);
-      const pathName = url.pathname;
-      const fileName = path.basename(pathName);
-      
-      baseName = fileName || url.hostname;
+      // For URLs, use the hostname as the filename
+      try {
+        const url = new URL(sourcePath.startsWith('http') ? sourcePath : `https://${sourcePath}`);
+        const hostname = url.hostname.replace(/^www\./, '');
+        return `${hostname}.md`;
+      } catch {
+        // Fallback for invalid URLs
+        return 'output.md';
+      }
     } else {
-      baseName = path.basename(inputPath, path.extname(inputPath));
+      // For files, replace the extension with .md
+      const parsedPath = path.parse(sourcePath);
+      return `${parsedPath.dir}/${parsedPath.name}.md`;
     }
-    
-    // Sanitize filename
-    baseName = baseName.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '');
-    
-    return `${baseName}.md`;
   }
 }
