@@ -1,105 +1,60 @@
-/**
- * YAML rule loader
- */
-import path from 'node:path';
-import fs from 'node:fs/promises';
-import yaml from 'js-yaml';
-import { RuleLoader } from '../types.js';
-import { Rule } from '../../../types.js';
-import { Logger } from '../../../types.js';
-import { RuleError } from '../../../shared/errors/index.js';
-import { YAMLRule, YAMLRulesFile } from '../types.js';
+import { readFile } from 'fs/promises';
+import * as yaml from 'js-yaml';
+import { Rule, YAMLRuleDef } from '../../../types.js';
+import { Logger } from '../../../shared/logger/index.js';
 
-/**
- * Loads rules from YAML files
- */
-export class YAMLRuleLoader implements RuleLoader {
+export class YAMLRuleLoader {
   constructor(private logger: Logger) {}
   
   /**
-   * Checks if this loader can handle a file based on its extension
+   * Load rules from a YAML file
    */
-  canLoad(filePath: string): boolean {
-    const ext = path.extname(filePath).toLowerCase();
-    return ext === '.yaml' || ext === '.yml';
-  }
-  
-  /**
-   * Loads rules from a YAML file
-   */
-  async loadRule(filePath: string): Promise<Rule> {
+  async loadRules(filePath: string): Promise<Rule[]> {
     try {
-      this.logger.debug(`Loading YAML rule from ${filePath}`);
+      // Read and parse YAML file
+      const content = await readFile(filePath, 'utf8');
+      const data = yaml.load(content) as { rules?: Record<string, YAMLRuleDef> };
       
-      // Read the YAML file
-      const content = await fs.readFile(filePath, 'utf8');
-      
-      // Parse the YAML content
-      const data = yaml.load(content) as unknown;
-      
-      // Validate the YAML structure
-      if (!data || typeof data !== 'object') {
-        throw new RuleError(`YAML file ${filePath} does not contain a valid object`);
+      if (!data || !data.rules) {
+        this.logger.warn(`No rules found in ${filePath}`);
+        return [];
       }
       
-      const yamlData = data as Partial<YAMLRulesFile>;
+      // Convert YAML rules to Rule objects
+      const rules: Rule[] = [];
       
-      if (!yamlData.rules || typeof yamlData.rules !== 'object') {
-        throw new RuleError(`YAML file ${filePath} must have a 'rules' object`);
+      for (const [name, definition] of Object.entries(data.rules)) {
+        if (!definition.filter || !definition.replacement) {
+          this.logger.warn(`Invalid rule definition for "${name}" in ${filePath}`);
+          continue;
+        }
+        
+        // Convert YAML rule to executable rule
+        rules.push(this.convertYAMLRule(name, definition));
       }
       
-      // Convert the first rule found in the file
-      const ruleName = Object.keys(yamlData.rules)[0];
-      if (!ruleName) {
-        throw new RuleError(`No rules found in YAML file ${filePath}`);
-      }
-      
-      const yamlRule = yamlData.rules[ruleName] as YAMLRule;
-      
-      // Validate the YAML rule
-      this.validateYAMLRule(yamlRule, ruleName, filePath);
-      
-      // Convert the YAML rule to a Rule object
-      return this.convertYAMLRule(ruleName, yamlRule);
-    } catch (error) {
-      throw new RuleError(`Failed to load rule from ${filePath}: ${(error as Error).message}`, 
-        path.basename(filePath, path.extname(filePath)));
+      this.logger.debug(`Loaded ${rules.length} rules from ${filePath}`);
+      return rules;
+    } catch (error: any) {
+      this.logger.error(`Failed to load YAML rules from ${filePath}: ${error.message}`);
+      return [];
     }
   }
   
   /**
-   * Validates a YAML rule structure
+   * Convert a YAML rule definition to an executable Rule
    */
-  private validateYAMLRule(rule: unknown, ruleName: string, filePath: string): asserts rule is YAMLRule {
-    if (!rule || typeof rule !== 'object') {
-      throw new RuleError(`Rule '${ruleName}' in ${filePath} is not an object`);
-    }
-    
-    const { filter, replacement } = rule as Partial<YAMLRule>;
-    
-    if (!filter || typeof filter !== 'string') {
-      throw new RuleError(`Rule '${ruleName}' in ${filePath} must have a filter property`);
-    }
-    
-    if (!replacement || typeof replacement !== 'string') {
-      throw new RuleError(`Rule '${ruleName}' in ${filePath} must have a replacement property`);
-    }
-  }
-  
-  /**
-   * Converts a YAML rule to a Rule object
-   */
-  private convertYAMLRule(name: string, yamlRule: YAMLRule): Rule {
+  private convertYAMLRule(name: string, definition: YAMLRuleDef): Rule {
     return {
       name,
-      filter: yamlRule.filter,
+      filter: definition.filter,
       replacement: (content: string, node: Node) => {
         // Replace content placeholder
-        let result = yamlRule.replacement.replace(/\{content\}/g, content);
+        let result = definition.replacement.replace(/\{content\}/g, content);
         
         // Replace attribute placeholders
-        if (yamlRule.attributes) {
-          for (const attr of yamlRule.attributes) {
+        if (definition.attributes) {
+          for (const attr of definition.attributes) {
             const placeholder = `{attr:${attr}}`;
             const attrValue = (node as Element).getAttribute?.(attr) || '';
             result = result.replace(new RegExp(placeholder, 'g'), attrValue);

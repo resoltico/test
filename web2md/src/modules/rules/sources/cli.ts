@@ -1,72 +1,72 @@
-/**
- * CLI-based rules source
- */
-import path from 'node:path';
-import { FileSystemInterface } from '../../io/types.js';
-import { RuleSource } from '../types.js';
-import { Logger } from '../../../types.js';
+import * as path from 'path';
+import { readdir, stat } from 'fs/promises';
+import { Rule } from '../../../types.js';
+import { YAMLRuleLoader } from '../loaders/yaml-loader.js';
+import { JSRuleLoader } from '../loaders/js-loader.js';
+import { Logger } from '../../../shared/logger/index.js';
 
-/**
- * Source for rules specified via the CLI --rules-dir option
- */
-export class CLIRulesSource implements RuleSource {
+export class CLISource {
   constructor(
-    private fsAdapter: FileSystemInterface,
+    private yamlLoader: YAMLRuleLoader,
+    private jsLoader: JSRuleLoader,
     private logger: Logger
   ) {}
   
   /**
-   * Returns paths to rules in the CLI-specified directory
+   * Load rules from a directory specified via CLI
    */
-  async getRulePaths(): Promise<string[]> {
-    const rulesDir = this.getRulesDirectory();
-    if (!rulesDir) {
-      return [];
-    }
-    
-    this.logger.debug(`Loading rules from CLI-specified directory: ${rulesDir}`);
+  async loadRules(directory: string): Promise<Rule[]> {
+    // Resolve path relative to current working directory
+    const resolvedDir = path.resolve(process.cwd(), directory);
     
     try {
-      const exists = await this.fsAdapter.fileExists(rulesDir);
-      if (!exists) {
-        this.logger.warn(`CLI rules directory not found: ${rulesDir}`);
+      const dirStat = await stat(resolvedDir);
+      if (!dirStat.isDirectory()) {
+        this.logger.error(`Rules directory is not a directory: ${resolvedDir}`);
         return [];
       }
       
-      const files = await this.fsAdapter.readDirectory(rulesDir);
-      
-      // Filter for JS, TS, and YAML files
-      const ruleFiles = files.filter(file => {
-        const ext = path.extname(file).toLowerCase();
-        return ext === '.js' || ext === '.ts' || ext === '.yaml' || ext === '.yml';
-      });
-      
-      this.logger.debug(`Found ${ruleFiles.length} rule files in CLI-specified directory`);
-      return ruleFiles;
-    } catch (error) {
-      this.logger.warn(`Error loading rules from CLI directory: ${(error as Error).message}`);
+      return this.loadRulesFromDirectory(resolvedDir);
+    } catch (error: any) {
+      this.logger.error(`Failed to load rules from directory: ${resolvedDir}: ${error.message}`);
       return [];
     }
   }
   
   /**
-   * CLI rules source should be used if --rules-dir is specified
+   * Load rules from a directory
    */
-  async shouldUse(): Promise<boolean> {
-    return Boolean(this.getRulesDirectory());
-  }
-  
-  /**
-   * Gets the rules directory from the CLI arguments
-   */
-  private getRulesDirectory(): string | null {
-    const args = process.argv;
-    const rulesDirIndex = args.indexOf('--rules-dir');
+  private async loadRulesFromDirectory(directory: string): Promise<Rule[]> {
+    const files = await readdir(directory);
+    const rules: Rule[] = [];
     
-    if (rulesDirIndex !== -1 && args.length > rulesDirIndex + 1) {
-      return path.resolve(process.cwd(), args[rulesDirIndex + 1]);
+    for (const file of files) {
+      const filePath = path.join(directory, file);
+      const fileStat = await stat(filePath);
+      
+      if (fileStat.isDirectory()) {
+        // Recursively load rules from subdirectory
+        const subdirRules = await this.loadRulesFromDirectory(filePath);
+        rules.push(...subdirRules);
+      } else {
+        // Load rules from file
+        const ext = path.extname(file).toLowerCase();
+        let fileRules: Rule[] = [];
+        
+        if (ext === '.yaml' || ext === '.yml') {
+          fileRules = await this.yamlLoader.loadRules(filePath);
+        } else if (ext === '.js' || ext === '.mjs') {
+          fileRules = await this.jsLoader.loadRules(filePath);
+        } else {
+          this.logger.warn(`Unsupported rule file format: ${filePath}`);
+          continue;
+        }
+        
+        rules.push(...fileRules);
+      }
     }
     
-    return null;
+    this.logger.debug(`Loaded ${rules.length} rules from directory: ${directory}`);
+    return rules;
   }
 }

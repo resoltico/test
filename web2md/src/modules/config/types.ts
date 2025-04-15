@@ -1,44 +1,15 @@
-/**
- * Configuration module type definitions
- */
-import { BaseConfig } from '../../types.js';
+import { z } from 'zod';
 
-/**
- * Configuration for the web2md application
- */
-export interface Config extends BaseConfig {
-  /**
-   * Heading style to use in the generated Markdown
-   */
-  headingStyle: 'atx' | 'setext';
-  
-  /**
-   * List marker character to use for unordered lists
-   */
-  listMarker: '-' | '*' | '+';
-  
-  /**
-   * Code block style to use
-   */
-  codeBlockStyle: 'fenced' | 'indented';
-  
-  /**
-   * Whether to preserve table alignment
-   */
-  preserveTableAlignment: boolean;
-  
-  /**
-   * HTML tags to ignore (not convert to Markdown)
-   */
-  ignoreTags: string[];
-  
-  /**
-   * Paths to rules to use for conversion
-   */
-  rules?: string[];
-  
-  /**
-   * Whether to enable debug mode
-   */
-  debug: boolean;
-}
+export const ConfigSchema = z.object({
+  headingStyle: z.enum(['atx', 'setext']).default('atx'),
+  listMarker: z.enum(['-', '*', '+']).default('-'),
+  codeBlockStyle: z.enum(['fenced', 'indented']).default('fenced'),
+  preserveTableAlignment: z.boolean().default(true),
+  ignoreTags: z.array(z.string()).default([]),
+  useBuiltInRules: z.boolean().optional(),
+  builtInRules: z.array(z.string()).optional(),
+  customRules: z.array(z.string()).optional(),
+  debug: z.boolean().default(false)
+});
+
+export type ConfigSchemaType = z.infer<typeof ConfigSchema>;

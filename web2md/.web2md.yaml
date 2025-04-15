@@ -1,0 +1,35 @@
+# WEB2MD Configuration
+
+# Markdown formatting options
+headingStyle: atx      # atx (#) or setext (===)
+listMarker: "-"        # -, *, or +
+codeBlockStyle: fenced # fenced (```) or indented (4 spaces)
+preserveTableAlignment: true
+
+# Tags to completely ignore during conversion
+ignoreTags:
+  - script
+  - style
+  - noscript
+  - iframe
+
+# Either use all built-ins (default if this section is omitted)
+useBuiltInRules: true
+
+# Or explicitly select which built-in rule sets to use
+# builtInRules:
+#   - common/elements    # Basic HTML elements (headings, paragraphs, lists)
+#   - text/formatting    # Bold, italic, etc.
+#   - text/links         # Hyperlinks and references
+#   - media/images       # Images and figures
+#   - tables/tables      # Table formatting
+#   - code/blocks        # Code blocks with language highlighting
+#   - math/math          # Mathematical expressions
+
+# Custom rules to extend or override built-ins
+# customRules:
+#   - ./my-rules/special-blocks.yaml  # Custom YAML rules
+#   - ./my-rules/math-enhanced.js     # Custom JS rules
+
+# Debug mode for detailed logging
+debug: false

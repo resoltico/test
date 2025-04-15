@@ -1,39 +1,60 @@
 /**
- * Core shared type definitions used across multiple modules
+ * Rule filter that determines if a rule applies to an HTML node
  */
+export type RuleFilter = string | string[] | ((node: Node) => boolean);
 
 /**
- * Basic logger interface that all loggers must implement
+ * Rule replacement function that converts HTML to Markdown
  */
-export interface Logger {
-  debug(message: string, ...args: unknown[]): void;
-  info(message: string, ...args: unknown[]): void;
-  warn(message: string, ...args: unknown[]): void;
-  error(message: string, ...args: unknown[]): void;
-}
+export type RuleReplacement = (content: string, node: Node) => string;
 
 /**
- * Base configuration interface that defines the common properties
- */
-export interface BaseConfig {
-  debug: boolean;
-}
-
-/**
- * Represents a rule's filter function that determines if a node should be processed
- */
-export type RuleFilter = string | string[] | ((node: Node, options: Record<string, unknown>) => boolean);
-
-/**
- * Represents a rule's replacement function that converts a node to Markdown
- */
-export type RuleReplacement = (content: string, node: Node, options: Record<string, unknown>) => string;
-
-/**
- * Basic rule interface that all rules must implement
+ * Core rule interface that all rule implementations must follow
  */
 export interface Rule {
   name: string;
   filter: RuleFilter;
   replacement: RuleReplacement;
+}
+
+/**
+ * YAML rule definition format
+ */
+export interface YAMLRuleDef {
+  filter: string;
+  replacement: string;
+  attributes?: string[];
+}
+
+/**
+ * Configuration options
+ */
+export interface Config {
+  headingStyle: 'atx' | 'setext';
+  listMarker: '-' | '*' | '+';
+  codeBlockStyle: 'fenced' | 'indented';
+  preserveTableAlignment: boolean;
+  ignoreTags: string[];
+  useBuiltInRules?: boolean;
+  builtInRules?: string[];
+  customRules?: string[];
+  debug: boolean;
+}
+
+/**
+ * Application options
+ */
+export interface AppOptions {
+  rootDir: string;
+}
+
+/**
+ * CLI options
+ */
+export interface CLIOptions {
+  file?: string;
+  url?: string;
+  output?: string;
+  rulesDir?: string;
+  debug?: boolean;
 }

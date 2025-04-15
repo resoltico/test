@@ -1,57 +1,69 @@
-/**
- * HTML to Markdown converter implementation
- */
-import { TurndownServiceInterface } from './types.js';
-import { RulesManager } from '../rules/manager.js';
-import { ConfigLoader } from '../config/loader.js';
-import { Logger } from '../../types.js';
-import { ConversionError } from '../../shared/errors/index.js';
+import TurndownService from 'turndown';
+import { Rule, Config } from '../../types.js';
+import { Logger } from '../../shared/logger/index.js';
 
-/**
- * Converts HTML content to Markdown using the rules and Turndown service
- */
 export class Converter {
-  constructor(
-    private rulesManager: RulesManager,
-    private turndownService: TurndownServiceInterface,
-    private configLoader: ConfigLoader,
-    private logger: Logger
-  ) {}
+  constructor(private logger: Logger) {}
   
   /**
-   * Converts HTML content to Markdown
+   * Convert HTML to Markdown using rules
    */
-  async convert(content: string): Promise<string> {
-    try {
-      // Load configuration
-      const config = await this.configLoader.loadConfig();
-      
-      // Configure the Turndown service
-      this.turndownService.configure({
-        headingStyle: config.headingStyle,
-        listMarker: config.listMarker,
-        codeBlockStyle: config.codeBlockStyle,
-        ignoreTags: config.ignoreTags
+  async convert(html: string, rules: Rule[], config: Config): Promise<string> {
+    this.logger.debug('Initializing Turndown service');
+    
+    // Initialize Turndown service with configuration
+    const turndownService = new TurndownService({
+      headingStyle: config.headingStyle,
+      bulletListMarker: config.listMarker,
+      codeBlockStyle: config.codeBlockStyle,
+      emDelimiter: '*',
+      strongDelimiter: '**',
+    });
+    
+    // Set up ignore tags
+    for (const tag of config.ignoreTags) {
+      this.logger.debug(`Configuring to ignore tag: ${tag}`);
+      // Use a filter function to properly match the tag
+      turndownService.remove((node) => {
+        return node.nodeName.toLowerCase() === tag.toLowerCase();
       });
-      
-      // Load rules
-      await this.rulesManager.loadRules();
-      
-      // Apply rules to the Turndown service
-      const rules = this.rulesManager.getRules();
-      this.logger.debug(`Applying ${rules.length} rules to the Turndown service`);
-      
-      for (const rule of rules) {
-        this.turndownService.addRule(rule);
-      }
-      
-      // Convert the content
-      this.logger.debug('Converting HTML to Markdown');
-      const markdown = this.turndownService.turndown(content);
-      
-      return markdown;
-    } catch (error) {
-      throw new ConversionError(`Failed to convert HTML to Markdown: ${(error as Error).message}`);
+    }
+    
+    // Apply rules
+    this.logger.debug(`Applying ${rules.length} rules`);
+    for (const rule of rules) {
+      turndownService.addRule(rule.name, {
+        filter: this.normalizeFilter(rule.filter),
+        replacement: (content, node) => rule.replacement(content, node)
+      });
+    }
+    
+    // Convert HTML to Markdown
+    this.logger.debug('Converting HTML to Markdown');
+    const markdown = turndownService.turndown(html);
+    
+    return markdown;
+  }
+  
+  /**
+   * Normalize rule filter for Turndown
+   */
+  private normalizeFilter(filter: Rule['filter']): any {
+    if (typeof filter === 'string') {
+      // Single tag name or CSS selector
+      return filter;
+    } else if (Array.isArray(filter)) {
+      // Array of tag names or CSS selectors
+      return {
+        [Symbol.iterator]: function* () {
+          for (const item of filter) {
+            yield item;
+          }
+        }
+      };
+    } else {
+      // Function filter
+      return filter;
     }
   }
 }

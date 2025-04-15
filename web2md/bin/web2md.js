@@ -1,10 +1,23 @@
 #!/usr/bin/env node
 
-// This is an ultra-lightweight entry point that delegates to the app
-import '../dist/app.js';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
+import { createApp } from '../dist/app.js';
 
-// If this file is run directly during development, use tsx for fast iteration
-if (process.argv[1] === import.meta.url) {
-  console.warn('Running in development mode with tsx');
-  await import('tsx/cjs').then(tsx => tsx.run('../src/app.ts'));
-}
+// Get the directory of the current module
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Resolve paths
+const rootDir = resolve(__dirname, '..');
+
+// Create and run the application
+const app = createApp({
+  rootDir
+});
+
+app.run(process.argv)
+  .catch(error => {
+    console.error(error);
+    process.exit(1);
+  });

@@ -1,70 +1,68 @@
-/**
- * JavaScript/TypeScript rule loader
- */
-import path from 'node:path';
-import { RuleLoader } from '../types.js';
 import { Rule } from '../../../types.js';
-import { Logger } from '../../../types.js';
-import { RuleError } from '../../../shared/errors/index.js';
+import { Logger } from '../../../shared/logger/index.js';
 
-/**
- * Loads rules from JavaScript or TypeScript files
- */
-export class JSRuleLoader implements RuleLoader {
+export class JSRuleLoader {
   constructor(private logger: Logger) {}
   
   /**
-   * Checks if this loader can handle a file based on its extension
+   * Load rules from a JavaScript file
    */
-  canLoad(filePath: string): boolean {
-    const ext = path.extname(filePath).toLowerCase();
-    return ext === '.js' || ext === '.ts';
-  }
-  
-  /**
-   * Loads a rule from a JavaScript or TypeScript file
-   */
-  async loadRule(filePath: string): Promise<Rule> {
+  async loadRules(filePath: string): Promise<Rule[]> {
     try {
-      this.logger.debug(`Loading JS/TS rule from ${filePath}`);
+      // Import the JavaScript module
+      const module = await import(filePath);
       
-      // Import the rule dynamically
-      // Note: In ESM, we need to use dynamic import
-      const importedModule = await import(filePath);
+      // Check if it's a default export
+      if (module.default) {
+        if (this.isValidRule(module.default)) {
+          this.logger.debug(`Loaded rule from ${filePath}`);
+          return [module.default];
+        }
+      }
       
-      // Handle both ESM default exports and CommonJS exports
-      const rule = importedModule.default || importedModule;
+      // Check if it's an array of rules
+      if (Array.isArray(module.default)) {
+        const rules = module.default.filter((rule: unknown) => this.isValidRule(rule));
+        this.logger.debug(`Loaded ${rules.length} rules from ${filePath}`);
+        return rules;
+      }
       
-      // Validate the rule
-      this.validateRule(rule, filePath);
+      // Check if the module exports multiple rules
+      const rules: Rule[] = [];
+      for (const [key, value] of Object.entries(module)) {
+        if (key !== 'default' && this.isValidRule(value)) {
+          rules.push(value);
+        }
+      }
       
-      return rule;
-    } catch (error) {
-      throw new RuleError(`Failed to load rule from ${filePath}: ${(error as Error).message}`, 
-        path.basename(filePath, path.extname(filePath)));
+      if (rules.length > 0) {
+        this.logger.debug(`Loaded ${rules.length} rules from ${filePath}`);
+        return rules;
+      }
+      
+      this.logger.warn(`No valid rules found in ${filePath}`);
+      return [];
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to load JavaScript rules from ${filePath}: ${errorMessage}`);
+      return [];
     }
   }
   
   /**
-   * Validates that a rule has the required properties
+   * Check if an object is a valid rule
    */
-  private validateRule(rule: unknown, filePath: string): asserts rule is Rule {
-    if (!rule || typeof rule !== 'object') {
-      throw new RuleError(`Rule in ${filePath} is not an object`);
-    }
-    
-    const { name, filter, replacement } = rule as Partial<Rule>;
-    
-    if (!name || typeof name !== 'string') {
-      throw new RuleError(`Rule in ${filePath} must have a name property`);
-    }
-    
-    if (!filter || (typeof filter !== 'string' && !Array.isArray(filter) && typeof filter !== 'function')) {
-      throw new RuleError(`Rule in ${filePath} must have a valid filter property`);
-    }
-    
-    if (!replacement || typeof replacement !== 'function') {
-      throw new RuleError(`Rule in ${filePath} must have a replacement function`);
-    }
+  private isValidRule(obj: unknown): obj is Rule {
+    return (
+      obj !== null &&
+      typeof obj === 'object' &&
+      'name' in obj && typeof obj.name === 'string' &&
+      'filter' in obj && (
+        typeof obj.filter === 'string' ||
+        Array.isArray(obj.filter) ||
+        typeof obj.filter === 'function'
+      ) &&
+      'replacement' in obj && typeof obj.replacement === 'function'
+    );
   }
 }

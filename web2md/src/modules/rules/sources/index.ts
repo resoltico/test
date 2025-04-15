@@ -1,6 +1,3 @@
-/**
- * Rule sources exports
- */
-export { BuiltInRulesSource } from './built-in.js';
-export { ConfigRulesSource } from './config.js';
-export { CLIRulesSource } from './cli.js';
+export { BuiltInSource } from './built-in.js';
+export { CustomSource } from './custom.js';
+export { CLISource } from './cli.js';

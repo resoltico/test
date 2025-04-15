@@ -1,54 +1,50 @@
-/**
- * Content reader implementations for files and URLs
- */
-import { FileSystemInterface, HttpInterface } from './types.js';
-import { Logger } from '../../types.js';
-import { resolvePathFromCwd } from '../../shared/utils/path-utils.js';
+import { readFile } from 'fs/promises';
+import got from 'got';
+import { Logger } from '../../shared/logger/index.js';
 
-/**
- * Reads content from a file
- */
 export class FileReader {
-  constructor(
-    private fsAdapter: FileSystemInterface,
-    private logger: Logger
-  ) {}
+  constructor(private logger: Logger) {}
   
   /**
-   * Reads content from a file path
+   * Read content from a file
    */
   async read(filePath: string): Promise<string> {
-    const resolvedPath = resolvePathFromCwd(filePath);
-    this.logger.info(`Reading file from ${resolvedPath}`);
-    
-    // Check if file exists
-    const exists = await this.fsAdapter.fileExists(resolvedPath);
-    if (!exists) {
-      throw new Error(`File not found: ${resolvedPath}`);
+    try {
+      const content = await readFile(filePath, 'utf8');
+      this.logger.debug(`Read ${content.length} bytes from file ${filePath}`);
+      return content;
+    } catch (error: any) {
+      this.logger.error(`Failed to read file ${filePath}: ${error.message}`);
+      throw new Error(`Failed to read file ${filePath}: ${error.message}`);
     }
-    
-    return this.fsAdapter.readFile(resolvedPath);
   }
 }
 
-/**
- * Reads content from a URL
- */
 export class URLReader {
-  constructor(
-    private httpAdapter: HttpInterface,
-    private logger: Logger
-  ) {}
+  constructor(private logger: Logger) {}
   
   /**
-   * Reads content from a URL
+   * Read content from a URL
    */
   async read(url: string): Promise<string> {
-    this.logger.info(`Reading content from URL: ${url}`);
-    
-    // Ensure URL has a protocol
-    const urlWithProtocol = url.startsWith('http') ? url : `https://${url}`;
-    
-    return this.httpAdapter.fetchUrl(urlWithProtocol);
+    try {
+      // Validate URL
+      new URL(url); // Will throw if invalid
+      
+      // Fetch content
+      const response = await got(url);
+      const content = response.body;
+      
+      this.logger.debug(`Read ${content.length} bytes from URL ${url}`);
+      return content;
+    } catch (error: any) {
+      if (error instanceof TypeError) {
+        this.logger.error(`Invalid URL: ${url}`);
+        throw new Error(`Invalid URL: ${url}`);
+      }
+      
+      this.logger.error(`Failed to fetch URL ${url}: ${error.message}`);
+      throw new Error(`Failed to fetch URL ${url}: ${error.message}`);
+    }
   }
 }

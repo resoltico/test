@@ -46,3 +46,35 @@ rules:
   horizontalRule:
     filter: "hr"
     replacement: "---\n\n"
+    
+  br:
+    filter: "br"
+    replacement: "\n"
+    
+  div:
+    filter: "div"
+    replacement: "{content}\n\n"
+    
+  section:
+    filter: "section"
+    replacement: "{content}\n\n"
+    
+  article:
+    filter: "article"
+    replacement: "{content}\n\n"
+    
+  main:
+    filter: "main"
+    replacement: "{content}\n\n"
+    
+  header:
+    filter: "header"
+    replacement: "{content}\n\n"
+    
+  footer:
+    filter: "footer"
+    replacement: "{content}\n\n"
+    
+  aside:
+    filter: "aside"
+    replacement: "{content}\n\n"

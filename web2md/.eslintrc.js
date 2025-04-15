@@ -1,27 +1,29 @@
 export default {
   root: true,
-  parser: '@typescript-eslint/parser',
-  plugins: ['@typescript-eslint'],
   extends: [
     'eslint:recommended',
-    'plugin:@typescript-eslint/recommended'
+    'plugin:@typescript-eslint/recommended',
   ],
-  env: {
-    node: true,
-    es2022: true
-  },
+  parser: '@typescript-eslint/parser',
+  plugins: ['@typescript-eslint'],
   parserOptions: {
     ecmaVersion: 'latest',
-    sourceType: 'module'
+    sourceType: 'module',
+  },
+  env: {
+    node: true,
+    es2022: true,
   },
   rules: {
     '@typescript-eslint/no-explicit-any': 'warn',
-    '@typescript-eslint/explicit-module-boundary-types': 'off',
-    'no-console': 'off',
-    'no-unused-vars': 'off',
-    '@typescript-eslint/no-unused-vars': ['error', { 
+    '@typescript-eslint/explicit-function-return-type': ['warn', {
+      allowExpressions: true,
+      allowTypedFunctionExpressions: true,
+    }],
+    '@typescript-eslint/no-unused-vars': ['error', {
       argsIgnorePattern: '^_',
-      varsIgnorePattern: '^_' 
-    }]
-  }
+      varsIgnorePattern: '^_',
+    }],
+    'no-console': 'off',
+  },
 };

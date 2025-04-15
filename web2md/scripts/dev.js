@@ -1,12 +1,6 @@
-#!/usr/bin/env node
-
-/**
- * Development build script that watches for changes
- */
-import { execSync, spawn } from 'child_process';
+import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
 // ANSI color codes for output
 const colors = {
@@ -23,18 +17,6 @@ const colors = {
 function log(message, color = colors.reset) {
   const timestamp = new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '');
   console.log(`${colors.cyan}[${timestamp}]${colors.reset} ${color}${message}${colors.reset}`);
-}
-
-// Execute a command and log its output
-function execute(command, errorMessage) {
-  try {
-    log(`Executing: ${command}`, colors.yellow);
-    execSync(command, { stdio: 'inherit' });
-    return true;
-  } catch (error) {
-    log(`${errorMessage}: ${error.message}`, colors.red);
-    return false;
-  }
 }
 
 // Make bin script executable
@@ -56,17 +38,6 @@ async function dev() {
   const tsxProcess = spawn('npx', ['tsx', 'watch', 'src'], {
     stdio: 'inherit',
     shell: true
-  });
-  
-  // Handle tsx process events
-  tsxProcess.on('error', (error) => {
-    log(`tsx process error: ${error.message}`, colors.red);
-  });
-  
-  tsxProcess.on('close', (code) => {
-    if (code !== 0) {
-      log(`tsx process exited with code ${code}`, colors.red);
-    }
   });
   
   // Handle process termination

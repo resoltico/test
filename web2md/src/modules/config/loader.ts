@@ -1,117 +1,96 @@
-/**
- * Configuration loading implementation
- */
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
-import { existsSync } from 'node:fs';
-import { ConfigError } from '../../shared/errors/index.js';
-import { Logger } from '../../types.js';
-import { Config } from './types.js';
-import { configSchema, defaultConfig } from './schema.js';
+import { readFile } from 'fs/promises';
+import { existsSync } from 'fs';
+import * as path from 'path';
+import * as yaml from 'js-yaml';
+import { Config } from '../../types.js';
+import { configSchema } from './schema.js';
+import { Logger } from '../../shared/logger/index.js';
 
-/**
- * Loads and validates the application configuration
- */
 export class ConfigLoader {
-  private config: Config | null = null;
+  // Default configuration
+  private readonly defaultConfig: Config = {
+    headingStyle: 'atx',
+    listMarker: '-',
+    codeBlockStyle: 'fenced',
+    preserveTableAlignment: true,
+    ignoreTags: [],
+    useBuiltInRules: true,
+    debug: false
+  };
   
   constructor(private logger: Logger) {}
   
   /**
-   * Loads the configuration from the most appropriate source
+   * Load configuration from file or use defaults
    */
   async loadConfig(): Promise<Config> {
-    // Return cached config if available
-    if (this.config) {
-      return this.config;
+    // Find configuration file
+    const configPath = this.findConfigFile();
+    if (!configPath) {
+      this.logger.debug('No configuration file found, using defaults');
+      return this.defaultConfig;
     }
     
     try {
-      // Find configuration file
-      const configPath = this.findConfigFile();
+      // Read the configuration file
+      const content = await readFile(configPath, 'utf8');
       
-      // If no config file found, use defaults
-      if (!configPath) {
-        this.logger.debug('No configuration file found, using defaults');
-        // Create a new object from defaultConfig with a mutable ignoreTags array
-        this.config = {
-          ...defaultConfig,
-          ignoreTags: [...defaultConfig.ignoreTags]
-        };
-        return this.config;
+      // Parse based on file extension
+      let parsedConfig: any;
+      if (configPath.endsWith('.yaml') || configPath.endsWith('.yml')) {
+        parsedConfig = yaml.load(content);
+      } else if (configPath.endsWith('.json')) {
+        parsedConfig = JSON.parse(content);
+      } else {
+        throw new Error(`Unsupported configuration file format: ${configPath}`);
       }
       
-      this.logger.debug(`Loading configuration from ${configPath}`);
-      
-      // Read and parse configuration
-      const configContent = await fs.readFile(configPath, 'utf8');
-      const parsedConfig = JSON.parse(configContent);
-      
-      // Merge with defaults and validate
+      // Merge with defaults
       const mergedConfig = {
-        ...defaultConfig,
-        ...parsedConfig,
-        // Ensure ignoreTags is a mutable array if not provided in parsedConfig
-        ignoreTags: parsedConfig.ignoreTags || [...defaultConfig.ignoreTags]
+        ...this.defaultConfig,
+        ...parsedConfig
       };
       
       // Validate configuration
-      try {
-        this.config = configSchema.parse(mergedConfig);
-      } catch (error) {
-        throw new ConfigError(`Invalid configuration: ${(error as Error).message}`);
-      }
-      
-      return this.config;
-    } catch (error) {
-      if (error instanceof ConfigError) {
-        throw error;
-      }
-      this.logger.warn(`Error loading configuration, using defaults: ${(error as Error).message}`);
-      // Create a new object from defaultConfig with a mutable ignoreTags array
-      this.config = {
-        ...defaultConfig,
-        ignoreTags: [...defaultConfig.ignoreTags]
-      };
-      return this.config;
+      return this.validateConfig(mergedConfig);
+    } catch (error: any) {
+      this.logger.warn(`Error loading configuration: ${error.message}`);
+      return this.defaultConfig;
     }
   }
   
   /**
-   * Overrides specific configuration values (e.g., from CLI options)
-   */
-  updateConfig(overrides: Partial<Config>): void {
-    if (!this.config) {
-      // Create a new object from defaultConfig with a mutable ignoreTags array
-      this.config = {
-        ...defaultConfig,
-        ignoreTags: [...defaultConfig.ignoreTags]
-      };
-    }
-    
-    this.config = {
-      ...this.config,
-      ...overrides
-    };
-  }
-  
-  /**
-   * Finds a configuration file in standard locations
+   * Find configuration file in standard locations
    */
   private findConfigFile(): string | null {
-    const possibleLocations = [
-      '.web2md.json',
-      '.web2md.js',
-      '.web2md/config.json'
+    const locations = [
+      'web2md.yaml',
+      'web2md.yml',
+      'web2md.json',
+      'web2md/config.yaml',
+      'web2md/config.yml',
+      'web2md/config.json'
     ];
     
-    for (const location of possibleLocations) {
-      const configPath = path.join(process.cwd(), location);
-      if (existsSync(configPath)) {
-        return configPath;
+    for (const location of locations) {
+      const filePath = path.resolve(process.cwd(), location);
+      if (existsSync(filePath)) {
+        return filePath;
       }
     }
     
     return null;
+  }
+  
+  /**
+   * Validate configuration against schema
+   */
+  private validateConfig(config: any): Config {
+    try {
+      return configSchema.parse(config);
+    } catch (error: any) {
+      this.logger.warn(`Invalid configuration: ${error.message}`);
+      return this.defaultConfig;
+    }
   }
 }

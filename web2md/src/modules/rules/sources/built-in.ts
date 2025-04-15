@@ -1,57 +1,116 @@
-/**
- * Built-in rules source
- */
-import path from 'node:path';
-import { FileSystemInterface } from '../../io/types.js';
-import { RuleSource } from '../types.js';
-import { Logger } from '../../../types.js';
-import { getBuiltInRulesPath } from '../../../shared/utils/path-utils.js';
+import * as path from 'path';
+import { readdir, stat } from 'fs/promises';
+import { Rule } from '../../../types.js';
+import { YAMLRuleLoader } from '../loaders/yaml-loader.js';
+import { JSRuleLoader } from '../loaders/js-loader.js';
+import { Logger } from '../../../shared/logger/index.js';
 
-/**
- * Source for built-in rules that come with the application
- */
-export class BuiltInRulesSource implements RuleSource {
+export class BuiltInSource {
   constructor(
-    private fsAdapter: FileSystemInterface,
+    private rootDir: string,
+    private yamlLoader: YAMLRuleLoader,
+    private jsLoader: JSRuleLoader,
     private logger: Logger
   ) {}
   
   /**
-   * Returns paths to all built-in rules
+   * Load all built-in rules
    */
-  async getRulePaths(): Promise<string[]> {
-    const builtInRulesDir = getBuiltInRulesPath();
-    this.logger.debug(`Loading built-in rules from ${builtInRulesDir}`);
+  async loadAllRules(): Promise<Rule[]> {
+    const rulesDir = this.getBuiltInRulesDir();
+    const categories = await readdir(rulesDir);
     
-    // Get all files in the built-in rules directory
-    try {
-      const exists = await this.fsAdapter.fileExists(builtInRulesDir);
-      if (!exists) {
-        this.logger.warn(`Built-in rules directory not found: ${builtInRulesDir}`);
-        return [];
+    const allRules: Rule[] = [];
+    
+    for (const category of categories) {
+      const categoryPath = path.join(rulesDir, category);
+      const categoryStat = await stat(categoryPath);
+      
+      if (categoryStat.isDirectory()) {
+        const categoryRules = await this.loadRulesFromDirectory(categoryPath);
+        allRules.push(...categoryRules);
       }
-      
-      const files = await this.fsAdapter.readDirectory(builtInRulesDir);
-      
-      // Filter for JS, TS, and YAML files
-      const ruleFiles = files.filter(file => {
-        const ext = path.extname(file).toLowerCase();
-        return ext === '.js' || ext === '.ts' || ext === '.yaml' || ext === '.yml';
-      });
-      
-      this.logger.debug(`Found ${ruleFiles.length} built-in rule files`);
-      return ruleFiles;
-    } catch (error) {
-      this.logger.warn(`Error loading built-in rules: ${(error as Error).message}`);
-      return [];
     }
+    
+    this.logger.debug(`Loaded ${allRules.length} built-in rules`);
+    return allRules;
   }
   
   /**
-   * Built-in rules source should be used only if no other source is available
+   * Load specific built-in rule sets
    */
-  async shouldUse(): Promise<boolean> {
-    // Always available but lowest priority
-    return true;
+  async loadSpecificRules(ruleSets: string[]): Promise<Rule[]> {
+    const rulesDir = this.getBuiltInRulesDir();
+    const allRules: Rule[] = [];
+    
+    for (const ruleSet of ruleSets) {
+      const ruleSetPath = path.join(rulesDir, ruleSet);
+      try {
+        const ruleSetStat = await stat(ruleSetPath);
+        
+        if (ruleSetStat.isDirectory()) {
+          // Load all rules in the directory
+          const rules = await this.loadRulesFromDirectory(ruleSetPath);
+          allRules.push(...rules);
+        } else {
+          // Load single rule file
+          const rules = await this.loadRuleFile(ruleSetPath);
+          allRules.push(...rules);
+        }
+      } catch (error: any) {
+        this.logger.warn(`Failed to load built-in rule set: ${ruleSet}: ${error.message}`);
+      }
+    }
+    
+    this.logger.debug(`Loaded ${allRules.length} rules from specified rule sets`);
+    return allRules;
+  }
+  
+  /**
+   * Load rules from a directory
+   */
+  private async loadRulesFromDirectory(directory: string): Promise<Rule[]> {
+    const files = await readdir(directory);
+    const rules: Rule[] = [];
+    
+    for (const file of files) {
+      const filePath = path.join(directory, file);
+      const fileStat = await stat(filePath);
+      
+      if (fileStat.isDirectory()) {
+        // Recursively load rules from subdirectory
+        const subdirRules = await this.loadRulesFromDirectory(filePath);
+        rules.push(...subdirRules);
+      } else {
+        // Load rules from file
+        const fileRules = await this.loadRuleFile(filePath);
+        rules.push(...fileRules);
+      }
+    }
+    
+    return rules;
+  }
+  
+  /**
+   * Load rules from a file
+   */
+  private async loadRuleFile(filePath: string): Promise<Rule[]> {
+    const ext = path.extname(filePath).toLowerCase();
+    
+    if (ext === '.yaml' || ext === '.yml') {
+      return this.yamlLoader.loadRules(filePath);
+    } else if (ext === '.js' || ext === '.mjs') {
+      return this.jsLoader.loadRules(filePath);
+    }
+    
+    this.logger.warn(`Unsupported rule file format: ${filePath}`);
+    return [];
+  }
+  
+  /**
+   * Get the built-in rules directory path
+   */
+  private getBuiltInRulesDir(): string {
+    return path.join(this.rootDir, 'rules');
   }
 }
