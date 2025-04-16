@@ -62,6 +62,10 @@ export class CLI {
       .option('--no-compression', 'Disable support for compressed responses')
       .option('--math-inline-delimiter <string>', 'Set delimiter for inline math (default: $)')
       .option('--math-block-delimiter <string>', 'Set delimiter for block math (default: $$)')
+      .option('--math-format <format>', 'Format to use for math output (latex, mathml, ascii)')
+      .option('--math-preserve', 'Preserve original math content (default: true)')
+      .option('--no-math-preserve', 'Don\'t preserve original math content')
+      .option('--math-selector <selector>', 'Custom selector for math elements')
       .option('--no-math', 'Disable math processing')
       .action(async (options) => {
         try {
@@ -88,6 +92,9 @@ export class CLI {
     math?: boolean;
     mathInlineDelimiter?: string;
     mathBlockDelimiter?: string;
+    mathFormat?: string;
+    mathPreserve?: boolean;
+    mathSelector?: string;
   }): Promise<void> {
     // Ensure either file or URL is provided
     if (!this.validateInputOptions(options)) {
@@ -184,6 +191,9 @@ export class CLI {
     compression?: boolean;
     mathInlineDelimiter?: string;
     mathBlockDelimiter?: string;
+    mathFormat?: string;
+    mathPreserve?: boolean;
+    mathSelector?: string;
   }): void {
     if (options.debug !== undefined) {
       config.debug = options.debug;
@@ -203,7 +213,7 @@ export class CLI {
       this.logger.debug('Compression support disabled via command line option');
     }
     
-    // Handle math delimiter options
+    // Handle math options
     if (options.mathInlineDelimiter) {
       config.math.inlineDelimiter = options.mathInlineDelimiter;
       this.logger.debug(`Math inline delimiter set to ${options.mathInlineDelimiter}`);
@@ -212,6 +222,30 @@ export class CLI {
     if (options.mathBlockDelimiter) {
       config.math.blockDelimiter = options.mathBlockDelimiter;
       this.logger.debug(`Math block delimiter set to ${options.mathBlockDelimiter}`);
+    }
+    
+    if (options.mathFormat) {
+      config.math.outputFormat = options.mathFormat;
+      this.logger.debug(`Math output format set to ${options.mathFormat}`);
+    }
+    
+    if (options.mathPreserve !== undefined) {
+      config.math.preserveOriginal = options.mathPreserve;
+      this.logger.debug(`Math original content preservation ${options.mathPreserve ? 'enabled' : 'disabled'}`);
+    }
+    
+    // Handle custom math selector - initialize selectors object if not present
+    if (options.mathSelector) {
+      if (!config.math.selectors) {
+        config.math.selectors = {
+          mathml: options.mathSelector,
+          scripts: 'script[type*="math/tex"], script[type*="math/asciimath"]',
+          dataAttributes: '[data-math], [data-latex], [data-mathml], [data-asciimath]'
+        };
+      } else {
+        config.math.selectors.mathml = options.mathSelector;
+      }
+      this.logger.debug(`Custom math selector set to: ${options.mathSelector}`);
     }
   }
   

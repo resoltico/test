@@ -48,6 +48,36 @@ export interface MathConfig {
    * Block math delimiter
    */
   blockDelimiter: string;
+  
+  /**
+   * Whether to preserve original math content
+   */
+  preserveOriginal: boolean;
+  
+  /**
+   * Format to use for math output
+   */
+  outputFormat: string;
+  
+  /**
+   * Custom selectors for identifying math content
+   */
+  selectors?: {
+    /**
+     * Selector for MathML elements
+     */
+    mathml?: string;
+    
+    /**
+     * Selector for math script elements
+     */
+    scripts?: string;
+    
+    /**
+     * Selector for elements with math data attributes
+     */
+    dataAttributes?: string;
+  };
 }
 
 /**
@@ -188,6 +218,21 @@ export interface CLICommandOptions {
    * Custom delimiter for block math
    */
   mathBlockDelimiter?: string;
+  
+  /**
+   * Format to use for math output
+   */
+  mathFormat?: string;
+  
+  /**
+   * Whether to preserve original math content
+   */
+  mathPreserve?: boolean;
+  
+  /**
+   * Custom selector for MathML elements
+   */
+  mathSelector?: string;
 }
 
 /**

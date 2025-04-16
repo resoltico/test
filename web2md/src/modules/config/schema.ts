@@ -68,11 +68,29 @@ export const configSchema = z.object({
   math: z.object({
     enabled: z.boolean().default(true),
     inlineDelimiter: z.string().default('$'),
-    blockDelimiter: z.string().default('$$')
+    blockDelimiter: z.string().default('$$'),
+    preserveOriginal: z.boolean().default(true),
+    outputFormat: z.string().default('latex'),
+    selectors: z.object({
+      mathml: z.string().optional().default('math'),
+      scripts: z.string().optional().default('script[type*="math/tex"], script[type*="math/asciimath"]'),
+      dataAttributes: z.string().optional().default('[data-math], [data-latex], [data-mathml], [data-asciimath]')
+    }).optional().default({
+      mathml: 'math',
+      scripts: 'script[type*="math/tex"], script[type*="math/asciimath"]',
+      dataAttributes: '[data-math], [data-latex], [data-mathml], [data-asciimath]'
+    })
   }).default({
     enabled: true,
     inlineDelimiter: '$',
-    blockDelimiter: '$$'
+    blockDelimiter: '$$',
+    preserveOriginal: true,
+    outputFormat: 'latex',
+    selectors: {
+      mathml: 'math',
+      scripts: 'script[type*="math/tex"], script[type*="math/asciimath"]',
+      dataAttributes: '[data-math], [data-latex], [data-mathml], [data-asciimath]'
+    }
   }),
   
   // Debug mode

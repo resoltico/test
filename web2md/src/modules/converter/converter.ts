@@ -35,6 +35,16 @@ export class Converter {
       // Process math elements if math processor is available
       if (this.mathProcessor && config.math.enabled) {
         this.logger.debug('Pre-processing math elements');
+        
+        // Configure the math processor with the config
+        this.mathProcessor.configure({
+          inlineDelimiter: config.math.inlineDelimiter,
+          blockDelimiter: config.math.blockDelimiter,
+          preserveOriginal: config.math.preserveOriginal,
+          outputFormat: config.math.outputFormat,
+          selectors: config.math.selectors
+        });
+        
         html = await this.mathProcessor.preprocessHtml(html);
       }
       
@@ -136,24 +146,35 @@ export class Converter {
     
     // Ensure math delimiters are properly spaced
     if (config.math.enabled) {
-      const inlineDelim = config.math.inlineDelimiter;
-      const blockDelim = config.math.blockDelimiter;
+      const inlineDelim = this.escapeRegExp(config.math.inlineDelimiter);
+      const blockDelim = this.escapeRegExp(config.math.blockDelimiter);
       
-      // Ensure inline math has proper spacing
-      const inlineRegex = new RegExp(`([^\\s${inlineDelim}])\\${inlineDelim}([^\\s])`, 'g');
-      processed = processed.replace(inlineRegex, `$1 ${inlineDelim}$2`);
-      
-      const inlineEndRegex = new RegExp(`([^\\s])\\${inlineDelim}([^\\s${inlineDelim}])`, 'g');
-      processed = processed.replace(inlineEndRegex, `$1${inlineDelim} $2`);
+      // Ensure inline math has proper spacing around it if needed
+      if (inlineDelim !== '\\$') { // Skip for standard $ which is already well-handled
+        // Space before the opening delimiter if preceded by non-whitespace and not part of the delimiter
+        const inlineStartRegex = new RegExp(`([^\\s${inlineDelim[0]}])${inlineDelim}([^\\s])`, 'g');
+        processed = processed.replace(inlineStartRegex, `$1 ${config.math.inlineDelimiter}$2`);
+        
+        // Space after the closing delimiter if followed by non-whitespace and not part of the delimiter
+        const inlineEndRegex = new RegExp(`([^\\s])${inlineDelim}([^\\s${inlineDelim[0]}])`, 'g');
+        processed = processed.replace(inlineEndRegex, `$1${config.math.inlineDelimiter} $2`);
+      }
       
       // Ensure block math has blank lines around it
-      const blockRegex = new RegExp(`([^\\n])\\${blockDelim}([^\\n])`, 'g');
-      processed = processed.replace(blockRegex, `$1\n\n${blockDelim}$2`);
+      const blockStartRegex = new RegExp(`([^\\n])${blockDelim}`, 'g');
+      processed = processed.replace(blockStartRegex, `$1\n\n${config.math.blockDelimiter}`);
       
-      const blockEndRegex = new RegExp(`([^\\n])\\${blockDelim}([^\\n])`, 'g');
-      processed = processed.replace(blockEndRegex, `$1${blockDelim}\n\n$2`);
+      const blockEndRegex = new RegExp(`${blockDelim}([^\\n])`, 'g');
+      processed = processed.replace(blockEndRegex, `${config.math.blockDelimiter}\n\n$1`);
     }
     
     return processed;
+  }
+  
+  /**
+   * Escape special characters in a string for use in a regular expression
+   */
+  private escapeRegExp(string: string): string {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
   }
 }
