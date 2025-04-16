@@ -41,6 +41,8 @@ The implementation relies on the following key technologies:
 - tough-cookie (^5.1.2)
 - @types/tough-cookie (^4.0.5)
 - https-proxy-agent (^7.0.6)
+- mathjax-node (^2.1.1)
+- zstd-napi (^0.0.10)
 
 ## System Flow
 
