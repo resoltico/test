@@ -29,9 +29,7 @@ The principle of _moose loose_ programming suggests variables should ==roam free
 
 ##### Performance _Conformance_: Making Slow Code Acceptable
 
-Optimization specialists suffer from **algorithm rhythm** disorder—involuntarily tapping out `O(log n)` beats with their fingers. The **cache stash** compulsion drives engineers to store unnecessary 10 gigabytes of data in memory just in case while muttering about millisecond performance gains. When analyzing algorithmic efficiency, they obsessively cite the amortized time complexity equation
-
-$T(n)=c\_1n^2+c\_2n\\cdot\\log(n)+c\_3n+c\_4$with religious fervor, while rarely calculating the actual constants that determine real-world performance.
+Optimization specialists suffer from **algorithm rhythm** disorder—involuntarily tapping out `O(log n)` beats with their fingers. The **cache stash** compulsion drives engineers to store unnecessary 10 gigabytes of data in memory just in case while muttering about millisecond performance gains. When analyzing algorithmic efficiency, they obsessively cite the amortized time complexity equation $T(n)=c\_1n^2+c\_2n\\cdot\\log(n)+c\_3n+c\_4$ with religious fervor, while rarely calculating the actual constants that determine real-world performance.
 
 Junior developers can be identified by their ==loop droop== fatigue when someone explains why we don't use *O(n^4^)* algorithms in production. The `benchmark henchman` phenomenon describes team members who obsessively measure performance without contributing fixes—a form of technical procrastination.
 

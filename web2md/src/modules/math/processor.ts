@@ -1,9 +1,7 @@
 import { JSDOM } from 'jsdom';
 import { Logger } from '../../shared/logger/console.js';
-import { MathConverter } from './converters/base.js';
-import { LaTeXConverter } from './converters/latex.js';
-import { MathMLConverter } from './converters/mathml.js';
-import { ASCIIMathConverter } from './converters/ascii.js';
+import { MathConverterFactory } from './converters/factory.js';
+import { MathFormatDetector } from './detector.js';
 
 /**
  * Options for the math processor
@@ -32,20 +30,22 @@ export interface MathProcessorOptions {
   /**
    * Custom element selectors to identify math content
    */
-  selectors?: {
-    mathml?: string;
-    scripts?: string;
-    dataAttributes?: string;
-  };
+  selectors: Record<string, string>;
+  
+  /**
+   * Custom placeholder for fallback content
+   */
+  fallbackTemplate: string;
 }
 
 /**
- * Generic processor for handling math content
- * Uses a converter-based approach to support multiple formats
+ * Improved math processor that uses a plugin architecture
+ * for handling different math formats
  */
 export class MathProcessor {
   private options: MathProcessorOptions;
-  private converters: Map<string, MathConverter> = new Map();
+  private converterFactory: MathConverterFactory;
+  private formatDetector: MathFormatDetector;
   
   constructor(
     private logger: Logger,
@@ -60,33 +60,20 @@ export class MathProcessor {
       selectors: {
         mathml: 'math',
         scripts: 'script[type*="math/tex"], script[type*="math/asciimath"]',
-        dataAttributes: '[data-math], [data-latex], [data-mathml], [data-asciimath]'
+        dataAttributes: '[data-math], [data-latex], [data-mathml], [data-asciimath]',
+        classes: '.math, .tex, .latex, .asciimath, .equation',
+        attributes: '[math], [latex], [tex], [asciimath]'
       },
+      fallbackTemplate: '{delim}{content}{delim}',
       ...options
     };
     
-    // Register default converters
-    this.registerConverter('latex', new LaTeXConverter(logger));
-    this.registerConverter('mathml', new MathMLConverter(logger));
-    this.registerConverter('ascii', new ASCIIMathConverter(logger));
+    // Create converter factory and format detector
+    this.converterFactory = new MathConverterFactory(logger);
+    this.formatDetector = new MathFormatDetector(logger);
     
     this.logger.debug('Math processor initialized with options:');
     this.logger.debug(JSON.stringify(this.options, null, 2));
-  }
-  
-  /**
-   * Register a converter for a specific format
-   */
-  registerConverter(format: string, converter: MathConverter): void {
-    this.converters.set(format.toLowerCase(), converter);
-    this.logger.debug(`Registered math converter for format: ${format}`);
-  }
-  
-  /**
-   * Get a converter for a specific format
-   */
-  getConverter(format: string): MathConverter | undefined {
-    return this.converters.get(format.toLowerCase());
   }
   
   /**
@@ -120,10 +107,14 @@ export class MathProcessor {
       const dom = new JSDOM(html);
       const document = dom.window.document;
       
-      // Process different types of math elements
-      await this.processMathMLElements(document);
-      await this.processMathScripts(document);
-      await this.processMathDataElements(document);
+      // Collect all elements to process
+      const elementsToProcess = this.collectMathElements(document);
+      this.logger.debug(`Found ${elementsToProcess.length} total math elements to process`);
+      
+      // Process each element
+      for (const {element, format} of elementsToProcess) {
+        await this.processMathElement(element, format);
+      }
       
       return dom.serialize();
     } catch (error) {
@@ -138,70 +129,47 @@ export class MathProcessor {
   }
   
   /**
-   * Process all MathML elements in the document
+   * Collect all math elements from the document
    */
-  private async processMathMLElements(document: Document): Promise<void> {
-    const selector = this.options.selectors?.mathml || 'math';
-    const mathElements = document.querySelectorAll(selector);
-    this.logger.debug(`Found ${mathElements.length} MathML elements using selector: ${selector}`);
+  private collectMathElements(document: Document): Array<{element: Element, format: string}> {
+    const results: Array<{element: Element, format: string}> = [];
+    const selectors = this.options.selectors;
     
-    for (let i = 0; i < mathElements.length; i++) {
-      const element = mathElements[i];
-      await this.processMathElement(element, 'mathml');
-    }
-  }
-  
-  /**
-   * Process all script elements with math content
-   */
-  private async processMathScripts(document: Document): Promise<void> {
-    const selector = this.options.selectors?.scripts || 
-                     'script[type*="math/tex"], script[type*="math/asciimath"]';
-    const mathScripts = document.querySelectorAll(selector);
-    this.logger.debug(`Found ${mathScripts.length} math script elements using selector: ${selector}`);
-    
-    for (let i = 0; i < mathScripts.length; i++) {
-      const element = mathScripts[i];
-      const type = (element.getAttribute('type') || '').toLowerCase();
+    // Function to process elements and detect format
+    const processElements = (selector: string, defaultFormat: string) => {
+      const elements = document.querySelectorAll(selector);
+      this.logger.debug(`Found ${elements.length} elements with selector: ${selector}`);
       
-      // Determine the format based on script type
-      let format = 'latex';
-      if (type.includes('math/tex')) {
-        format = 'latex';
-      } else if (type.includes('math/asciimath')) {
-        format = 'ascii';
+      for (let i = 0; i < elements.length; i++) {
+        const element = elements[i];
+        // Detect the format, defaulting if not detectable
+        const format = this.formatDetector.detectFormat(element) || defaultFormat;
+        results.push({element, format});
       }
-      
-      await this.processMathElement(element, format);
-    }
-  }
-  
-  /**
-   * Process all elements with math data attributes
-   */
-  private async processMathDataElements(document: Document): Promise<void> {
-    const selector = this.options.selectors?.dataAttributes || 
-                     '[data-math], [data-latex], [data-mathml], [data-asciimath]';
-    const mathDataElements = document.querySelectorAll(selector);
-    this.logger.debug(`Found ${mathDataElements.length} elements with math data attributes using selector: ${selector}`);
+    };
     
-    for (let i = 0; i < mathDataElements.length; i++) {
-      const element = mathDataElements[i];
-      
-      // Determine the format based on data attributes
-      let format = 'latex';
-      if (element.hasAttribute('data-mathml')) {
-        format = 'mathml';
-      } else if (element.hasAttribute('data-asciimath')) {
-        format = 'ascii';
-      } else if (element.hasAttribute('data-latex')) {
-        format = 'latex';
-      } else if (element.hasAttribute('data-math')) {
-        format = 'latex'; // Default for data-math
-      }
-      
-      await this.processMathElement(element, format);
+    // Process each selector type - with null checks
+    if (selectors.mathml) {
+      processElements(selectors.mathml, 'mathml');
     }
+    
+    if (selectors.scripts) {
+      processElements(selectors.scripts, 'latex');
+    }
+    
+    if (selectors.dataAttributes) {
+      processElements(selectors.dataAttributes, 'latex');
+    }
+    
+    if (selectors.classes) {
+      processElements(selectors.classes, 'latex');
+    }
+    
+    if (selectors.attributes) {
+      processElements(selectors.attributes, 'latex');
+    }
+    
+    return results;
   }
   
   /**
@@ -210,7 +178,7 @@ export class MathProcessor {
   private async processMathElement(element: Element, sourceFormat: string): Promise<void> {
     try {
       // Determine if display mode (block vs inline)
-      const isDisplay = this.isDisplayMode(element);
+      const isDisplay = this.detectDisplayMode(element);
       
       // Get the content based on element type and format
       const content = this.extractContent(element, sourceFormat);
@@ -220,39 +188,50 @@ export class MathProcessor {
         return;
       }
       
-      // Convert content to target format
+      // Get target format and create converter
       const outputFormat = this.options.outputFormat.toLowerCase();
-      const converter = this.getConverter(outputFormat);
+      const converter = this.converterFactory.createConverter(outputFormat);
       
       if (!converter) {
-        this.logger.warn(`No converter found for format: ${outputFormat}`);
-        return;
+        throw new Error(`No converter available for format: ${outputFormat}`);
       }
       
-      // Convert the content 
-      const convertedContent = await converter.convert(content, {
+      // Configure context with options
+      const context = {
         sourceFormat,
         isDisplay,
-        element
-      });
+        element,
+        options: {
+          inlineDelimiter: this.options.inlineDelimiter,
+          blockDelimiter: this.options.blockDelimiter
+        }
+      };
       
-      // Create a replacement element
-      const replacementElement = element.ownerDocument.createElement('div');
+      // Convert the content
+      const convertedContent = await converter.convert(content, context);
+      
+      // Create a replacement element - use a span for inline, div for block
+      const tagName = isDisplay ? 'div' : 'span';
+      const replacementElement = element.ownerDocument.createElement(tagName);
+      
+      // Apply CSS classes for better flexibility
       replacementElement.className = isDisplay ? 'math-block' : 'math-inline';
-      replacementElement.setAttribute('data-math-format', outputFormat);
+      
+      // Add data attributes for processing by the rule
+      this.applyDataAttributes(replacementElement, {
+        format: outputFormat,
+        display: isDisplay ? 'block' : 'inline',
+        inlineDelimiter: this.options.inlineDelimiter,
+        blockDelimiter: this.options.blockDelimiter
+      });
       
       // Preserve the original content if needed
       if (this.options.preserveOriginal) {
-        replacementElement.setAttribute('data-math-original', content);
-        replacementElement.setAttribute('data-math-original-format', sourceFormat);
+        this.applyDataAttributes(replacementElement, {
+          original: content,
+          originalFormat: sourceFormat
+        });
       }
-      
-      // Add display mode attribute
-      replacementElement.setAttribute('data-math-display', isDisplay ? 'block' : 'inline');
-      
-      // Add delimiters to attributes for the rule to use
-      replacementElement.setAttribute('data-math-inline-delimiter', this.options.inlineDelimiter);
-      replacementElement.setAttribute('data-math-block-delimiter', this.options.blockDelimiter);
       
       // Set the content
       replacementElement.textContent = convertedContent;
@@ -263,76 +242,148 @@ export class MathProcessor {
       }
     } catch (error) {
       this.logger.error(`Error processing math element: ${error instanceof Error ? error.message : String(error)}`);
-      
-      // Create a fallback element
-      try {
-        const textContent = element.textContent || '';
-        const isDisplay = this.isDisplayMode(element);
-        
-        const fallbackElement = element.ownerDocument.createElement('div');
-        fallbackElement.className = isDisplay ? 'math-block' : 'math-inline';
-        fallbackElement.setAttribute('data-math-format', 'text');
-        fallbackElement.setAttribute('data-math-fallback', 'true');
-        fallbackElement.setAttribute('data-math-display', isDisplay ? 'block' : 'inline');
-        fallbackElement.setAttribute('data-math-inline-delimiter', this.options.inlineDelimiter);
-        fallbackElement.setAttribute('data-math-block-delimiter', this.options.blockDelimiter);
-        fallbackElement.textContent = this.cleanText(textContent);
-        
-        if (element.parentNode) {
-          element.parentNode.replaceChild(fallbackElement, element);
-        }
-      } catch (fallbackError) {
-        this.logger.error('Fallback processing also failed for math element');
-      }
+      this.handleProcessingError(element, sourceFormat, error);
     }
+  }
+  
+  /**
+   * Handle errors during math element processing by creating a fallback element
+   */
+  private handleProcessingError(element: Element, sourceFormat: string, error: unknown): void {
+    try {
+      const textContent = element.textContent || '';
+      const isDisplay = this.detectDisplayMode(element);
+      const delimiter = isDisplay ? this.options.blockDelimiter : this.options.inlineDelimiter;
+      
+      // Create a fallback using the template (with null check)
+      let fallbackContent = this.options.fallbackTemplate
+        .replace('{delim}', delimiter)
+        .replace('{content}', this.cleanText(textContent));
+      
+      // Create appropriate fallback element
+      const tagName = isDisplay ? 'div' : 'span';
+      const fallbackElement = element.ownerDocument.createElement(tagName);
+      fallbackElement.className = isDisplay ? 'math-block math-fallback' : 'math-inline math-fallback';
+      
+      // Apply data attributes
+      this.applyDataAttributes(fallbackElement, {
+        format: 'text',
+        fallback: 'true',
+        display: isDisplay ? 'block' : 'inline',
+        inlineDelimiter: this.options.inlineDelimiter,
+        blockDelimiter: this.options.blockDelimiter,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      fallbackElement.textContent = fallbackContent;
+      
+      if (element.parentNode) {
+        element.parentNode.replaceChild(fallbackElement, element);
+      }
+    } catch (fallbackError) {
+      this.logger.error('Fallback processing also failed for math element');
+    }
+  }
+  
+  /**
+   * Apply multiple data attributes to an element
+   */
+  private applyDataAttributes(element: Element, attributes: Record<string, string | boolean>): void {
+    Object.entries(attributes).forEach(([key, value]) => {
+      element.setAttribute(`data-math-${key}`, String(value));
+    });
   }
   
   /**
    * Extract content from an element based on format
    */
   private extractContent(element: Element, format: string): string {
+    // Check element type first
     if (format === 'mathml' && element.nodeName.toLowerCase() === 'math') {
       return element.outerHTML;
     }
     
-    // Check for data attributes first
+    // Try multiple ways to extract content - in order of preference
+    
+    // 1. Check for data attributes with format-specific content
     if (element.hasAttribute(`data-${format}`)) {
       return element.getAttribute(`data-${format}`) || '';
     }
     
-    // For script elements, use text content
+    // 2. Check for plain 'data-math' attribute
+    if (element.hasAttribute('data-math')) {
+      return element.getAttribute('data-math') || '';
+    }
+    
+    // 3. For script elements, use text content
     if (element.nodeName.toLowerCase() === 'script') {
       return element.textContent || '';
     }
     
-    // Default to textContent
+    // 4. Look for a specific format attribute
+    if (element.hasAttribute(format)) {
+      return element.getAttribute(format) || '';
+    }
+    
+    // 5. Try 'math' attribute if it exists
+    if (element.hasAttribute('math')) {
+      return element.getAttribute('math') || '';
+    }
+    
+    // 6. Fall back to textContent if all else fails
     return element.textContent || '';
   }
   
   /**
    * Determine if an element should be displayed in block mode
+   * Using multiple signals to increase accuracy
    */
-  private isDisplayMode(element: Element): boolean {
-    // Check for explicit display mode indicators
-    if (element.getAttribute('display') === 'block') {
+  private detectDisplayMode(element: Element): boolean {
+    // 1. Explicit attribute indicators
+    if (element.getAttribute('display') === 'block' || 
+        element.getAttribute('data-display') === 'block' ||
+        element.getAttribute('data-math-display') === 'block') {
       return true;
     }
     
-    if (element.classList.contains('display-math')) {
+    // 2. Class indicators
+    if (element.classList.contains('display-math') || 
+        element.classList.contains('math-display') ||
+        element.classList.contains('block') ||
+        element.classList.contains('equation')) {
       return true;
     }
     
-    // Script with mode=display
+    // 3. Script with mode=display
     if (element.nodeName.toLowerCase() === 'script' && 
         element.getAttribute('type')?.includes('mode=display')) {
       return true;
     }
     
-    // Divs are typically block level
-    if (element.nodeName.toLowerCase() === 'div') {
+    // 4. MathML specifics
+    if (element.nodeName.toLowerCase() === 'math' && 
+        (element.getAttribute('display') === 'block' || element.getAttribute('mode') === 'display')) {
       return true;
     }
     
+    // 5. Element type and style context
+    if (['div', 'p', 'figure', 'center'].includes(element.nodeName.toLowerCase())) {
+      return true;
+    }
+    
+    // 6. Check parent element
+    const parent = element.parentElement;
+    if (parent && ['div', 'p', 'figure', 'center'].includes(parent.nodeName.toLowerCase()) &&
+        (parent.childNodes.length === 1 || parent.classList.contains('math-container'))) {
+      return true;
+    }
+    
+    // 7. Check if the element is alone on its line
+    if (element.previousSibling === null && element.nextSibling === null) {
+      return true;
+    }
+    
+    // Default to inline
     return false;
   }
   

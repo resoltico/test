@@ -45,7 +45,7 @@ export class LaTeXConverter extends MathConverter {
       this.logger.debug(`Converting ${context.sourceFormat} to LaTeX`);
       
       // If the source is already LaTeX, just clean it up
-      if (context.sourceFormat === 'latex') {
+      if (context.sourceFormat === 'latex' || context.sourceFormat === 'tex') {
         return this.cleanLatex(content);
       }
       
@@ -55,7 +55,7 @@ export class LaTeXConverter extends MathConverter {
       }
       
       // Convert from ASCII to LaTeX
-      if (context.sourceFormat === 'ascii') {
+      if (context.sourceFormat === 'ascii' || context.sourceFormat === 'asciimath') {
         return this.convertASCIIToLaTeX(content);
       }
       

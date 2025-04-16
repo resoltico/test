@@ -17,7 +17,7 @@ export class ASCIIMathConverter extends MathConverter {
       this.logger.debug(`Converting to ASCIIMath format`);
       
       // If source is already ASCIIMath, clean and return it
-      if (context.sourceFormat === 'ascii') {
+      if (context.sourceFormat === 'ascii' || context.sourceFormat === 'asciimath') {
         return this.cleanASCIIMath(content);
       }
       
