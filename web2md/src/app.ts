@@ -32,89 +32,104 @@ export function createApp(options: AppOptions) {
   // Create the logger
   const logger = new ConsoleLogger();
   
-  // Create rule registry
-  const ruleRegistry = new RuleRegistry(options.rootDir);
-  
-  // Create rule validator
-  const ruleValidator = new RuleValidator(logger);
-  
-  // Create manifest loader
-  const manifestLoader = new ManifestLoader(logger);
-  
-  // Create rule loaders
-  const yamlRuleLoader = new YAMLRuleLoader(logger);
-  const jsRuleLoader = new JSRuleLoader(logger);
-  
-  // Create configuration loader
-  const configLoader = new ConfigLoader(logger);
-  
-  // Create HTTP client with default options
-  const httpClient = new HTTPClient(HTTPDefaults.getDefaultOptions(), logger);
-  
-  // Create content decoder components
-  const compressionHandler = new CompressionHandlerImpl(logger);
-  const charsetHandler = new CharsetHandlerImpl(logger);
-  
-  // Create content decoder
-  const contentDecoder = new ContentDecoder(
-    compressionHandler,
-    charsetHandler,
-    logger
-  );
-  
-  // Create pattern detector
-  const patternDetector = new PatternDetector(logger);
-  
-  // Create decoder registry
-  const decoderRegistry = new DecoderRegistry();
-  
-  // Register decoders
-  decoderRegistry.register(new CloudflareEmailDecoder(logger));
-  decoderRegistry.register(new Base64Decoder(logger));
-  decoderRegistry.register(new ROT13Decoder(logger));
-  
-  // Create deobfuscator
-  const deobfuscator = new Deobfuscator(
-    decoderRegistry, 
-    patternDetector,
-    logger
-  );
-  
-  // Create rules manager with secure components
-  const rulesManager = new RulesManager(
-    ruleRegistry, 
-    ruleValidator,
-    manifestLoader,
-    yamlRuleLoader,
-    jsRuleLoader,
-    logger
-  );
-  
-  // Create converter
-  const converter = new Converter(logger);
-  
-  // Create IO components
-  const fileReader = new FileReader(logger);
-  const urlReader = new URLReader(httpClient, contentDecoder, logger);
-  const outputWriter = new OutputWriter(logger);
-  
-  // Create CLI
-  const cli = new CLI(
-    configLoader,
-    httpClient,
-    contentDecoder,
-    deobfuscator,
-    rulesManager,
-    converter,
-    fileReader,
-    urlReader,
-    outputWriter,
-    logger
-  );
-  
-  return {
-    run: (argv: string[]) => cli.execute(argv)
-  };
+  try {
+    // Create rule registry
+    const ruleRegistry = new RuleRegistry(options.rootDir);
+    
+    // Create rule validator
+    const ruleValidator = new RuleValidator(logger);
+    
+    // Create manifest loader
+    const manifestLoader = new ManifestLoader(logger);
+    
+    // Create rule loaders
+    const yamlRuleLoader = new YAMLRuleLoader(logger);
+    const jsRuleLoader = new JSRuleLoader(logger);
+    
+    // Create configuration loader
+    const configLoader = new ConfigLoader(logger);
+    
+    // Create HTTP client with default options
+    const httpClient = new HTTPClient(HTTPDefaults.getDefaultOptions(), logger);
+    
+    // Create content decoder components
+    const compressionHandler = new CompressionHandlerImpl(logger);
+    const charsetHandler = new CharsetHandlerImpl(logger);
+    
+    // Create content decoder
+    const contentDecoder = new ContentDecoder(
+      compressionHandler,
+      charsetHandler,
+      logger
+    );
+    
+    // Create pattern detector
+    const patternDetector = new PatternDetector(logger);
+    
+    // Create decoder registry
+    const decoderRegistry = new DecoderRegistry();
+    
+    // Register decoders
+    decoderRegistry.register(new CloudflareEmailDecoder(logger));
+    decoderRegistry.register(new Base64Decoder(logger));
+    decoderRegistry.register(new ROT13Decoder(logger));
+    
+    // Create deobfuscator
+    const deobfuscator = new Deobfuscator(
+      decoderRegistry, 
+      patternDetector,
+      logger
+    );
+    
+    // Create rules manager with secure components
+    const rulesManager = new RulesManager(
+      ruleRegistry, 
+      ruleValidator,
+      manifestLoader,
+      yamlRuleLoader,
+      jsRuleLoader,
+      logger
+    );
+    
+    // Create converter
+    const converter = new Converter(logger);
+    
+    // Create IO components
+    const fileReader = new FileReader(logger);
+    const urlReader = new URLReader(httpClient, contentDecoder, logger);
+    const outputWriter = new OutputWriter(logger);
+    
+    // Create CLI
+    const cli = new CLI(
+      configLoader,
+      httpClient,
+      contentDecoder,
+      deobfuscator,
+      rulesManager,
+      converter,
+      fileReader,
+      urlReader,
+      outputWriter,
+      logger
+    );
+    
+    return {
+      run: (argv: string[]) => cli.execute(argv)
+    };
+  } catch (error) {
+    logger.error("Failed to initialize web2md application");
+    if (error instanceof Error) {
+      logger.error(`Error: ${error.message}`);
+    }
+    
+    // Return a simple app that just logs the error
+    return {
+      run: () => {
+        console.error("Critical error initializing web2md. Please check your installation.");
+        process.exit(1);
+      }
+    };
+  }
 }
 
 /**

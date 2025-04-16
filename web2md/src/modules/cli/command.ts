@@ -84,7 +84,7 @@ export class CLI {
     compression?: boolean;
   }): Promise<void> {
     // Ensure either file or URL is provided
-    if (!options.file && !options.url) {
+    if (!this.validateInputOptions(options)) {
       throw new Error('You must specify either a file (-f) or URL (-u)');
     }
     
@@ -97,24 +97,8 @@ export class CLI {
     // Load configurations
     const config = await this.configLoader.loadConfig();
     
-    // Override configurations from CLI options
-    if (options.debug !== undefined) {
-      config.debug = options.debug;
-    }
-    
-    if (options.deobfuscate !== undefined) {
-      config.deobfuscation.enabled = options.deobfuscate;
-    }
-    
-    if (options.userAgent && config.http) {
-      config.http.userAgent = options.userAgent;
-    }
-    
-    // Handle compression option
-    if (options.compression === false && config.http) {
-      config.http.compression.enabled = false;
-      this.logger.debug('Compression support disabled via command line option');
-    }
+    // Apply CLI overrides to configuration
+    this.applyConfigOverrides(config, options);
     
     // Configure the HTTP client with options from config
     const httpOptions = config.http || this.httpClient.getDefaultOptions();
@@ -132,9 +116,7 @@ export class CLI {
     const isUrl = Boolean(options.url);
     
     if (isUrl) {
-      this.logger.info(`Fetching content from URL: ${sourcePath}`);
-      
-      // URLReader now uses HTTP client with custom options
+      // Let the URLReader handle logging the fetch operation
       html = await this.urlReader.read(sourcePath);
     } else {
       this.logger.info(`Reading file: ${sourcePath}`);
@@ -143,13 +125,7 @@ export class CLI {
     
     // Save original HTML if requested
     if (options.saveOriginal) {
-      const originalFilePath = `${sourcePath.replace(/\/$/, '')}.original.html`;
-      try {
-        await fs.writeFile(originalFilePath, html, 'utf-8');
-        this.logger.info(`Original HTML content saved to ${originalFilePath}`);
-      } catch (error) {
-        this.logger.error(`Failed to save original HTML: ${error instanceof Error ? error.message : String(error)}`);
-      }
+      await this.saveOriginalHtml(sourcePath, html);
     }
     
     // Apply deobfuscation if enabled
@@ -179,6 +155,51 @@ export class CLI {
     
     if (outputPath) {
       console.log(chalk.green(`Conversion completed. Output written to ${outputPath}`));
+    }
+  }
+  
+  /**
+   * Validate that required input options are provided
+   */
+  private validateInputOptions(options: CLICommandOptions): boolean {
+    return Boolean(options.file || options.url);
+  }
+  
+  /**
+   * Apply CLI option overrides to configuration
+   */
+  private applyConfigOverrides(config: Config, options: CLICommandOptions & {
+    compression?: boolean;
+  }): void {
+    if (options.debug !== undefined) {
+      config.debug = options.debug;
+    }
+    
+    if (options.deobfuscate !== undefined) {
+      config.deobfuscation.enabled = options.deobfuscate;
+    }
+    
+    if (options.userAgent && config.http) {
+      config.http.userAgent = options.userAgent;
+    }
+    
+    // Handle compression option
+    if (options.compression === false && config.http) {
+      config.http.compression.enabled = false;
+      this.logger.debug('Compression support disabled via command line option');
+    }
+  }
+  
+  /**
+   * Save original HTML content to file
+   */
+  private async saveOriginalHtml(sourcePath: string, html: string): Promise<void> {
+    const originalFilePath = `${sourcePath.replace(/\/$/, '')}.original.html`;
+    try {
+      await fs.writeFile(originalFilePath, html, 'utf-8');
+      this.logger.info(`Original HTML content saved to ${originalFilePath}`);
+    } catch (error) {
+      this.logger.error(`Failed to save original HTML: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

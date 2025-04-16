@@ -29,23 +29,23 @@ export class ContentDecoder implements ContentDecoderInterface {
     
     // Handle compression if needed
     if (contentEncoding && contentEncoding !== 'identity') {
-      if (this.compressionHandler.canDecompress(contentEncoding, content)) {
-        this.logger.debug(`Detected supported content encoding: ${contentEncoding}`);
-        try {
+      try {
+        if (this.compressionHandler.canDecompress(contentEncoding, content)) {
+          this.logger.debug(`Detected supported content encoding: ${contentEncoding}`);
           content = await this.compressionHandler.decompress(content, contentEncoding);
           this.logger.debug(`Successfully decompressed content (${contentEncoding})`);
           this.logger.debug(`Decompressed content length: ${content.length} characters`);
-        } catch (error) {
-          // Log the error but continue with the original content
-          if (error instanceof Error) {
-            this.logger.error(`Failed to decompress ${contentEncoding} content: ${error.message}`);
-          } else {
-            this.logger.error(`Failed to decompress ${contentEncoding} content`);
-          }
-          // Try to continue with the original content
+        } else {
+          this.logger.debug(`Content encoding ${contentEncoding} detected but content doesn't appear to be compressed`);
         }
-      } else {
-        this.logger.debug(`Content encoding ${contentEncoding} detected but content doesn't appear to be compressed`);
+      } catch (error) {
+        // Log the error but continue with the original content
+        if (error instanceof Error) {
+          this.logger.error(`Failed to decompress ${contentEncoding} content: ${error.message}`);
+        } else {
+          this.logger.error(`Failed to decompress ${contentEncoding} content`);
+        }
+        // Continue with the original content
       }
     } else {
       this.logger.debug('No content encoding specified or identity encoding, skipping decompression');
@@ -83,9 +83,7 @@ export class ContentDecoder implements ContentDecoderInterface {
     }
     
     // Check if the content looks like HTML
-    const isHTML = content.includes('<!DOCTYPE html>') || 
-                  content.includes('<html') || 
-                  (content.includes('<head') && content.includes('<body'));
+    const isHTML = this.isValidHtml(content);
                   
     if (!isHTML) {
       this.logger.debug('Warning: Content does not appear to be HTML. This may indicate decompression issues.');
@@ -98,5 +96,19 @@ export class ContentDecoder implements ContentDecoderInterface {
     this.logger.debug('Content decoding process completed');
     
     return content;
+  }
+  
+  /**
+   * Check if content appears to be valid HTML
+   */
+  private isValidHtml(content: string): boolean {
+    // Simple heuristic checks for common HTML elements
+    return Boolean(
+      content.includes('<!DOCTYPE html>') || 
+      content.includes('<html') || 
+      (content.includes('<head') && content.includes('<body')) ||
+      content.match(/<h[1-6][^>]*>/) || // Has headings
+      content.match(/<div[^>]*>/) // Has div elements
+    );
   }
 }

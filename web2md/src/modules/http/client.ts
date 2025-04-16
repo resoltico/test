@@ -36,7 +36,8 @@ export class HTTPClient {
    * Get content from a URL with the configured options
    */
   async fetch(url: string): Promise<HTTPResponse> {
-    this.logger.debug(`Fetching URL: ${url}`);
+    // Use debug level for HTTP client details to avoid duplicate info logs
+    this.logger.debug(`HTTP client fetching URL: ${url}`);
     this.logger.debug(`Using user agent: ${this.options.userAgent}`);
     
     try {

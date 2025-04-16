@@ -68,7 +68,7 @@ export class URLReader {
       // Decode the content (handle compression and character encoding)
       const content = await this.contentDecoder.decode(response);
       
-      this.logger.debug(`Successfully fetched and decoded content from ${url}`);
+      this.logger.debug(`Successfully fetched and decoded content from ${url} (${content.length} bytes)`);
       
       return content;
     } catch (error) {

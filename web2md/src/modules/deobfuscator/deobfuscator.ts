@@ -34,6 +34,10 @@ export class Deobfuscator {
     this.config = config;
     this.enabled = config.enabled;
     this.logger.debug(`Deobfuscator configured, enabled: ${this.enabled}`);
+    
+    if (this.enabled) {
+      this.logger.debug(`Enabled decoders: ${this.config.decoders.join(', ')}`);
+    }
   }
   
   /**
@@ -85,6 +89,7 @@ export class Deobfuscator {
       
       // Process patterns from end to start to avoid index shifts
       const sortedPatterns = [...patterns].sort((a, b) => b.start - a.start);
+      let patternCount = 0;
       
       for (const pattern of sortedPatterns) {
         // Skip patterns with decoders that aren't enabled
@@ -102,23 +107,33 @@ export class Deobfuscator {
         }
         
         // Apply the decoder
-        this.logger.debug(`Applying ${pattern.type} decoder`);
-        const decodedContent = decoder.decode(pattern.content, pattern.metadata);
-        
-        // Replace the original content with the decoded content
-        const beforePattern = processedHtml.substring(0, pattern.start);
-        const afterPattern = processedHtml.substring(pattern.end);
-        
-        // Optionally preserve the raw link in a comment
-        let replacement = decodedContent;
-        if (this.config.preserveRawLinks) {
-          replacement = `<!-- Original: ${pattern.content} -->${decodedContent}`;
+        try {
+          this.logger.debug(`Applying ${pattern.type} decoder to pattern at position ${pattern.start}-${pattern.end}`);
+          const decodedContent = decoder.decode(pattern.content, pattern.metadata);
+          
+          // Replace the original content with the decoded content
+          const beforePattern = processedHtml.substring(0, pattern.start);
+          const afterPattern = processedHtml.substring(pattern.end);
+          
+          // Optionally preserve the raw link in a comment
+          let replacement = decodedContent;
+          if (this.config.preserveRawLinks) {
+            replacement = `<!-- Original: ${pattern.content} -->${decodedContent}`;
+          }
+          
+          processedHtml = beforePattern + replacement + afterPattern;
+          patternCount++;
+        } catch (error) {
+          // Log error but continue processing other patterns
+          if (error instanceof Error) {
+            this.logger.error(`Error applying ${pattern.type} decoder: ${error.message}`);
+          } else {
+            this.logger.error(`Unknown error applying ${pattern.type} decoder`);
+          }
         }
-        
-        processedHtml = beforePattern + replacement + afterPattern;
       }
       
-      this.logger.debug('Deobfuscation process completed');
+      this.logger.debug(`Deobfuscation process completed, processed ${patternCount} patterns`);
       return processedHtml;
     } catch (error) {
       this.logger.error('Error during deobfuscation');
@@ -137,18 +152,35 @@ export class Deobfuscator {
   private cleanScripts(html: string): string {
     this.logger.debug('Cleaning deobfuscation scripts');
     
-    // Remove Cloudflare email protection script
-    const cleanedHtml = html.replace(
-      /<script[^>]*data-cfasync[^>]*>[^<]*<\/script>/gi,
-      ''
-    ).replace(
-      /<script[^>]*src[^>]*email-decode[^>]*>[^<]*<\/script>/gi,
-      ''
-    ).replace(
-      /<script[^>]*>[^<]*email-protection[^<]*<\/script>/gi,
-      ''
-    );
-    
-    return cleanedHtml;
+    try {
+      // Remove Cloudflare email protection script
+      const cleanedHtml = html.replace(
+        /<script[^>]*data-cfasync[^>]*>[^<]*<\/script>/gi,
+        ''
+      ).replace(
+        /<script[^>]*src[^>]*email-decode[^>]*>[^<]*<\/script>/gi,
+        ''
+      ).replace(
+        /<script[^>]*>[^<]*email-protection[^<]*<\/script>/gi,
+        ''
+      );
+      
+      const scriptCount = 
+        (html.match(/<script[^>]*data-cfasync[^>]*>/gi)?.length || 0) +
+        (html.match(/<script[^>]*src[^>]*email-decode[^>]*>/gi)?.length || 0) +
+        (html.match(/<script[^>]*>[^<]*email-protection[^<]*<\/script>/gi)?.length || 0);
+      
+      if (scriptCount > 0) {
+        this.logger.debug(`Removed ${scriptCount} deobfuscation script(s)`);
+      }
+      
+      return cleanedHtml;
+    } catch (error) {
+      this.logger.error('Error cleaning deobfuscation scripts');
+      if (error instanceof Error) {
+        this.logger.debug(`Error: ${error.message}`);
+      }
+      return html; // Return original content on error
+    }
   }
 }
