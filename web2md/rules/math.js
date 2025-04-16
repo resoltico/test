@@ -1,7 +1,7 @@
 /**
  * Enhanced math expression handling rule
  * Works with any element processed by the math processor
- * and handles both block and inline modes with proper spacing
+ * and preserves math content without Markdown escaping
  */
 export default {
   name: 'math',
@@ -59,12 +59,16 @@ export default {
     try {
       // Get display mode and content
       const isBlock = getDisplayMode(node);
-      const mathContent = content.trim();
+      let mathContent = content.trim();
       
       // Skip empty content
       if (!mathContent) {
         return '';
       }
+      
+      // CRITICAL: Don't let Turndown escape special characters in math content
+      // This is necessary for LaTeX to render correctly
+      mathContent = unescapeLatex(mathContent);
       
       // Get delimiters - try multiple sources in order of preference
       const inlineDelimiter = getDelimiter(node, 'inline', options);
@@ -78,8 +82,7 @@ export default {
         // For block math, add line breaks before and after
         return `\n\n${delimiter}${mathContent}${delimiter}\n\n`;
       } else {
-        // For inline math, ensure there's proper spacing if needed
-        // If the content is already at the beginning/end of a string, no need for additional spaces
+        // For inline math, ensure there's proper spacing
         return delimiter + mathContent + delimiter;
       }
     } catch (error) {
@@ -161,4 +164,21 @@ function getDelimiter(node, mode, options) {
   
   // 5. Default fallbacks based on mode
   return mode === 'inline' ? '$' : '$$';
+}
+
+/**
+ * Unescape Markdown/LaTeX special characters that might have been escaped
+ * This is critical for math content to render correctly
+ */
+function unescapeLatex(text) {
+  // Unescape backslashes (\\foo -> \foo)
+  let result = text.replace(/\\\\([\\{}$_^])/g, '\\$1');
+  
+  // Unescape underscores (\_foo -> _foo)
+  result = result.replace(/\\_/g, '_');
+  
+  // Unescape other LaTeX special characters
+  result = result.replace(/\\(\^|\{|\}|\$)/g, '$1');
+  
+  return result;
 }

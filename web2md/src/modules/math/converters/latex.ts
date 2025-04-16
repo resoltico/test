@@ -33,6 +33,15 @@ export class LaTeXConverter extends MathConverter {
     '⇔': '\\Leftrightarrow'
   };
   
+  // Special TeX words (functions, etc.) that shouldn't be in italics
+  private readonly texWords = [
+    'sin', 'cos', 'tan', 'csc', 'sec', 'cot', 
+    'arcsin', 'arccos', 'arctan', 'sinh', 'cosh', 'tanh',
+    'log', 'ln', 'exp', 'lim', 'sup', 'inf',
+    'min', 'max', 'arg', 'det', 'dim', 'gcd', 'hom',
+    'ker', 'Pr', 'deg', 'bmod'
+  ];
+  
   constructor(logger: Logger) {
     super(logger);
   }
@@ -81,6 +90,9 @@ export class LaTeXConverter extends MathConverter {
       .replace(/\\\s+/g, '\\') // Remove spaces after backslashes
       .replace(/\s*\^\s*/g, '^') // Normalize spacing around ^
       .replace(/\s*\_\s*/g, '_'); // Normalize spacing around _
+      
+    // Ensure no double backslashes (which would appear in Markdown)
+    cleaned = cleaned.replace(/\\\\/g, '\\');
     
     return cleaned;
   }
@@ -99,11 +111,41 @@ export class LaTeXConverter extends MathConverter {
       }
       
       // Process the MathML recursively
-      return this.processMathNode(mathElement);
+      const latex = this.processMathNode(mathElement);
+      
+      // Post-process to ensure proper formatting
+      return this.postProcessLatex(latex);
     } catch (error) {
       this.logger.error(`Error converting MathML to LaTeX: ${error instanceof Error ? error.message : String(error)}`);
       return this.cleanContent(mathml);
     }
+  }
+  
+  /**
+   * Post-process the LaTeX to ensure proper formatting
+   */
+  private postProcessLatex(latex: string): string {
+    // Ensure proper spacing for operators
+    let result = latex.replace(/([0-9])([+\-*/=])/g, '$1 $2 ');
+    result = result.replace(/([+\-*/=])([0-9])/g, '$1 $2');
+    
+    // Ensure proper spacing for multi-letter identifiers
+    this.texWords.forEach(word => {
+      // Only add \text{} if it's not already a command
+      if (!result.includes(`\\${word}`)) {
+        const regex = new RegExp(`\\b${word}\\b`, 'g');
+        result = result.replace(regex, `\\${word}`);
+      }
+    });
+    
+    // Ensure no consecutive spaces
+    result = result.replace(/\s+/g, ' ');
+    
+    // Remove any escaped underscores or carets that shouldn't be escaped
+    result = result.replace(/\\\_/g, '_');
+    result = result.replace(/\\\^/g, '^');
+    
+    return result;
   }
   
   /**
@@ -179,6 +221,12 @@ export class LaTeXConverter extends MathConverter {
       case 'munderover': // Both under and overscript
         return this.processUnderOver(el);
       
+      case 'mtext': // Text
+        return `\\text{${el.textContent || ''}}`;
+        
+      case 'mspace': // Space
+        return ' ';
+        
       default:
         // For unknown elements, just process children
         return this.processChildNodes(el);
@@ -203,8 +251,7 @@ export class LaTeXConverter extends MathConverter {
     // Special handling for multi-letter identifiers
     if (text.length > 1) {
       // Check if it's a known function
-      const knownFunctions = ['sin', 'cos', 'tan', 'log', 'ln', 'exp', 'lim', 'max', 'min'];
-      if (knownFunctions.includes(text)) {
+      if (this.texWords.includes(text)) {
         return `\\${text}`;
       }
       
@@ -224,6 +271,11 @@ export class LaTeXConverter extends MathConverter {
     // Check for special operators
     if (op in this.operatorMap) {
       return this.operatorMap[op];
+    }
+    
+    // Add proper spacing for binary operators
+    if (['+', '-', '=', '<', '>', '≤', '≥', '≈', '≠', '∼', '∝'].includes(op)) {
+      return ` ${op} `;
     }
     
     return op;
@@ -467,20 +519,10 @@ export class LaTeXConverter extends MathConverter {
       .replace(/sqrt\(([^)]+)\)/g, '\\sqrt{$1}')
       
       // Basic functions
-      .replace(/sin/g, '\\sin')
-      .replace(/cos/g, '\\cos')
-      .replace(/tan/g, '\\tan')
-      .replace(/log/g, '\\log')
-      .replace(/ln/g, '\\ln')
+      .replace(/\b(sin|cos|tan|log|ln|exp)\b/g, '\\$1')
       
       // Greek letters
-      .replace(/alpha/g, '\\alpha')
-      .replace(/beta/g, '\\beta')
-      .replace(/gamma/g, '\\gamma')
-      .replace(/delta/g, '\\delta')
-      .replace(/epsilon/g, '\\epsilon')
-      .replace(/theta/g, '\\theta')
-      .replace(/pi/g, '\\pi');
+      .replace(/\b(alpha|beta|gamma|delta|epsilon|theta|pi)\b/g, '\\$1');
     
     return content;
   }

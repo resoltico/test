@@ -36,6 +36,11 @@ export interface MathProcessorOptions {
    * Custom placeholder for fallback content
    */
   fallbackTemplate: string;
+  
+  /**
+   * Whether to protect LaTeX content from Markdown escaping
+   */
+  protectLatex: boolean;
 }
 
 /**
@@ -65,6 +70,7 @@ export class MathProcessor {
         attributes: '[math], [latex], [tex], [asciimath]'
       },
       fallbackTemplate: '{delim}{content}{delim}',
+      protectLatex: true,
       ...options
     };
     
@@ -203,7 +209,8 @@ export class MathProcessor {
         element,
         options: {
           inlineDelimiter: this.options.inlineDelimiter,
-          blockDelimiter: this.options.blockDelimiter
+          blockDelimiter: this.options.blockDelimiter,
+          protectLatex: this.options.protectLatex
         }
       };
       
@@ -222,7 +229,8 @@ export class MathProcessor {
         format: outputFormat,
         display: isDisplay ? 'block' : 'inline',
         inlineDelimiter: this.options.inlineDelimiter,
-        blockDelimiter: this.options.blockDelimiter
+        blockDelimiter: this.options.blockDelimiter,
+        protectLatex: String(this.options.protectLatex)
       });
       
       // Preserve the original content if needed
@@ -233,8 +241,15 @@ export class MathProcessor {
         });
       }
       
-      // Set the content
-      replacementElement.textContent = convertedContent;
+      // Protect LaTeX special characters from Markdown escaping
+      // by using a special data attribute if needed
+      if (this.options.protectLatex && outputFormat === 'latex') {
+        replacementElement.setAttribute('data-raw-latex', convertedContent);
+        replacementElement.textContent = convertedContent;
+      } else {
+        // Set the content normally
+        replacementElement.textContent = convertedContent;
+      }
       
       // Replace the original element
       if (element.parentNode) {
@@ -255,7 +270,7 @@ export class MathProcessor {
       const isDisplay = this.detectDisplayMode(element);
       const delimiter = isDisplay ? this.options.blockDelimiter : this.options.inlineDelimiter;
       
-      // Create a fallback using the template (with null check)
+      // Create a fallback using the template
       let fallbackContent = this.options.fallbackTemplate
         .replace('{delim}', delimiter)
         .replace('{content}', this.cleanText(textContent));

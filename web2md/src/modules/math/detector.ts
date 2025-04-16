@@ -83,7 +83,7 @@ export class MathFormatDetector {
     // Check for format-specific classes
     const classList = Array.from(element.classList);
     
-    if (classList.some(cls => ['latex', 'tex', 'katex'].includes(cls.toLowerCase()))) {
+    if (classList.some(cls => ['latex', 'tex', 'katex', 'mathjax'].includes(cls.toLowerCase()))) {
       return 'latex';
     }
     
@@ -113,7 +113,7 @@ export class MathFormatDetector {
     if (nodeName === 'script') {
       const type = (element.getAttribute('type') || '').toLowerCase();
       
-      if (type.includes('math/tex') || type.includes('latex')) {
+      if (type.includes('math/tex') || type.includes('latex') || type.includes('mathjax')) {
         return 'latex';
       }
       
@@ -124,6 +124,25 @@ export class MathFormatDetector {
       if (type.includes('math/mathml')) {
         return 'mathml';
       }
+      
+      // Special case for KaTeX
+      if (type.includes('math') && element.parentElement?.classList.contains('katex')) {
+        return 'latex';
+      }
+    }
+    
+    // KaTeX elements
+    if (nodeName === 'span' && element.classList.contains('katex')) {
+      return 'latex';
+    }
+    
+    // MathJax elements
+    if (nodeName === 'span' && (
+      element.classList.contains('MathJax') || 
+      element.hasAttribute('data-mathml')
+    )) {
+      // MathJax uses MathML internally but typically displays LaTeX
+      return 'latex';
     }
     
     return null;
@@ -140,19 +159,45 @@ export class MathFormatDetector {
       return 'mathml';
     }
     
-    // Check for LaTeX markers
-    if (content.includes('\\begin{') || 
-        content.includes('\\end{') || 
-        content.includes('\\frac') || 
-        content.includes('\\sum') ||
-        content.includes('\\alpha') ||
-        content.includes('\\beta')) {
+    // Check for LaTeX markers - more comprehensive pattern detection
+    const latexPatterns = [
+      // LaTeX environments
+      /\\begin\{([^}]+)\}/, /\\end\{([^}]+)\}/,
+      
+      // Common LaTeX commands
+      /\\(frac|sum|int|prod|lim|inf|sup|min|max|log|sin|cos|tan)/,
+      
+      // Greek letters
+      /\\(alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|pi|rho|sigma|tau|upsilon|phi|chi|psi|omega)/i,
+      
+      // Math delimiters
+      /\$\$.+?\$\$/, /\$.+?\$/,
+      
+      // Other common LaTeX markers
+      /\\(left|right|text|mathbb|mathcal|mathrm|mathbf|mathit)/
+    ];
+    
+    if (latexPatterns.some(pattern => pattern.test(content))) {
       return 'latex';
     }
     
-    // Check for ASCIIMath patterns (more basic detection)
-    if ((content.includes('sin(') || content.includes('cos(') || content.includes('tan(')) &&
-        !content.includes('\\sin') && !content.includes('\\cos') && !content.includes('\\tan')) {
+    // Check for ASCIIMath patterns
+    const asciiMathPatterns = [
+      // Common ASCIIMath functions without backslash
+      /\b(sin|cos|tan|log|ln)\([^)]+\)/,
+      
+      // ASCIIMath style fractions
+      /\{[^}]+\}\/{[^}]+\}/,
+      
+      // ASCIIMath style roots
+      /root\([^)]+\)\(([^)]+)\)/,
+      
+      // ASCIIMath style sub/superscripts without braces
+      /[a-zA-Z](\^|\_)[a-zA-Z0-9]/
+    ];
+    
+    if (asciiMathPatterns.some(pattern => pattern.test(content)) &&
+        !content.includes('\\')) {  // Ensure it's not LaTeX
       return 'ascii';
     }
     

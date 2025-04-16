@@ -68,6 +68,26 @@ export abstract class MathConverter {
   }
   
   /**
+   * Determine whether to protect LaTeX from Markdown escaping
+   * @param context The conversion context
+   * @returns Whether to protect LaTeX
+   */
+  protected shouldProtectLatex(context: ConversionContext): boolean {
+    // Check if explicitly specified in options
+    if (context.options && 'protectLatex' in context.options) {
+      return Boolean(context.options.protectLatex);
+    }
+    
+    // Check element attribute
+    if (context.element && context.element.hasAttribute('data-math-protect-latex')) {
+      return context.element.getAttribute('data-math-protect-latex') === 'true';
+    }
+    
+    // Default to true - it's safer to protect LaTeX by default
+    return true;
+  }
+  
+  /**
    * Get a value from the conversion context with fallback
    * @param context The conversion context
    * @param key The key to look for
@@ -108,6 +128,31 @@ export abstract class MathConverter {
       inline: this.getContextValue(context, 'inlineDelimiter', '$'),
       block: this.getContextValue(context, 'blockDelimiter', '$$')
     };
+  }
+  
+  /**
+   * Process special Markdown-sensitive characters in LaTeX
+   * to prevent them from being escaped by Markdown processors
+   * @param latex The LaTeX content
+   * @param shouldProtect Whether to protect from Markdown escaping
+   * @returns The processed LaTeX
+   */
+  protected processLatexSpecialChars(latex: string, shouldProtect = true): string {
+    if (!shouldProtect) {
+      return latex;
+    }
+    
+    // Make sure backslashes are single (not doubled)
+    let result = latex.replace(/\\\\/g, '\\');
+    
+    // Handle underscores - we want them to be literal in math, not italic markers
+    // But we don't want to over-escape them
+    result = result.replace(/(?<!\\)_/g, '\\_');
+    
+    // Handle asterisks - they should be literal in math, not bold/italic markers
+    result = result.replace(/(?<!\\)\*/g, '\\*');
+    
+    return result;
   }
   
   /**
