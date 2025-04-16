@@ -9,6 +9,7 @@ Convert HTML webpages into semantically structured Markdown documents with advan
 - **Deobfuscation**: Decode Cloudflare email protection, base64 encoding, and ROT13 obfuscation
 - **HTTP Options**: Customizable user agent, headers, cookies, and proxy settings
 - **Content Handling**: Automatic detection and handling of compression and character encodings
+- **Advanced Math Processing**: Convert MathML, LaTeX, and AsciiMath to standard LaTeX in Markdown
 - **Smart Defaults**: Works well with minimal configuration
 
 ## Installation
@@ -111,6 +112,12 @@ deobfuscation:
   emailLinks: true
   cleanScripts: true
 
+# Math processing options
+math:
+  enabled: true
+  inlineDelimiter: "$"
+  blockDelimiter: "$$"
+
 # Debug mode for detailed logging
 debug: false
 ```
@@ -121,19 +128,45 @@ debug: false
 Usage: web2md [options]
 
 Options:
-  -f, --file <path>           HTML file to convert
-  -u, --url <url>             URL to convert
-  -o, --output <file>         Output file (default: stdout)
-  --user-agent <string>       Custom user agent string (overrides config)
-  --rules-dir <directory>     Use rules from directory manifest (overrides config)
-  --deobfuscate               Force enable deobfuscation (overrides config)
-  --no-deobfuscate            Disable deobfuscation (overrides config)
-  --debug                     Enable debug mode with detailed logging
-  -h, --help                  Display help
-  -V, --version               Display version
+  -f, --file <path>            HTML file to convert
+  -u, --url <url>              URL to convert
+  -o, --output <file>          Output file (default: stdout)
+  --user-agent <string>        Custom user agent string (overrides config)
+  --rules-dir <directory>      Use rules from directory manifest (overrides config)
+  --deobfuscate                Force enable deobfuscation (overrides config)
+  --no-deobfuscate             Disable deobfuscation (overrides config)
+  --debug                      Enable debug mode with detailed logging
+  --save-original              Save original HTML content to file before processing
+  --no-compression             Disable support for compressed responses
+  --math-inline-delimiter <s>  Set delimiter for inline math (default: $)
+  --math-block-delimiter <s>   Set delimiter for block math (default: $$)
+  --no-math                    Disable math processing
+  -h, --help                   Display help
+  -V, --version                Display version
 ```
 
-## Custom Rules
+### Math Processing
+
+web2md includes powerful mathematics handling capabilities that properly convert math expressions from HTML to LaTeX in Markdown:
+
+```bash
+# Use custom delimiters for math
+web2md -u https://example.com/math-page -o output.md --math-inline-delimiter '\(' --math-block-delimiter '\['
+
+# Disable math processing if needed
+web2md -f input.html -o output.md --no-math
+```
+
+The math processor handles various formats:
+
+- **MathML**: Converts native MathML elements to LaTeX
+- **LaTeX**: Preserves existing LaTeX in math/tex script elements
+- **AsciiMath**: Converts AsciiMath notation to LaTeX
+- **Data Attributes**: Processes elements with data-math, data-latex, or data-mathml attributes
+
+By default, math is formatted with $ and $$ delimiters, but this can be customized in the config file or via command-line options.
+
+### Custom Rules
 
 You can create custom rules in YAML or JavaScript:
 

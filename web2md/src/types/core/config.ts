@@ -31,6 +31,26 @@ export interface DeobfuscationConfig {
 }
 
 /**
+ * Math processing configuration
+ */
+export interface MathConfig {
+  /**
+   * Enable math processing
+   */
+  enabled: boolean;
+  
+  /**
+   * Inline math delimiter
+   */
+  inlineDelimiter: string;
+  
+  /**
+   * Block math delimiter
+   */
+  blockDelimiter: string;
+}
+
+/**
  * Main application configuration
  */
 export interface Config {
@@ -83,6 +103,11 @@ export interface Config {
    * Deobfuscation options
    */
   deobfuscation: DeobfuscationConfig;
+  
+  /**
+   * Math processing options
+   */
+  math: MathConfig;
   
   /**
    * Debug mode
@@ -148,6 +173,21 @@ export interface CLICommandOptions {
    * Enable/disable compression support
    */
   compression?: boolean;
+  
+  /**
+   * Enable/disable math processing
+   */
+  math?: boolean;
+  
+  /**
+   * Custom delimiter for inline math
+   */
+  mathInlineDelimiter?: string;
+  
+  /**
+   * Custom delimiter for block math
+   */
+  mathBlockDelimiter?: string;
 }
 
 /**

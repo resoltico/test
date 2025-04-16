@@ -64,6 +64,17 @@ export const configSchema = z.object({
     preserveRawLinks: false
   }),
   
+  // Math processing options
+  math: z.object({
+    enabled: z.boolean().default(true),
+    inlineDelimiter: z.string().default('$'),
+    blockDelimiter: z.string().default('$$')
+  }).default({
+    enabled: true,
+    inlineDelimiter: '$',
+    blockDelimiter: '$$'
+  }),
+  
   // Debug mode
   debug: z.boolean().default(false)
 });

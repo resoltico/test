@@ -19,6 +19,7 @@ import { CloudflareEmailDecoder, Base64Decoder, ROT13Decoder } from './modules/d
 import { Deobfuscator } from './modules/deobfuscator/deobfuscator.js';
 import { RulesManager } from './modules/rules/manager.js';
 import { Converter } from './modules/converter/converter.js';
+import { MathProcessor } from './modules/math/processor.js';
 import { FileReader, URLReader } from './modules/io/reader.js';
 import { OutputWriter } from './modules/io/writer.js';
 import { CLI } from './modules/cli/command.js';
@@ -91,8 +92,11 @@ export function createApp(options: AppOptions) {
       logger
     );
     
-    // Create converter
-    const converter = new Converter(logger);
+    // Create math processor
+    const mathProcessor = new MathProcessor(logger);
+    
+    // Create converter with math processor
+    const converter = new Converter(logger, mathProcessor);
     
     // Create IO components
     const fileReader = new FileReader(logger);

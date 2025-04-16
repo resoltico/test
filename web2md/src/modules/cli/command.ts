@@ -60,6 +60,9 @@ export class CLI {
       .option('--debug', 'Enable debug mode with detailed logging')
       .option('--save-original', 'Save original HTML content to file before processing')
       .option('--no-compression', 'Disable support for compressed responses')
+      .option('--math-inline-delimiter <string>', 'Set delimiter for inline math (default: $)')
+      .option('--math-block-delimiter <string>', 'Set delimiter for block math (default: $$)')
+      .option('--no-math', 'Disable math processing')
       .action(async (options) => {
         try {
           await this.handleCommand(options);
@@ -82,6 +85,9 @@ export class CLI {
   private async handleCommand(options: CLICommandOptions & { 
     saveOriginal?: boolean; 
     compression?: boolean;
+    math?: boolean;
+    mathInlineDelimiter?: string;
+    mathBlockDelimiter?: string;
   }): Promise<void> {
     // Ensure either file or URL is provided
     if (!this.validateInputOptions(options)) {
@@ -106,6 +112,12 @@ export class CLI {
     
     // Configure the deobfuscator
     this.deobfuscator.configure(config.deobfuscation);
+    
+    // Handle math option
+    if (options.math === false) {
+      config.math.enabled = false;
+      this.logger.debug('Math processing disabled via command line option');
+    }
     
     // Load rules using the secure rules manager
     const rules = await this.rulesManager.loadRules(config, options.rulesDir);
@@ -170,6 +182,8 @@ export class CLI {
    */
   private applyConfigOverrides(config: Config, options: CLICommandOptions & {
     compression?: boolean;
+    mathInlineDelimiter?: string;
+    mathBlockDelimiter?: string;
   }): void {
     if (options.debug !== undefined) {
       config.debug = options.debug;
@@ -187,6 +201,17 @@ export class CLI {
     if (options.compression === false && config.http) {
       config.http.compression.enabled = false;
       this.logger.debug('Compression support disabled via command line option');
+    }
+    
+    // Handle math delimiter options
+    if (options.mathInlineDelimiter) {
+      config.math.inlineDelimiter = options.mathInlineDelimiter;
+      this.logger.debug(`Math inline delimiter set to ${options.mathInlineDelimiter}`);
+    }
+    
+    if (options.mathBlockDelimiter) {
+      config.math.blockDelimiter = options.mathBlockDelimiter;
+      this.logger.debug(`Math block delimiter set to ${options.mathBlockDelimiter}`);
     }
   }
   

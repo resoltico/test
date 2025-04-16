@@ -8,5 +8,6 @@
 // The build process will convert to .js for the compiled code
 import './turndown.d';
 import './zstd-napi.d';
+import './mathjax-node.d';
 
 // No exports needed - just used for TypeScript recognition

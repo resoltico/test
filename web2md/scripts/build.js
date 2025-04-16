@@ -140,6 +140,13 @@ function copyTypeDefinitions() {
   } catch (error) {
     log(`Failed to copy type definitions: ${error.message}`, colors.red);
   }
+  
+  // Ensure math module directory exists in dist
+  const mathModuleDir = resolve('dist/modules/math');
+  if (!existsSync(mathModuleDir)) {
+    mkdirSync(mathModuleDir, { recursive: true });
+    log(`Created math module directory: ${mathModuleDir}`, colors.green);
+  }
 }
 
 /**

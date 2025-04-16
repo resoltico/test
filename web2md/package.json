@@ -24,6 +24,7 @@
     "got": "^14.4.7",
     "js-yaml": "^4.1.0",
     "jsdom": "^26.1.0",
+    "mathjax-node": "^2.1.1",
     "tough-cookie": "^5.1.2",
     "turndown": "^7.2.0",
     "https-proxy-agent": "^7.0.6",
