@@ -25,62 +25,29 @@ The implementation relies on the following key technologies:
 - node:fs/promises: Native file system operations for input/output
 - got (^14.4.7): HTTP client for retrieving remote content
 - turndown (^7.2.0): Core HTML-to-Markdown conversion engine
-- @types/turndown (^5.0.5)
 - typescript (^5.8.3): Type safety and improved developer experience
 - eslint (^9.24.0): Code quality enforcement and style consistency
-- @typescript-eslint/eslint-plugin: (^8.29.1)
-- @typescript-eslint/parser: (^8.29.1)
-- esbuild (^0.25.2)
+- esbuild (^0.25.2): Build tool for JavaScript/TypeScript
 - tsx (^4.19.3): TypeScript execution for development and testing
 - zod (^3.24.2): Schema validation for configurations and rules
-- pnpm: Efficient package management
-- vitest (^3.1.1): Modern testing framework
 - js-yaml (^4.1.0): YAML parsing for rules and configuration
-- jsdom (^26.1.0)
-- @types/jsdom (^21.1.7)
-- tough-cookie (^5.1.2)
-- @types/tough-cookie (^4.0.5)
-- https-proxy-agent (^7.0.6)
-- mathjax-node (^2.1.1)
-- zstd-napi (^0.0.10)
+- jsdom (^26.1.0): DOM manipulation for HTML processing
+- tough-cookie (^5.1.2): Cookie handling for HTTP requests
+- https-proxy-agent (^7.0.6): HTTP proxy support
+- mathjax-node (^2.1.1): Math expression processing
+- zstd-napi (^0.0.10): Zstandard compression support
 
 ## System Flow
 
-```mermaid
-graph TD
-    User[User] -->|CLI Input| WEB2MD
-    WEB2MD -->|Read Config| YAMLConfig[YAML Configuration]
-    WEB2MD -->|Read File| HTMLFile[HTML File]
-    WEB2MD -->|Fetch URL with HTTP Options| RemoteHTML[Remote HTML]
-    
-    YAMLConfig -->|Configure| HTTPOptions[HTTP Options]
-    YAMLConfig -->|Configure| RulesEngine[Rules Engine]
-    YAMLConfig -->|Configure| DeobfuscatorEngine[Deobfuscator Engine]
-    
-    RulesEngine -->|Load Built-in Rules| BuiltInRules[Built-in Rules Registry]
-    RulesEngine -->|Load Custom Rules| CustomRules[Custom Rules]
-    
-    RemoteHTML -->|Detect Encoding| ContentDecoder[Content Decoder]
-    ContentDecoder -->|Decompress/Decode Content| DecodedHTML[Decoded HTML]
-    
-    HTMLFile -->|Raw Content| Deobfuscator[Deobfuscator]
-    DecodedHTML -->|Raw Content| Deobfuscator
-    
-    Deobfuscator -->|Process Obfuscations| PatternDetector[Pattern Detection]
-    PatternDetector -->|Identify Type| DecoderSelector[Decoder Selection]
-    DecoderSelector -->|Apply Decoder| CleanHTML[Clean HTML]
-    
-    DeobfuscatorEngine -->|Configure| Deobfuscator
-    
-    CleanHTML -->|Content| HTMLProcessor[HTML Processor]
-    
-    RulesEngine -->|Apply Rules| HTMLProcessor
-    
-    HTMLProcessor -->|Convert| Markdown[Markdown Output]
-    
-    Markdown -->|Write File| MDFile[Markdown File]
-    Markdown -->|Print to| Terminal[Terminal Output]
-```
+The system follows a clear flow from input to output:
+
+1. **Input Handling**: Read HTML from files or URLs
+2. **HTTP Processing**: Apply custom user agent, headers, and handle compression
+3. **Content Decoding**: Decompress and decode content as needed
+4. **Deobfuscation**: Detect and decode obfuscated content
+5. **Rule Loading**: Load rules from built-in sets and custom files
+6. **HTML to Markdown Conversion**: Apply rules during conversion
+7. **Output Generation**: Write Markdown to file or stdout
 
 ## Type System Architecture
 
@@ -99,28 +66,15 @@ src/
 │   │   └── io.ts                 # Input/Output-related core types
 │   ├── modules/                  # Module-specific types
 │   │   ├── index.ts              # Exports all module types
-│   │   ├── cli.ts                # CLI module types
-│   │   ├── config.ts             # Config module types
-│   │   ├── rules.ts              # Rules module types
-│   │   ├── deobfuscator.ts       # Deobfuscator module types
-│   │   ├── http.ts               # HTTP module types
 │   │   ├── decoder.ts            # Content decoder module types
-│   │   ├── converter.ts          # Converter module types
-│   │   └── io.ts                 # I/O module types
+│   │   └── ...                   # Other module-specific types
 │   └── vendor/                   # Third-party library type augmentations
 │       ├── index.ts              # Exports all vendor type augmentations
 │       ├── turndown.d.ts         # Turndown type declarations
-│       ├── got.d.ts              # Got HTTP client type extensions
-│       └── jsdom.d.ts            # JSDOM type declarations (if needed)
+│       └── ...                   # Other vendor type declarations
 ```
 
-This type system provides clear organization, centralized type management, and properly isolated third-party type definitions. Key benefits include:
-
-1. **Centralized Type Management**: All types are located in a dedicated directory
-2. **Clear Type Categorization**: Types are organized by their purpose
-3. **Simplified Imports**: The index files provide convenient, consolidated exports
-4. **Improved Integration**: Third-party library augmentations are clearly isolated
-5. **Reduced Duplication**: All modules reference types from a single location
+This type system provides clear organization, centralized type management, and properly isolated third-party type definitions.
 
 ## HTTP Options and Content Handling
 
@@ -209,6 +163,12 @@ deobfuscation:
   cleanScripts: true               # Remove deobfuscation scripts when found
   preserveRawLinks: false          # Keep the original link in an HTML comment
 
+# Math processing options
+math:
+  enabled: true
+  inlineDelimiter: "$"
+  blockDelimiter: "$$"
+
 # Debug mode for detailed logging
 debug: false
 ```
@@ -249,73 +209,6 @@ The YAML-based rules system defines how HTML elements are transformed into Markd
 2. **Selective Activation**: Easy enabling/disabling of specific rule sets
 3. **Custom Extensions**: Simple addition of custom rules
 4. **Clear Precedence**: Explicit rule priority handling
-
-### Configuration Schema
-
-The configuration file (`web2md.yaml`) supports the following options:
-
-```yaml
-# web2md.yaml
-headingStyle: atx      # atx (#) or setext (===)
-listMarker: "-"        # -, *, or +
-codeBlockStyle: fenced # fenced (```) or indented (4 spaces)
-preserveTableAlignment: true
-
-# HTTP options
-http:
-  userAgent: "Mozilla/5.0 (compatible; WEB2MD/1.0; +https://github.com/yourname/web2md)"
-  compression:
-    enabled: true
-    formats:
-      - gzip
-      - br
-      - deflate
-  requestOptions:
-    timeout: 30000
-    retry: 3
-  headers:
-    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
-
-# Tags to completely ignore during conversion
-ignoreTags:
-  - script
-  - style
-  - noscript
-  - iframe
-
-# Either use all built-ins (default if this section is omitted)
-useBuiltInRules: true
-
-# Or explicitly select which built-in rule sets to use
-builtInRules:
-  - common-elements    # Basic HTML elements (headings, paragraphs, lists)
-  - text-formatting    # Bold, italic, etc.
-  - text-links         # Hyperlinks and references
-  - media-images       # Images and figures
-  - tables             # Table formatting
-  - code-blocks        # Code blocks with language highlighting
-  - math               # Mathematical expressions
-  - deobfuscation      # Link and email deobfuscation rules
-
-# Custom rules to extend or override built-ins (must be absolute paths or relative to working directory)
-customRules:
-  - ./my-rules/special-blocks.yaml  # Custom YAML rules
-  - ./my-rules/math-enhanced.js     # Custom JS rules
-
-# Deobfuscation options
-deobfuscation:
-  enabled: true                    # Enable deobfuscation module
-  decoders:
-    - cloudflare                   # Cloudflare email protection
-    - base64                       # Base64-encoded links and content
-    - rot13                        # ROT13 encoded text
-  emailLinks: true                 # Convert to 'mailto:' links after decoding
-  cleanScripts: true               # Remove deobfuscation scripts when found
-  preserveRawLinks: false          # Keep the original link in an HTML comment
-
-# Debug mode for detailed logging
-debug: false
-```
 
 ### Rule Definition Formats
 
@@ -379,12 +272,7 @@ export default {
   },
   
   replacement: (content, node) => {
-    // Extract math content from various attributes
-    const mathContent = 
-      node.getAttribute('data-math-content') || 
-      node.getAttribute('tex') ||
-      node.textContent.trim();
-    
+    // This is a simplified version of the actual implementation
     // Determine if display or inline math
     const isDisplay = 
       node.getAttribute('display') === 'block' ||
@@ -393,7 +281,7 @@ export default {
     
     // Format with appropriate delimiters
     const delimiter = isDisplay ? '$$' : '$';
-    return `${delimiter}${mathContent}${delimiter}${isDisplay ? '\n\n' : ''}`;
+    return `${delimiter}${content}${delimiter}${isDisplay ? '\n\n' : ''}`;
   }
 };
 ```
@@ -402,39 +290,6 @@ JavaScript rules require:
 - **name**: Unique identifier for the rule
 - **filter**: Function that determines if the rule applies to a node
 - **replacement**: Function that generates the Markdown output
-
-The type definitions for rules are located in the centralized type system:
-
-```typescript
-// src/types/core/rule.ts
-/**
- * Rule filter that determines if a rule applies to an HTML node
- */
-export type RuleFilter = string | string[] | ((node: Node) => boolean);
-
-/**
- * Rule replacement function that converts HTML to Markdown
- */
-export type RuleReplacement = (content: string, node: Node) => string;
-
-/**
- * Core rule interface that all rule implementations must follow
- */
-export interface Rule {
-  name: string;
-  filter: RuleFilter;
-  replacement: RuleReplacement;
-}
-
-/**
- * YAML rule definition format
- */
-export interface YAMLRuleDef {
-  filter: string;
-  replacement: string;
-  attributes?: string[];
-}
-```
 
 ### Rule Organization
 
@@ -486,14 +341,14 @@ The system includes a static registry of built-in rules. This registry is a fixe
 ```typescript
 // Static registry of built-in rules
 const BUILT_IN_RULES_REGISTRY = {
-  'common-elements': path.join(RULES_DIR, 'common-elements.yaml'),
-  'text-formatting': path.join(RULES_DIR, 'text-formatting.yaml'),
-  'text-links': path.join(RULES_DIR, 'text-links.yaml'),
-  'media-images': path.join(RULES_DIR, 'media-images.yaml'),
-  'tables': path.join(RULES_DIR, 'tables.yaml'),
-  'code-blocks': path.join(RULES_DIR, 'code-blocks.yaml'),
-  'deobfuscation': path.join(RULES_DIR, 'deobfuscation.yaml'),
-  'math': path.join(RULES_DIR, 'math.js')
+  'common-elements': 'common-elements.yaml',
+  'text-formatting': 'text-formatting.yaml',
+  'text-links': 'text-links.yaml',
+  'media-images': 'media-images.yaml',
+  'tables': 'tables.yaml',
+  'code-blocks': 'code-blocks.yaml',
+  'deobfuscation': 'deobfuscation.yaml',
+  'math': 'math.js'
 };
 ```
 
@@ -503,455 +358,24 @@ This registry approach ensures:
 3. Complete predictability in which rules are applied
 4. No possibility of loading unintended files
 
-## HTTP and Content Handling Modules
+## Math Processing
 
-### HTTP Client Module
+WEB2MD includes a specialized math processor that handles mathematical expressions:
 
-The HTTP client module manages web requests with customizable options:
+1. **MathML Processing**: Converts MathML elements to LaTeX
+2. **TEX Scripts**: Processes script elements with math/tex content
+3. **Data Attributes**: Handles elements with data-math, data-latex attributes
+4. **LaTeX Formatting**: Ensures proper delimiting of math expressions
+5. **Customizable Delimiters**: Allows customizing math delimiters via config
 
-```typescript
-// src/modules/http/client.ts
-export class HTTPClient {
-  private options: HTTPOptions;
-  
-  constructor(options: HTTPOptions, private logger: Logger) {
-    this.options = this.normalizeOptions(options);
-  }
-  
-  /**
-   * Get content from a URL with the configured options
-   */
-  async fetch(url: string): Promise<HTTPResponse> {
-    this.logger.debug(`Fetching URL: ${url}`);
-    this.logger.debug(`Using user agent: ${this.options.userAgent}`);
-    
-    try {
-      // Prepare the got options
-      const gotOptions: GotOptions = {
-        headers: {
-          'User-Agent': this.options.userAgent,
-          ...this.options.headers
-        },
-        timeout: {
-          request: this.options.requestOptions.timeout
-        },
-        retry: {
-          limit: this.options.requestOptions.retry
-        },
-        followRedirect: this.options.requestOptions.followRedirects,
-        maxRedirects: this.options.requestOptions.maxRedirects,
-        throwHttpErrors: this.options.requestOptions.throwHttpErrors,
-        decompress: this.options.compression.enabled
-      };
-      
-      // Add cookie handling if enabled
-      if (this.options.cookies.enabled) {
-        gotOptions.cookieJar = this.options.cookies.jar ? new CookieJar() : undefined;
-      }
-      
-      // Add proxy if enabled
-      if (this.options.proxy.enabled) {
-        gotOptions.agent = {
-          https: new HttpsProxyAgent({
-            proxy: this.options.proxy.url,
-            auth: this.options.proxy.auth.username 
-              ? `${this.options.proxy.auth.username}:${this.options.proxy.auth.password}`
-              : undefined
-          })
-        };
-      }
-      
-      // Make the request
-      const response = await got(url, gotOptions);
-      
-      // Extract response details
-      const contentType = response.headers['content-type'] || '';
-      const contentEncoding = response.headers['content-encoding'] || '';
-      
-      this.logger.debug(`Response status: ${response.statusCode}`);
-      this.logger.debug(`Content-Type: ${contentType}`);
-      this.logger.debug(`Content-Encoding: ${contentEncoding}`);
-      
-      // Create and return the HTTP response
-      return {
-        statusCode: response.statusCode,
-        headers: response.headers,
-        body: response.body,
-        contentType,
-        contentEncoding
-      };
-    } catch (error) {
-      if (error instanceof Error) {
-        this.logger.error(`HTTP request failed: ${error.message}`);
-      }
-      throw error;
-    }
-  }
-  
-  /**
-   * Normalize and validate options with defaults
-   */
-  private normalizeOptions(options: Partial<HTTPOptions>): HTTPOptions {
-    return {
-      userAgent: options.userAgent || 'web2md/1.0',
-      compression: {
-        enabled: options.compression?.enabled ?? true,
-        formats: options.compression?.formats || ['gzip', 'br', 'deflate']
-      },
-      requestOptions: {
-        timeout: options.requestOptions?.timeout || 30000,
-        retry: options.requestOptions?.retry || 3,
-        followRedirects: options.requestOptions?.followRedirects ?? true,
-        maxRedirects: options.requestOptions?.maxRedirects || 10,
-        throwHttpErrors: options.requestOptions?.throwHttpErrors ?? false
-      },
-      cookies: {
-        enabled: options.cookies?.enabled ?? true,
-        jar: options.cookies?.jar ?? true
-      },
-      headers: options.headers || {},
-      proxy: {
-        enabled: options.proxy?.enabled ?? false,
-        url: options.proxy?.url || '',
-        auth: {
-          username: options.proxy?.auth?.username || '',
-          password: options.proxy?.auth?.password || ''
-        }
-      }
-    };
-  }
-}
-```
+Math processing happens in two phases:
+1. **Preprocessing**: Before HTML to Markdown conversion, to standardize math elements
+2. **Post-processing**: After conversion, to ensure proper delimiter spacing
 
-### Content Decoder Module
-
-The content decoder module handles compressed and encoded content:
-
-```typescript
-// src/modules/decoder/content-decoder.ts
-export class ContentDecoder {
-  constructor(private logger: Logger) {}
-  
-  /**
-   * Decode content based on HTTP headers and body
-   */
-  async decode(response: HTTPResponse): Promise<string> {
-    this.logger.debug('Starting content decoding process');
-    
-    let content = response.body;
-    const contentEncoding = response.contentEncoding.toLowerCase();
-    const contentType = response.contentType.toLowerCase();
-    
-    // If got's automatic decompression didn't work, handle it manually
-    if (contentEncoding && contentEncoding !== 'identity') {
-      this.logger.debug(`Detected content encoding: ${contentEncoding}`);
-      
-      if (contentEncoding.includes('gzip') && this.isCompressedContent(content)) {
-        content = await this.decompressGzip(content);
-      } else if (contentEncoding.includes('br') && this.isCompressedContent(content)) {
-        content = await this.decompressBrotli(content);
-      } else if (contentEncoding.includes('deflate') && this.isCompressedContent(content)) {
-        content = await this.decompressDeflate(content);
-      } else if (contentEncoding.includes('zstd') && this.isCompressedContent(content)) {
-        content = await this.decompressZstd(content);
-      }
-    }
-    
-    // Detect character encoding from content-type header
-    let charset = this.extractCharset(contentType);
-    
-    if (!charset) {
-      // If no charset in content-type, try to detect from the content
-      charset = this.detectCharset(content);
-    }
-    
-    this.logger.debug(`Using character encoding: ${charset}`);
-    
-    // Convert to UTF-8 if needed
-    if (charset && charset.toLowerCase() !== 'utf-8') {
-      content = this.convertCharset(content, charset);
-    }
-    
-    this.logger.debug('Content decoding process completed');
-    
-    return content;
-  }
-  
-  /**
-   * Check if content appears to be compressed
-   */
-  private isCompressedContent(content: string): boolean {
-    // A simple heuristic - compressed content usually contains many non-printable characters
-    // This is not foolproof but works for most cases
-    const nonPrintableChars = content.split('').filter(char => {
-      const code = char.charCodeAt(0);
-      return code < 32 || code > 126;
-    }).length;
-    
-    // If more than 10% of characters are non-printable, it's likely compressed
-    return (nonPrintableChars / content.length) > 0.1;
-  }
-  
-  /**
-   * Extract charset from content-type header
-   */
-  private extractCharset(contentType: string): string | null {
-    const match = /charset=([^;]+)/i.exec(contentType);
-    return match ? match[1].trim() : null;
-  }
-  
-  /**
-   * Detect character encoding from content
-   */
-  private detectCharset(content: string): string {
-    // A simple detection of common encodings
-    // For production use, consider using 'jschardet' or similar libraries
-    
-    // Check for UTF-8 BOM
-    if (content.startsWith('\uFEFF')) {
-      return 'utf-8';
-    }
-    
-    // Check for UTF-16 BE BOM
-    if (content.startsWith('\uFEFF')) {
-      return 'utf-16be';
-    }
-    
-    // Check for UTF-16 LE BOM
-    if (content.startsWith('\uFFFE')) {
-      return 'utf-16le';
-    }
-    
-    // Default to UTF-8
-    return 'utf-8';
-  }
-  
-  /**
-   * Convert from the given charset to UTF-8
-   */
-  private convertCharset(content: string, fromCharset: string): string {
-    // Use iconv-lite or similar library for conversion
-    // For simplicity, this is a placeholder implementation
-    
-    this.logger.debug(`Converting from ${fromCharset} to UTF-8`);
-    
-    // In a real implementation, you would use something like:
-    // return iconv.decode(Buffer.from(content), fromCharset);
-    
-    return content; // Placeholder - actual implementation would handle conversion
-  }
-  
-  /**
-   * Decompress gzip content
-   */
-  private async decompressGzip(content: string): Promise<string> {
-    this.logger.debug('Decompressing gzip content');
-    
-    try {
-      const buffer = Buffer.from(content, 'binary');
-      const decompressed = await promisify(gunzip)(buffer);
-      return decompressed.toString();
-    } catch (error) {
-      this.logger.error('Failed to decompress gzip content');
-      return content; // Return original on error
-    }
-  }
-  
-  /**
-   * Decompress brotli content
-   */
-  private async decompressBrotli(content: string): Promise<string> {
-    this.logger.debug('Decompressing brotli content');
-    
-    try {
-      const buffer = Buffer.from(content, 'binary');
-      const decompressed = brotliDecompress(buffer);
-      return decompressed.toString();
-    } catch (error) {
-      this.logger.error('Failed to decompress brotli content');
-      return content; // Return original on error
-    }
-  }
-  
-  /**
-   * Decompress deflate content
-   */
-  private async decompressDeflate(content: string): Promise<string> {
-    this.logger.debug('Decompressing deflate content');
-    
-    try {
-      const buffer = Buffer.from(content, 'binary');
-      const decompressed = await promisify(inflate)(buffer);
-      return decompressed.toString();
-    } catch (error) {
-      this.logger.error('Failed to decompress deflate content');
-      return content; // Return original on error
-    }
-  }
-  
-  /**
-   * Decompress zstd content
-   */
-  private async decompressZstd(content: string): Promise<string> {
-    this.logger.debug('Decompressing zstd content');
-    
-    try {
-      // Zstandard decompression - would use a library like 'node-zstandard'
-      // For simplicity, this is a placeholder implementation
-      
-      // In a real implementation, you would use something like:
-      // const buffer = Buffer.from(content, 'binary');
-      // const decompressed = await zstd.decompress(buffer);
-      // return decompressed.toString();
-      
-      return content; // Placeholder - actual implementation would handle zstd decompression
-    } catch (error) {
-      this.logger.error('Failed to decompress zstd content');
-      return content; // Return original on error
-    }
-  }
-}
-```
-
-### New HTTP Types
-
-```typescript
-// src/types/core/http.ts
-/**
- * HTTP options for web requests
- */
-export interface HTTPOptions {
-  /**
-   * User agent string to use for requests
-   */
-  userAgent: string;
-  
-  /**
-   * Compression options
-   */
-  compression: {
-    /**
-     * Enable support for compressed responses
-     */
-    enabled: boolean;
-    
-    /**
-     * Supported compression formats
-     */
-    formats: string[];
-  };
-  
-  /**
-   * HTTP request options
-   */
-  requestOptions: {
-    /**
-     * Request timeout in milliseconds
-     */
-    timeout: number;
-    
-    /**
-     * Number of retry attempts
-     */
-    retry: number;
-    
-    /**
-     * Automatically follow redirects
-     */
-    followRedirects: boolean;
-    
-    /**
-     * Maximum number of redirects to follow
-     */
-    maxRedirects: number;
-    
-    /**
-     * Throw on HTTP error codes (4xx, 5xx)
-     */
-    throwHttpErrors: boolean;
-  };
-  
-  /**
-   * Cookie handling options
-   */
-  cookies: {
-    /**
-     * Enable cookie handling
-     */
-    enabled: boolean;
-    
-    /**
-     * Use a cookie jar for storing cookies
-     */
-    jar: boolean;
-  };
-  
-  /**
-   * Custom HTTP headers
-   */
-  headers: Record<string, string>;
-  
-  /**
-   * Proxy configuration
-   */
-  proxy: {
-    /**
-     * Enable proxy
-     */
-    enabled: boolean;
-    
-    /**
-     * Proxy URL
-     */
-    url: string;
-    
-    /**
-     * Proxy authentication
-     */
-    auth: {
-      /**
-       * Proxy username
-       */
-      username: string;
-      
-      /**
-       * Proxy password
-       */
-      password: string;
-    };
-  };
-}
-
-/**
- * HTTP response
- */
-export interface HTTPResponse {
-  /**
-   * HTTP status code
-   */
-  statusCode: number;
-  
-  /**
-   * HTTP headers
-   */
-  headers: Record<string, string | string[] | undefined>;
-  
-  /**
-   * Response body
-   */
-  body: string;
-  
-  /**
-   * Content type header value
-   */
-  contentType: string;
-  
-  /**
-   * Content encoding header value
-   */
-  contentEncoding: string;
-}
-```
+The math processor supports:
+- Inline vs. block math detection
+- MathML to LaTeX conversion
+- Fallback mechanisms for handling errors
 
 ## User Workflow
 
@@ -967,7 +391,7 @@ web2md -f input.html -o output.md
 web2md -u https://example.com -o example.md
 
 # Convert a web page with a custom user agent
-web2md -u https://example.com -o example.md --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Edg/122.0.0.0"
+web2md -u https://example.com -o example.md --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 ```
 
 The system will use all built-in rules with default settings, including deobfuscation and content encoding handling.
@@ -1052,16 +476,58 @@ The command-line interface supports the following options:
 Usage: web2md [options]
 
 Options:
-  -f, --file <path>           HTML file to convert
-  -u, --url <url>             URL to convert
-  -o, --output <file>         Output file (default: stdout)
-  --user-agent <string>       Custom user agent string (overrides config)
-  --rules-dir <directory>     Use rules from directory manifest (overrides config)
-  --deobfuscate               Force enable deobfuscation (overrides config)
-  --no-deobfuscate            Disable deobfuscation (overrides config)
-  --debug                     Enable debug mode with detailed logging
-  -h, --help                  Display help
-  -V, --version               Display version
+  -f, --file <path>             HTML file to convert
+  -u, --url <url>               URL to convert
+  -o, --output <file>           Output file (default: stdout)
+  --user-agent <string>         Custom user agent string (overrides config)
+  --rules-dir <directory>       Use rules from directory manifest (overrides config)
+  --deobfuscate                 Force enable deobfuscation (overrides config)
+  --no-deobfuscate              Disable deobfuscation (overrides config)
+  --debug                       Enable debug mode with detailed logging
+  --save-original               Save original HTML content to file before processing
+  --no-compression              Disable support for compressed responses
+  --math-inline-delimiter <s>   Set delimiter for inline math (default: $)
+  --math-block-delimiter <s>    Set delimiter for block math (default: $$)
+  --no-math                     Disable math processing
+  -h, --help                    Display help
+  -V, --version                 Display version
+```
+
+## Shell Setup for macOS/Linux
+
+```bash
+# web2md zsh function with fnm support
+web2md() {
+  # Define the path to your web2md installation
+  local web2md_dir="$HOME/Tools/web2md"
+  local web2md_exec="$web2md_dir/bin/web2md.js"
+  
+  # Check if the executable exists
+  if [[ ! -f "$web2md_exec" ]]; then
+    echo "Error: web2md executable not found at $web2md_exec"
+    return 1
+  fi
+  
+  # Save current directory to return to it later
+  local current_dir=$(pwd)
+  
+  # Change to the web2md directory to trigger fnm auto-switching
+  cd "$web2md_dir"
+  
+  # Check if fnm is available and try to use the right Node version
+  if command -v fnm &> /dev/null && [[ -f ".node-version" ]]; then
+    eval "$(fnm env --use-on-cd)"
+  fi
+  
+  # Execute the command with all arguments
+  "$web2md_exec" "$@"
+  local result=$?
+  
+  # Return to the original directory
+  cd "$current_dir"
+  
+  return $result
+}
 ```
 
 ## Implementation Guidelines
