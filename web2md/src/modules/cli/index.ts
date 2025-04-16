@@ -1,1 +1,1 @@
-export { CLI } from './command.js';
+export * from './command.js';

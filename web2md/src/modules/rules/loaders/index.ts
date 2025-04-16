@@ -1,2 +1,2 @@
-export { YAMLRuleLoader } from './yaml-loader.js';
-export { JSRuleLoader } from './js-loader.js';
+export * from './yaml-loader.js';
+export * from './js-loader.js';

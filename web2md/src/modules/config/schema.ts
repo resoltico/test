@@ -1,50 +1,81 @@
 import { z } from 'zod';
 import { Config } from '../../types/core/config.js';
+import { HTTPDefaults } from '../http/defaults.js';
 
 /**
  * Zod schema for configuration validation
  */
 export const configSchema = z.object({
+  // Markdown formatting options
   headingStyle: z.enum(['atx', 'setext']).default('setext'),
-  listMarker: z.enum(['-', '*', '+']).default('-'),
-  codeBlockStyle: z.enum(['fenced', 'indented']).default('fenced'),
+  listMarker: z.enum(['-', '*', '+']).default('*'),
+  codeBlockStyle: z.enum(['indented', 'fenced']).default('indented'),
   preserveTableAlignment: z.boolean().default(true),
+  
+  // HTML processing options
   ignoreTags: z.array(z.string()).default(['script', 'style', 'noscript', 'iframe']),
+  
+  // Rules configuration
   useBuiltInRules: z.boolean().optional(),
   builtInRules: z.array(z.string()).optional(),
   customRules: z.array(z.string()).optional(),
-  debug: z.boolean().default(false),
-  preserveRawUrls: z.boolean().default(true) // Default to preserving raw URLs
-}).transform((data): Config => {
-  // Handle mutual exclusivity between useBuiltInRules and builtInRules
-  if (data.builtInRules !== undefined && data.builtInRules.length > 0) {
-    return {
-      ...data,
-      useBuiltInRules: false
-    };
-  }
   
-  // Default to useBuiltInRules: true if neither is specified
-  if (data.useBuiltInRules === undefined && data.builtInRules === undefined) {
-    return {
-      ...data,
-      useBuiltInRules: true
-    };
-  }
+  // HTTP options - this needs to match HTTPOptions structure
+  http: z.object({
+    userAgent: z.string().default(HTTPDefaults.getDefaultOptions().userAgent),
+    compression: z.object({
+      enabled: z.boolean().default(true),
+      formats: z.array(z.string()).default(['gzip', 'br', 'deflate'])
+    }).default(HTTPDefaults.getDefaultOptions().compression),
+    requestOptions: z.object({
+      timeout: z.number().default(30000),
+      retry: z.number().default(3),
+      followRedirects: z.boolean().default(true),
+      maxRedirects: z.number().default(10),
+      throwHttpErrors: z.boolean().default(false)
+    }).default(HTTPDefaults.getDefaultOptions().requestOptions),
+    cookies: z.object({
+      enabled: z.boolean().default(true),
+      jar: z.boolean().default(true)
+    }).default(HTTPDefaults.getDefaultOptions().cookies),
+    headers: z.record(z.string()).default(HTTPDefaults.getDefaultOptions().headers),
+    proxy: z.object({
+      enabled: z.boolean().default(false),
+      url: z.string().default(''),
+      auth: z.object({
+        username: z.string().default(''),
+        password: z.string().default('')
+      }).default(HTTPDefaults.getDefaultOptions().proxy.auth)
+    }).default(HTTPDefaults.getDefaultOptions().proxy)
+  }).optional().default(HTTPDefaults.getDefaultOptions()),
   
-  return data as Config;
+  // Deobfuscation options
+  deobfuscation: z.object({
+    enabled: z.boolean().default(true),
+    decoders: z.array(z.string()).default(['cloudflare', 'base64', 'rot13']),
+    emailLinks: z.boolean().default(true),
+    cleanScripts: z.boolean().default(true),
+    preserveRawLinks: z.boolean().default(false)
+  }).default({
+    enabled: true,
+    decoders: ['cloudflare', 'base64', 'rot13'],
+    emailLinks: true,
+    cleanScripts: true,
+    preserveRawLinks: false
+  }),
+  
+  // Debug mode
+  debug: z.boolean().default(false)
 });
 
 /**
- * Default configuration
+ * Type definition for config based on the schema
  */
-export const defaultConfig: Config = {
-  headingStyle: 'setext',
-  listMarker: '-',
-  codeBlockStyle: 'fenced',
-  preserveTableAlignment: true,
-  ignoreTags: ['script', 'style', 'noscript', 'iframe'],
-  useBuiltInRules: true,
-  debug: false,
-  preserveRawUrls: true // Default to preserving raw URLs
-};
+export type ValidatedConfig = z.infer<typeof configSchema>;
+
+/**
+ * Get the default configuration
+ */
+export function getDefaultConfig(): Config {
+  return configSchema.parse({});
+}

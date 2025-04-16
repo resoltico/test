@@ -12,9 +12,50 @@ rules:
     replacement: "~~{content}~~"
     
   highlight:
-    filter: "mark, span.highlight"
+    filter: "mark"
     replacement: "=={content}=="
     
   code:
     filter: "code"
     replacement: "`{content}`"
+    
+  subscript:
+    filter: "sub"
+    replacement: "~{content}~"
+    
+  superscript:
+    filter: "sup"
+    replacement: "^{content}^"
+    
+  underline:
+    filter: "u"
+    replacement: "_{content}_"
+    
+  keyboard:
+    filter: "kbd"
+    replacement: "`{content}`"
+    
+  sample:
+    filter: "samp"
+    replacement: "`{content}`"
+    
+  variable:
+    filter: "var"
+    replacement: "*{content}*"
+    
+  small:
+    filter: "small"
+    replacement: "<small>{content}</small>"
+    
+  cite:
+    filter: "cite"
+    replacement: "*{content}*"
+    
+  definition:
+    filter: "dfn"
+    replacement: "**{content}**"
+    
+  abbreviation:
+    filter: "abbr"
+    replacement: "{content}"
+    attributes: ["title"]

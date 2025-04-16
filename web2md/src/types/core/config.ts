@@ -1,55 +1,68 @@
-/**
- * Heading style options for Markdown output
- */
-export type HeadingStyle = 'atx' | 'setext';
+import { HTTPOptions } from './http.js';
 
 /**
- * List marker options for Markdown output
+ * Deobfuscation configuration
  */
-export type ListMarker = '-' | '*' | '+';
+export interface DeobfuscationConfig {
+  /**
+   * Enable deobfuscation
+   */
+  enabled: boolean;
+  
+  /**
+   * List of enabled decoders
+   */
+  decoders: string[];
+  
+  /**
+   * Convert decoded emails to mailto: links
+   */
+  emailLinks: boolean;
+  
+  /**
+   * Remove deobfuscation scripts when found
+   */
+  cleanScripts: boolean;
+  
+  /**
+   * Keep the original link in an HTML comment
+   */
+  preserveRawLinks: boolean;
+}
 
 /**
- * Code block style options for Markdown output
- */
-export type CodeBlockStyle = 'fenced' | 'indented';
-
-/**
- * Application configuration interface
+ * Main application configuration
  */
 export interface Config {
   /**
-   * Style of headings to use in Markdown output
-   * - atx: Use # style (e.g., "# Heading")
-   * - setext: Use underline style (e.g., "Heading\n===")
+   * Heading style (atx or setext)
    */
-  headingStyle: HeadingStyle;
+  headingStyle: 'atx' | 'setext';
   
   /**
-   * Marker to use for bullet lists
+   * List marker character
    */
-  listMarker: ListMarker;
+  listMarker: '-' | '*' | '+';
   
   /**
-   * Style of code blocks to use in Markdown output
-   * - fenced: Use triple backticks
-   * - indented: Use 4-space indentation
+   * Code block style (indented or fenced)
    */
-  codeBlockStyle: CodeBlockStyle;
+  codeBlockStyle: 'indented' | 'fenced';
   
   /**
-   * Whether to preserve table alignment in Markdown output
+   * Preserve table alignment
    */
   preserveTableAlignment: boolean;
   
   /**
-   * Tags to completely ignore during conversion
+   * Tags to ignore during conversion
    */
   ignoreTags: string[];
   
   /**
-   * Whether to use all built-in rules
+   * Use all built-in rules
    */
-  useBuiltInRules: boolean;
+  useBuiltInRules?: boolean;
   
   /**
    * Specific built-in rule sets to use
@@ -57,18 +70,97 @@ export interface Config {
   builtInRules?: string[];
   
   /**
-   * Custom rules to extend or override built-ins
+   * Custom rules to use
    */
   customRules?: string[];
   
   /**
-   * Enable debug mode for detailed logging
+   * HTTP options
+   */
+  http?: HTTPOptions;
+  
+  /**
+   * Deobfuscation options
+   */
+  deobfuscation: DeobfuscationConfig;
+  
+  /**
+   * Debug mode
    */
   debug: boolean;
+}
 
+/**
+ * Application options when creating the app
+ */
+export interface AppOptions {
   /**
-   * Whether to preserve raw URLs in links exactly as they appear in the HTML
-   * When true, links won't be sanitized or modified in any way
+   * Root directory for rule loading
    */
-  preserveRawUrls: boolean;
+  rootDir: string;
+}
+
+/**
+ * CLI command options
+ */
+export interface CLICommandOptions {
+  /**
+   * HTML file to convert
+   */
+  file?: string;
+  
+  /**
+   * URL to convert
+   */
+  url?: string;
+  
+  /**
+   * Output file
+   */
+  output?: string;
+  
+  /**
+   * Custom user agent string
+   */
+  userAgent?: string;
+  
+  /**
+   * Rules directory
+   */
+  rulesDir?: string;
+  
+  /**
+   * Force enable deobfuscation
+   */
+  deobfuscate?: boolean;
+  
+  /**
+   * Debug mode
+   */
+  debug?: boolean;
+}
+
+/**
+ * Output writer options
+ */
+export interface OutputOptions {
+  /**
+   * Source path (file or URL)
+   */
+  sourcePath: string;
+  
+  /**
+   * Whether the source is a URL
+   */
+  isUrl: boolean;
+  
+  /**
+   * Output path (optional, stdout if not provided)
+   */
+  outputPath?: string;
+  
+  /**
+   * Create directories if they don't exist
+   */
+  createDirs?: boolean;
 }

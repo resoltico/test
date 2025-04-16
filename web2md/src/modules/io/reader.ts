@@ -1,54 +1,81 @@
-import fs from 'node:fs/promises';
-import path from 'node:path';
-import got from 'got';
-import { IOError } from '../../shared/errors/app-error.js';
+import { promises as fs } from 'node:fs';
+import { resolve } from 'node:path';
+import { HTTPClient } from '../http/client.js';
+import { ContentDecoder } from '../decoder/content-decoder.js';
 import { Logger } from '../../shared/logger/console.js';
 
 /**
- * File reader
+ * Reads content from files
  */
 export class FileReader {
   constructor(private logger: Logger) {}
-
+  
   /**
-   * Read HTML from file
+   * Read content from a file
+   * @param path Path to the file
+   * @returns The file content
    */
-  async read(filePath: string): Promise<string> {
+  async read(path: string): Promise<string> {
     try {
-      // Resolve path if relative
-      const resolvedPath = path.isAbsolute(filePath) ? filePath : path.resolve(process.cwd(), filePath);
+      const absPath = resolve(process.cwd(), path);
+      this.logger.debug(`Reading file: ${absPath}`);
       
-      // Check if file exists
-      await fs.access(resolvedPath);
+      // Check file exists
+      await fs.access(absPath);
       
-      // Read file
-      const content = await fs.readFile(resolvedPath, 'utf8');
+      // Read the file
+      const content = await fs.readFile(absPath, 'utf-8');
+      this.logger.debug(`Successfully read ${content.length} bytes from ${absPath}`);
+      
       return content;
     } catch (error) {
-      throw new IOError(`Failed to read file ${filePath}: ${error}`);
+      this.logger.error(`Failed to read file: ${path}`);
+      if (error instanceof Error) {
+        this.logger.debug(`Error: ${error.message}`);
+      }
+      throw error;
     }
   }
 }
 
 /**
- * URL reader
+ * Reads content from URLs
  */
 export class URLReader {
-  constructor(private logger: Logger) {}
-
+  constructor(
+    private httpClient: HTTPClient,
+    private contentDecoder: ContentDecoder,
+    private logger: Logger
+  ) {}
+  
   /**
-   * Read HTML from URL
+   * Read content from a URL
+   * @param url The URL to read
+   * @returns The URL content
    */
   async read(url: string): Promise<string> {
+    this.logger.info(`Fetching content from URL: ${url}`);
+    
     try {
-      // Add protocol if missing
-      const normalizedUrl = url.startsWith('http') ? url : `https://${url}`;
+      // Fetch the content using the HTTP client
+      const response = await this.httpClient.fetch(url);
       
-      // Fetch URL
-      const response = await got(normalizedUrl);
-      return response.body;
+      // Check for successful response
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw new Error(`HTTP error: ${response.statusCode}`);
+      }
+      
+      // Decode the content (handle compression and character encoding)
+      const content = await this.contentDecoder.decode(response);
+      
+      this.logger.debug(`Successfully fetched and decoded content from ${url}`);
+      
+      return content;
     } catch (error) {
-      throw new IOError(`Failed to fetch URL ${url}: ${error}`);
+      if (error instanceof Error) {
+        this.logger.error(`Failed to fetch URL ${url}: ${error.message}`);
+      }
+      throw error;
     }
   }
 }

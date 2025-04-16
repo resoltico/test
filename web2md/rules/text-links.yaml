@@ -1,14 +1,20 @@
 rules:
-  link:
+  hyperlink:
     filter: "a"
     replacement: "[{content}]({attr:href})"
-    attributes:
-      - href
-      
-  imageLink:
-    filter: "a:has(img)"
-    replacement: "[![{attr:alt}]({attr:src})]({attr:href})"
-    attributes:
-      - href
-      - src
-      - alt
+    attributes: ["href"]
+    
+  emailLink:
+    filter: "a[href^='mailto:']"
+    replacement: "[{content}]({attr:href})"
+    attributes: ["href"]
+    
+  anchorLink:
+    filter: "a[href^='#']"
+    replacement: "[{content}]({attr:href})"
+    attributes: ["href"]
+    
+  externalLink:
+    filter: "a[target='_blank']"
+    replacement: "[{content}]({attr:href})"
+    attributes: ["href"]

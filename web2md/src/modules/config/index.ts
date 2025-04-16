@@ -1,2 +1,2 @@
-export { ConfigLoader } from './loader.js';
-export { defaultConfig } from './schema.js';
+export * from './loader.js';
+export * from './schema.js';

@@ -1,68 +1,79 @@
 # WEB2MD
 
-A powerful Node.js CLI application that transforms HTML webpages into semantically structured Markdown documents using a YAML-based rules system.
+Convert HTML webpages into semantically structured Markdown documents with advanced deobfuscation, content handling, and customizable rules.
 
 ## Features
 
-- Convert HTML files and web pages to clean, well-structured Markdown
-- Smart defaults for excellent results with zero configuration
-- Highly customizable YAML-based rules system
-- Built-in rules for common HTML elements
-- Support for custom rule extensions
-- Security-focused design with explicit rule loading
+- **HTML to Markdown Conversion**: High-fidelity conversion of HTML content to Markdown
+- **YAML-Based Rules System**: Customizable conversion rules with clear organization
+- **Deobfuscation**: Decode Cloudflare email protection, base64 encoding, and ROT13 obfuscation
+- **HTTP Options**: Customizable user agent, headers, cookies, and proxy settings
+- **Content Handling**: Automatic detection and handling of compression and character encodings
+- **Smart Defaults**: Works well with minimal configuration
 
 ## Installation
 
-### Prerequisites
-
-- Node.js v22.14.0 or higher
-
-### Install from NPM
-
 ```bash
-npm install -g web2md
-```
-
-### Install from Source
-
-```bash
+# Clone the repository
 git clone https://github.com/yourusername/web2md.git
 cd web2md
+
+# Install dependencies
 npm install
+
+# Build the project
 npm run build
+
+# Make the CLI executable
+chmod +x bin/web2md.js
+
+# Optional: Create a symlink to run from anywhere
 npm link
 ```
 
-## Basic Usage
+## Usage
 
-### Convert an HTML File
+### Basic Usage
 
 ```bash
+# Convert an HTML file to Markdown
 web2md -f input.html -o output.md
-```
 
-### Convert a Web Page
-
-```bash
+# Convert a web page to Markdown
 web2md -u https://example.com -o example.md
+
+# Convert a web page with a custom user agent
+web2md -u https://example.com -o example.md --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 ```
 
-### Show Output in Terminal
+### Configuration
 
-```bash
-web2md -f input.html
-```
-
-## Configuration
-
-WEB2MD can be customized by creating a `web2md.yaml` file in your project directory:
+Create a `web2md.yaml` file in your project directory:
 
 ```yaml
-# Markdown style options
-headingStyle: atx      # atx (#) or setext (===)
-listMarker: "-"        # -, *, or +
-codeBlockStyle: fenced # fenced (```) or indented (4 spaces)
+# web2md.yaml
+headingStyle: atx        # atx (#) or setext (===)
+listMarker: "-"          # -, *, or +
+codeBlockStyle: fenced   # fenced (```) or indented (4 spaces)
 preserveTableAlignment: true
+
+# HTTP options
+http:
+  userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+  compression:
+    enabled: true
+    formats:
+      - gzip
+      - br
+      - deflate
+  requestOptions:
+    timeout: 30000
+    retry: 3
+  cookies:
+    enabled: true
+    jar: true
+  headers:
+    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
 
 # Tags to completely ignore during conversion
 ignoreTags:
@@ -75,89 +86,97 @@ ignoreTags:
 useBuiltInRules: true
 
 # Or explicitly select which built-in rule sets to use
-# builtInRules:
-#   - common-elements    # Basic HTML elements (headings, paragraphs, lists)
-#   - text-formatting    # Bold, italic, etc.
-#   - text-links         # Hyperlinks and references
-#   - media-images       # Images and figures
-#   - tables             # Table formatting
-#   - code-blocks        # Code blocks with language highlighting
-#   - math               # Mathematical expressions
+builtInRules:
+  - common-elements
+  - text-formatting
+  - text-links
+  - media-images
+  - tables
+  - code-blocks
+  - math
+  - deobfuscation
 
 # Custom rules to extend or override built-ins
-# customRules:
-#   - ./my-rules/special-blocks.yaml  # Custom YAML rules
-#   - ./my-rules/math-enhanced.js     # Custom JS rules
+customRules:
+  - ./my-rules/special-blocks.yaml
+  - ./my-rules/math-enhanced.js
+
+# Deobfuscation options
+deobfuscation:
+  enabled: true
+  decoders:
+    - cloudflare
+    - base64
+    - rot13
+  emailLinks: true
+  cleanScripts: true
 
 # Debug mode for detailed logging
 debug: false
 ```
 
-## Custom Rules
-
-### YAML Rules
-
-Create a YAML file with your custom rules:
-
-```yaml
-# my-rules/note-boxes.yaml
-rules:
-  note:
-    filter: "div.note, aside.note"
-    replacement: "> **Note:** {content}\n\n"
-  
-  warning:
-    filter: "div.warning, aside.warning"
-    replacement: "> **Warning:** {content}\n\n"
-  
-  info:
-    filter: "div.info, aside.info"
-    replacement: "> **Info:** {content}\n\n"
-```
-
-### JavaScript Rules
-
-For more complex rules, create a JavaScript file:
-
-```javascript
-// my-rules/custom-callouts.js
-export default {
-  name: 'callout',
-  
-  filter: (node) => {
-    return node.nodeName === 'DIV' && 
-           node.classList.contains('callout');
-  },
-  
-  replacement: (content, node) => {
-    const type = node.getAttribute('data-type') || 'note';
-    const title = node.getAttribute('data-title') || type.charAt(0).toUpperCase() + type.slice(1);
-    
-    return `> **${title}:** ${content}\n\n`;
-  }
-};
-```
-
-## CLI Options
+### CLI Options
 
 ```
 Usage: web2md [options]
 
 Options:
-  -f, --file <path>       HTML file to convert
-  -u, --url <url>         URL to convert
-  -o, --output <file>     Output file (default: stdout)
-  --rules-dir <directory> Use rules from directory manifest (overrides config)
-  --debug                 Enable debug mode with detailed logging
-  -h, --help              Display help
-  -V, --version           Display version
+  -f, --file <path>           HTML file to convert
+  -u, --url <url>             URL to convert
+  -o, --output <file>         Output file (default: stdout)
+  --user-agent <string>       Custom user agent string (overrides config)
+  --rules-dir <directory>     Use rules from directory manifest (overrides config)
+  --deobfuscate               Force enable deobfuscation (overrides config)
+  --no-deobfuscate            Disable deobfuscation (overrides config)
+  --debug                     Enable debug mode with detailed logging
+  -h, --help                  Display help
+  -V, --version               Display version
 ```
 
-## Using with fnm on macOS/Linux
+## Custom Rules
 
-If you're using `fnm` for Node.js version management, add this function to your `.zshrc`:
+You can create custom rules in YAML or JavaScript:
+
+### YAML Rules
+
+```yaml
+# my-rules/special-blocks.yaml
+rules:
+  callout:
+    filter: "div.callout"
+    replacement: "\n\n> [!NOTE]\n> {content}\n\n"
+    
+  warning:
+    filter: "div.warning"
+    replacement: "\n\n> [!WARNING]\n> {content}\n\n"
+```
+
+### JavaScript Rules
+
+```javascript
+// my-rules/math-enhanced.js
+export default {
+  name: 'enhanced-math',
+  
+  filter: (node) => {
+    // Custom logic to detect math elements
+    return node.nodeName === 'math' || node.classList.contains('math');
+  },
+  
+  replacement: (content, node) => {
+    // Custom logic to format math content
+    const mathContent = node.getAttribute('data-math') || content;
+    return `$$${mathContent}$$`;
+  }
+};
+```
+
+## Shell Integration
+
+Add this to your `.zshrc` file for easy access with automatic Node.js version switching:
 
 ```bash
+# web2md zsh function with fnm support
 web2md() {
   # Define the path to your web2md installation
   local web2md_dir="$HOME/Tools/web2md"

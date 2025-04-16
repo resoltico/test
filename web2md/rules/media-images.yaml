@@ -2,14 +2,35 @@ rules:
   image:
     filter: "img"
     replacement: "![{attr:alt}]({attr:src})"
-    attributes:
-      - src
-      - alt
-      
-  figure:
-    filter: "figure"
-    replacement: "{content}\n\n"
+    attributes: ["alt", "src"]
     
-  figcaption:
+  figureWithCaption:
+    filter: "figure"
+    replacement: "\n\n{content}\n\n"
+    
+  figureCaption:
     filter: "figcaption"
-    replacement: "*{content}*\n\n"
+    replacement: "*{content}*\n"
+    
+  svg:
+    filter: "svg"
+    replacement: "*[SVG Image]*"
+    
+  audio:
+    filter: "audio"
+    replacement: "*[Audio: {attr:src}]*"
+    attributes: ["src"]
+    
+  video:
+    filter: "video"
+    replacement: "*[Video: {attr:src}]*"
+    attributes: ["src"]
+    
+  source:
+    filter: "source"
+    replacement: "*[Media Source: {attr:src}]*"
+    attributes: ["src"]
+    
+  canvas:
+    filter: "canvas"
+    replacement: "*[Canvas Element]*"

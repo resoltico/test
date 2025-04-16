@@ -12,17 +12,24 @@ export interface Logger {
 }
 
 /**
- * Console logger implementation
+ * Console implementation of the Logger interface
  */
 export class ConsoleLogger implements Logger {
-  private debugEnabled = false;
+  private debugEnabled: boolean = false;
+
+  /**
+   * Set debug mode
+   */
+  setDebug(enabled: boolean): void {
+    this.debugEnabled = enabled;
+  }
 
   /**
    * Log a debug message (only in debug mode)
    */
   debug(message: string): void {
     if (this.debugEnabled) {
-      console.debug(chalk.blue('DEBUG:'), message);
+      console.log(chalk.blue(`[DEBUG] ${message}`));
     }
   }
 
@@ -30,27 +37,20 @@ export class ConsoleLogger implements Logger {
    * Log an info message
    */
   info(message: string): void {
-    console.info(chalk.green('INFO:'), message);
+    console.log(chalk.green(`[INFO] ${message}`));
   }
 
   /**
    * Log a warning message
    */
   warn(message: string): void {
-    console.warn(chalk.yellow('WARN:'), message);
+    console.log(chalk.yellow(`[WARN] ${message}`));
   }
 
   /**
    * Log an error message
    */
   error(message: string): void {
-    console.error(chalk.red('ERROR:'), message);
-  }
-
-  /**
-   * Enable or disable debug logging
-   */
-  setDebug(enabled: boolean): void {
-    this.debugEnabled = enabled;
+    console.error(chalk.red(`[ERROR] ${message}`));
   }
 }

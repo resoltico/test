@@ -1,1 +1,1 @@
-export { Converter } from './converter.js';
+export * from './converter.js';

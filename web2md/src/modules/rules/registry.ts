@@ -1,59 +1,60 @@
-import path from 'node:path';
-import { BuiltInRulesRegistry } from '../../types/modules/rules.js';
+import { join } from 'node:path';
+
+/**
+ * Static registry of built-in rules
+ * No directory scanning is performed, all rules are explicitly defined here
+ */
+export const BUILT_IN_RULES_REGISTRY: Record<string, string> = {
+  'common-elements': 'common-elements.yaml',
+  'text-formatting': 'text-formatting.yaml',
+  'text-links': 'text-links.yaml',
+  'media-images': 'media-images.yaml',
+  'tables': 'tables.yaml',
+  'code-blocks': 'code-blocks.yaml',
+  'deobfuscation': 'deobfuscation.yaml',
+  'math': 'math.js'
+};
 
 /**
  * Registry for built-in rules
  */
 export class RuleRegistry {
+  private rulesDir: string;
+  
   /**
-   * Static mapping of rule identifiers to file paths
+   * Create a new rule registry
+   * @param rootDir The root directory where rules are located
    */
-  private readonly builtInRules: BuiltInRulesRegistry;
-
-  /**
-   * Create a rule registry
-   * @param rulesDir Directory containing built-in rules
-   */
-  constructor(private rulesDir: string) {
-    this.builtInRules = {
-      'common-elements': path.join(this.rulesDir, 'common-elements.yaml'),
-      'text-formatting': path.join(this.rulesDir, 'text-formatting.yaml'),
-      'text-links': path.join(this.rulesDir, 'text-links.yaml'),
-      'raw-links': path.join(this.rulesDir, 'raw-links.js'), // Added raw-links
-      'media-images': path.join(this.rulesDir, 'media-images.yaml'),
-      'tables': path.join(this.rulesDir, 'tables.yaml'),
-      'code-blocks': path.join(this.rulesDir, 'code-blocks.yaml'),
-      'math': path.join(this.rulesDir, 'math.js')
-    };
+  constructor(rootDir: string) {
+    this.rulesDir = join(rootDir, 'rules');
   }
-
+  
   /**
-   * Get all available rule identifiers
+   * Get the path to a built-in rule
+   * @param name The name of the rule
+   * @returns The absolute path to the rule file
+   * @throws Error if the rule doesn't exist
    */
-  listAvailableRules(): string[] {
-    return Object.keys(this.builtInRules);
+  getBuiltInRulePath(name: string): string {
+    if (!BUILT_IN_RULES_REGISTRY[name]) {
+      throw new Error(`Unknown built-in rule: ${name}`);
+    }
+    return join(this.rulesDir, BUILT_IN_RULES_REGISTRY[name]);
   }
-
+  
   /**
-   * Get file path for a specific rule
+   * Get all built-in rule names
+   * @returns Array of built-in rule names
    */
-  getBuiltInRulePath(ruleId: string): string | null {
-    return this.builtInRules[ruleId] || null;
+  getAllBuiltInRuleNames(): string[] {
+    return Object.keys(BUILT_IN_RULES_REGISTRY);
   }
-
+  
   /**
-   * Get file paths for all built-in rules
+   * Get the rules directory
+   * @returns The absolute path to the rules directory
    */
-  getAllBuiltInRulePaths(): string[] {
-    return Object.values(this.builtInRules);
-  }
-
-  /**
-   * Get file paths for specific built-in rules
-   */
-  getSpecificBuiltInRulePaths(ruleIds: string[]): string[] {
-    return ruleIds
-      .map(id => this.getBuiltInRulePath(id))
-      .filter((path): path is string => path !== null);
+  getRulesDirectory(): string {
+    return this.rulesDir;
   }
 }

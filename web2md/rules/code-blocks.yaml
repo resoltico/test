@@ -1,16 +1,12 @@
 rules:
-  preCode:
-    filter: "pre code"
-    replacement: "```{attr:class}\n{content}\n```\n\n"
-    attributes:
-      - class
-      
-  pre:
+  preformatted:
     filter: "pre"
-    replacement: "```\n{content}\n```\n\n"
+    replacement: "\n\n```\n{content}\n```\n\n"
     
-  codeBlock:
-    filter: "div.code, div.codeblock, div.highlight"
-    replacement: "```{attr:data-language}\n{content}\n```\n\n"
-    attributes:
-      - data-language
+  preformattedWithCode:
+    filter: "pre > code"
+    replacement: "{content}"
+    
+  codeWithLanguage:
+    filter: "pre > code[class*='language-']"
+    replacement: "{content}"

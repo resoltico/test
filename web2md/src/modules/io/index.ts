@@ -1,2 +1,2 @@
-export { FileReader, URLReader } from './reader.js';
-export { OutputWriter } from './writer.js';
+export * from './reader.js';
+export * from './writer.js';

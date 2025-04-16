@@ -1,55 +1,56 @@
-import fs from 'node:fs/promises';
-import path from 'node:path';
-import yaml from 'js-yaml';
+import { promises as fs } from 'node:fs';
+import { resolve } from 'node:path';
+import { load } from 'js-yaml';
 import { Config } from '../../types/core/config.js';
-import { configSchema, defaultConfig } from './schema.js';
-import { ConfigError } from '../../shared/errors/app-error.js';
+import { configSchema, getDefaultConfig } from './schema.js';
 import { Logger } from '../../shared/logger/console.js';
 
 /**
- * Configuration loader
+ * Loads and validates configuration from YAML files
  */
 export class ConfigLoader {
-  /**
-   * Default configuration file name
-   */
-  private static readonly CONFIG_FILENAME = 'web2md.yaml';
-
+  private readonly configFilename = 'web2md.yaml';
+  
   constructor(private logger: Logger) {}
-
+  
   /**
-   * Load configuration from file or use defaults
+   * Load configuration from file or defaults
    */
   async loadConfig(): Promise<Config> {
-    const configPath = path.join(process.cwd(), ConfigLoader.CONFIG_FILENAME);
-    let config: Config = defaultConfig;
-
     try {
-      // Check if config file exists
-      await fs.access(configPath);
-      this.logger.info(`Loading configuration from ${configPath}`);
-
-      // Read and parse YAML
-      const content = await fs.readFile(configPath, 'utf8');
-      const parsedConfig = yaml.load(content);
-
-      // Validate and transform config
+      // Try to load from current directory
+      const configPath = resolve(process.cwd(), this.configFilename);
+      this.logger.debug(`Trying to load config from ${configPath}`);
+      
+      // Check if the file exists
       try {
-        config = configSchema.parse(parsedConfig);
-        this.logger.debug('Configuration validated successfully');
-      } catch (validationError) {
-        throw new ConfigError(`Invalid configuration: ${validationError}`);
+        await fs.access(configPath);
+      } catch (error) {
+        this.logger.debug(`No config file found at ${configPath}, using defaults`);
+        return getDefaultConfig();
+      }
+      
+      // Read and parse the YAML file
+      const configContent = await fs.readFile(configPath, 'utf-8');
+      const parsedConfig = load(configContent) as Record<string, unknown>;
+      
+      // Validate the config
+      try {
+        // This will fill in defaults for any missing properties
+        const validatedConfig = configSchema.parse(parsedConfig);
+        this.logger.debug('Config loaded and validated successfully');
+        return validatedConfig as Config;
+      } catch (error) {
+        this.logger.error('Config validation failed, using defaults');
+        this.logger.debug(`Validation error: ${JSON.stringify(error)}`);
+        return getDefaultConfig();
       }
     } catch (error) {
-      if (error instanceof ConfigError) {
-        throw error;
+      this.logger.error('Failed to load config, using defaults');
+      if (error instanceof Error) {
+        this.logger.debug(`Error: ${error.message}`);
       }
-
-      // File doesn't exist or can't be read, use defaults
-      this.logger.info('No configuration file found, using defaults');
-      config = defaultConfig;
+      return getDefaultConfig();
     }
-
-    return config;
   }
 }

@@ -1,20 +1,32 @@
 rules:
+  table:
+    filter: "table"
+    replacement: "\n\n{content}\n\n"
+    
+  tableCaption:
+    filter: "caption"
+    replacement: "**Table:** {content}\n\n"
+    
   tableHeader:
     filter: "th"
-    replacement: " {content} |"
-    
-  tableCell:
-    filter: "td"
-    replacement: " {content} |"
+    replacement: "**{content}**"
     
   tableRow:
     filter: "tr"
-    replacement: "|{content}\n"
+    replacement: "{content}\n"
     
-  tableHeaderRow:
-    filter: "thead tr"
-    replacement: "|{content}|---|\n"
+  tableCell:
+    filter: "td"
+    replacement: "{content}"
     
-  table:
-    filter: "table"
-    replacement: "\n{content}\n"
+  tableBody:
+    filter: "tbody"
+    replacement: "{content}"
+    
+  tableHead:
+    filter: "thead"
+    replacement: "{content}"
+    
+  tableFoot:
+    filter: "tfoot"
+    replacement: "{content}"

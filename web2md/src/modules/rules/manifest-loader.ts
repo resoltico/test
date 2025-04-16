@@ -1,48 +1,53 @@
-import fs from 'node:fs/promises';
-import path from 'node:path';
-import yaml from 'js-yaml';
+import { join, resolve } from 'node:path';
+import { RuleManifest } from '../../types/core/rule.js';
+import { RuleValidator } from './validator.js';
 import { Logger } from '../../shared/logger/console.js';
-import { RuleManifest } from '../../types/modules/rules.js';
-import { RuleError } from '../../shared/errors/app-error.js';
 
 /**
- * Manifest loader
+ * Loads rule manifests from directories
  */
 export class ManifestLoader {
-  private static readonly MANIFEST_FILENAME = 'manifest.yaml';
-
+  private readonly manifestName = 'manifest.yaml';
+  
   constructor(private logger: Logger) {}
-
+  
   /**
-   * Load rule manifest from directory
+   * Load a rule manifest from a directory
+   * @param directoryPath The directory containing the manifest
+   * @returns The loaded manifest or null if not found/invalid
    */
-  async loadManifest(dirPath: string): Promise<string[]> {
-    const manifestPath = path.join(dirPath, ManifestLoader.MANIFEST_FILENAME);
-
+  async loadManifest(directoryPath: string): Promise<RuleManifest | null> {
     try {
-      // Check if manifest exists
-      await fs.access(manifestPath);
-
-      // Read and parse manifest
-      const content = await fs.readFile(manifestPath, 'utf8');
-      const manifest = yaml.load(content) as unknown;
-
-      // Validate manifest
-      if (!manifest || typeof manifest !== 'object' || !('rules' in manifest) || !Array.isArray(manifest.rules)) {
-        throw new RuleError(`Invalid manifest structure in ${manifestPath}`);
+      // Create validator
+      const validator = new RuleValidator(this.logger);
+      
+      // Get absolute path to the manifest
+      const manifestPath = join(directoryPath, this.manifestName);
+      this.logger.debug(`Looking for manifest at ${manifestPath}`);
+      
+      // Validate and parse the manifest
+      const manifest = await validator.validateManifest(manifestPath);
+      if (!manifest) {
+        this.logger.error(`No valid manifest found at ${manifestPath}`);
+        return null;
       }
-
-      const typedManifest = manifest as RuleManifest;
-
-      // Resolve paths relative to manifest directory
-      return typedManifest.rules.map(rulePath => 
-        path.isAbsolute(rulePath) ? rulePath : path.resolve(dirPath, rulePath)
-      );
+      
+      // Convert relative paths to absolute
+      const rules = manifest.rules.map(rule => {
+        // Handle relative paths
+        if (!rule.startsWith('/')) {
+          return resolve(directoryPath, rule);
+        }
+        return rule;
+      });
+      
+      return { rules };
     } catch (error) {
-      if (error instanceof RuleError) {
-        throw error;
+      this.logger.error(`Error loading manifest from ${directoryPath}`);
+      if (error instanceof Error) {
+        this.logger.debug(`Error: ${error.message}`);
       }
-      throw new RuleError(`Failed to load manifest from ${manifestPath}: ${error}`);
+      return null;
     }
   }
 }

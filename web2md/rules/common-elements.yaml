@@ -1,48 +1,88 @@
 rules:
   heading1:
     filter: "h1"
-    replacement: "# {content}\n\n"
+    replacement: "\n\n# {content}\n\n"
     
   heading2:
     filter: "h2"
-    replacement: "## {content}\n\n"
+    replacement: "\n\n## {content}\n\n"
     
   heading3:
     filter: "h3"
-    replacement: "### {content}\n\n"
+    replacement: "\n\n### {content}\n\n"
     
   heading4:
     filter: "h4"
-    replacement: "#### {content}\n\n"
+    replacement: "\n\n#### {content}\n\n"
     
   heading5:
     filter: "h5"
-    replacement: "##### {content}\n\n"
+    replacement: "\n\n##### {content}\n\n"
     
   heading6:
     filter: "h6"
-    replacement: "###### {content}\n\n"
+    replacement: "\n\n###### {content}\n\n"
     
   paragraph:
     filter: "p"
-    replacement: "{content}\n\n"
+    replacement: "\n\n{content}\n\n"
     
-  blockquote:
-    filter: "blockquote"
-    replacement: "> {content}\n\n"
-    
-  list:
-    filter: "ul"
-    replacement: "{content}\n"
-    
-  orderedList:
-    filter: "ol"
-    replacement: "{content}\n"
-    
-  listItem:
-    filter: "li"
-    replacement: "* {content}\n"
+  lineBreak:
+    filter: "br"
+    replacement: "\n"
     
   horizontalRule:
     filter: "hr"
-    replacement: "---\n\n"
+    replacement: "\n\n---\n\n"
+    
+  blockquote:
+    filter: "blockquote"
+    replacement: "\n\n> {content}\n\n"
+    
+  div:
+    filter: "div"
+    replacement: "\n\n{content}\n\n"
+    
+  section:
+    filter: "section"
+    replacement: "\n\n{content}\n\n"
+    
+  article:
+    filter: "article"
+    replacement: "\n\n{content}\n\n"
+    
+  aside:
+    filter: "aside"
+    replacement: "\n\n{content}\n\n"
+    
+  header:
+    filter: "header"
+    replacement: "\n\n{content}\n\n"
+    
+  footer:
+    filter: "footer"
+    replacement: "\n\n{content}\n\n"
+    
+  nav:
+    filter: "nav"
+    replacement: "\n\n{content}\n\n"
+    
+  main:
+    filter: "main"
+    replacement: "\n\n{content}\n\n"
+    
+  address:
+    filter: "address"
+    replacement: "\n\n{content}\n\n"
+    
+  dl:
+    filter: "dl"
+    replacement: "\n\n{content}\n\n"
+    
+  dt:
+    filter: "dt"
+    replacement: "\n\n**{content}**\n\n"
+    
+  dd:
+    filter: "dd"
+    replacement: "{content}\n\n"

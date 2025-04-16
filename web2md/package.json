@@ -5,48 +5,55 @@
   "type": "module",
   "main": "dist/app.js",
   "bin": {
-    "web2md": "./bin/web2md.js"
+    "web2md": "bin/web2md.js"
   },
   "engines": {
-    "node": "^22.14.0"
+    "node": ">=22.0.0"
   },
   "scripts": {
-    "build": "node scripts/build.js",
-    "dev": "tsx src/app.ts",
+    "build": "tsx scripts/build.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint src --ext .ts",
-    "typecheck": "tsc --noEmit"
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "start": "tsx src/app.ts"
   },
-  "keywords": [
-    "html",
-    "markdown",
-    "converter",
-    "html-to-markdown",
-    "cli"
-  ],
-  "author": "",
-  "license": "MIT",
   "dependencies": {
     "chalk": "^5.4.1",
     "commander": "^13.1.0",
     "got": "^14.4.7",
     "js-yaml": "^4.1.0",
     "jsdom": "^26.1.0",
+    "tough-cookie": "^5.1.2",
     "turndown": "^7.2.0",
+    "https-proxy-agent": "^7.0.6",
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@types/js-yaml": "^4.0.9",
     "@types/jsdom": "^21.1.7",
-    "@types/node": "^22.14.0",
+    "@types/js-yaml": "^4.0.9",
+    "@types/tough-cookie": "^4.0.5",
     "@types/turndown": "^5.0.5",
     "@typescript-eslint/eslint-plugin": "^8.29.1",
     "@typescript-eslint/parser": "^8.29.1",
-    "esbuild": "^0.25.2",
     "eslint": "^9.24.0",
+    "esbuild": "^0.25.2",
     "tsx": "^4.19.3",
     "typescript": "^5.8.3",
     "vitest": "^3.1.1"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/web2md.git"
+  },
+  "keywords": [
+    "html",
+    "markdown",
+    "converter",
+    "cli",
+    "web",
+    "scraper"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
 }
