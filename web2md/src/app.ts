@@ -92,7 +92,7 @@ export function createApp(options: AppOptions) {
       logger
     );
     
-    // Create math processor
+    // Create math processor with enhanced placeholder approach
     const mathProcessor = new MathProcessor(logger);
     
     // Create converter with math processor

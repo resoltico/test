@@ -1,56 +1,48 @@
-import { JSDOM } from 'jsdom';
 import { Logger } from '../../shared/logger/console.js';
-import { MathConverterFactory } from './converters/factory.js';
-import { MathFormatDetector } from './detector.js';
+import { MathExtractor, MathExtractorOptions } from './extractor.js';
+import { MathRestorer, MathRestorerOptions } from './restorer.js';
 
 /**
  * Options for the math processor
  */
-export interface MathProcessorOptions {
-  /**
-   * Delimiter for inline math
-   */
-  inlineDelimiter: string;
-  
-  /**
-   * Delimiter for block math
-   */
-  blockDelimiter: string;
-  
+export interface MathProcessorOptions extends MathExtractorOptions, MathRestorerOptions {
   /**
    * Whether to preserve original math content in a data attribute
    */
   preserveOriginal: boolean;
-  
-  /**
-   * Format to use for math output
-   */
-  outputFormat: string;
-  
-  /**
-   * Custom element selectors to identify math content
-   */
-  selectors: Record<string, string>;
-  
-  /**
-   * Custom placeholder for fallback content
-   */
-  fallbackTemplate: string;
-  
-  /**
-   * Whether to protect LaTeX content from Markdown escaping
-   */
-  protectLatex: boolean;
 }
 
 /**
- * Improved math processor that uses a plugin architecture
- * for handling different math formats
+ * Math processing result
+ */
+export interface MathProcessingResult {
+  /**
+   * The HTML with math content extracted and replaced with placeholders
+   */
+  html: string;
+  
+  /**
+   * Function to restore math content in Markdown
+   */
+  restoreMarkdown: (markdown: string) => Promise<string>;
+  
+  /**
+   * Debug info - for troubleshooting
+   */
+  debug?: {
+    placeholderCount: number;
+    placeholders: string[];
+  };
+}
+
+/**
+ * Math processor that uses a placeholder-based approach
+ * to handle math content during HTML to Markdown conversion
  */
 export class MathProcessor {
   private options: MathProcessorOptions;
-  private converterFactory: MathConverterFactory;
-  private formatDetector: MathFormatDetector;
+  private extractor: MathExtractor;
+  private restorer: MathRestorer;
   
   constructor(
     private logger: Logger,
@@ -69,14 +61,12 @@ export class MathProcessor {
         classes: '.math, .tex, .latex, .asciimath, .equation',
         attributes: '[math], [latex], [tex], [asciimath]'
       },
-      fallbackTemplate: '{delim}{content}{delim}',
-      protectLatex: true,
       ...options
     };
     
-    // Create converter factory and format detector
-    this.converterFactory = new MathConverterFactory(logger);
-    this.formatDetector = new MathFormatDetector(logger);
+    // Create extractor and restorer
+    this.extractor = new MathExtractor(logger, this.options);
+    this.restorer = new MathRestorer(logger, this.options);
     
     this.logger.debug('Math processor initialized with options:');
     this.logger.debug(JSON.stringify(this.options, null, 2));
@@ -97,328 +87,90 @@ export class MathProcessor {
       }
     };
     
+    // Update extractor and restorer with new options
+    this.extractor.configure(this.options);
+    this.restorer.configure(this.options);
+    
     this.logger.debug('Math processor reconfigured with options:');
     this.logger.debug(JSON.stringify(this.options, null, 2));
   }
   
   /**
-   * Preprocesses HTML to handle math elements
-   * This is run before Turndown processing
+   * Process HTML for math content using a placeholder-based approach
    */
-  async preprocessHtml(html: string): Promise<string> {
+  async process(html: string): Promise<MathProcessingResult> {
     try {
-      this.logger.debug('Preprocessing HTML for math elements');
+      this.logger.debug('Processing HTML for math content');
       
-      // Parse the HTML
-      const dom = new JSDOM(html);
-      const document = dom.window.document;
+      // Extract math content and replace with placeholders
+      const extraction = this.extractor.extract(html);
       
-      // Collect all elements to process
-      const elementsToProcess = this.collectMathElements(document);
-      this.logger.debug(`Found ${elementsToProcess.length} total math elements to process`);
+      // For debugging
+      const placeholders = Array.from(extraction.placeholderMap.keys());
+      this.logger.debug(`Extracted ${placeholders.length} math elements with placeholders`);
+      placeholders.forEach(placeholder => {
+        this.logger.debug(`Placeholder: ${placeholder}`);
+      });
       
-      // Process each element
-      for (const {element, format} of elementsToProcess) {
-        await this.processMathElement(element, format);
-      }
-      
-      return dom.serialize();
+      // Return the HTML with placeholders and a function to restore the Markdown
+      return {
+        html: extraction.html,
+        restoreMarkdown: async (markdown: string) => {
+          this.logger.debug(`Restoring ${placeholders.length} math placeholders in Markdown`);
+          return this.restorer.restore(markdown, extraction.placeholderMap);
+        },
+        debug: {
+          placeholderCount: placeholders.length,
+          placeholders
+        }
+      };
     } catch (error) {
-      this.logger.error('Error preprocessing HTML for math elements');
+      this.logger.error('Error processing HTML for math content');
       if (error instanceof Error) {
         this.logger.debug(`Error: ${error.message}`);
       }
       
       // Return the original HTML if processing fails
-      return html;
-    }
-  }
-  
-  /**
-   * Collect all math elements from the document
-   */
-  private collectMathElements(document: Document): Array<{element: Element, format: string}> {
-    const results: Array<{element: Element, format: string}> = [];
-    const selectors = this.options.selectors;
-    
-    // Function to process elements and detect format
-    const processElements = (selector: string, defaultFormat: string) => {
-      const elements = document.querySelectorAll(selector);
-      this.logger.debug(`Found ${elements.length} elements with selector: ${selector}`);
-      
-      for (let i = 0; i < elements.length; i++) {
-        const element = elements[i];
-        // Detect the format, defaulting if not detectable
-        const format = this.formatDetector.detectFormat(element) || defaultFormat;
-        results.push({element, format});
-      }
-    };
-    
-    // Process each selector type - with null checks
-    if (selectors.mathml) {
-      processElements(selectors.mathml, 'mathml');
-    }
-    
-    if (selectors.scripts) {
-      processElements(selectors.scripts, 'latex');
-    }
-    
-    if (selectors.dataAttributes) {
-      processElements(selectors.dataAttributes, 'latex');
-    }
-    
-    if (selectors.classes) {
-      processElements(selectors.classes, 'latex');
-    }
-    
-    if (selectors.attributes) {
-      processElements(selectors.attributes, 'latex');
-    }
-    
-    return results;
-  }
-  
-  /**
-   * Process a single math element
-   */
-  private async processMathElement(element: Element, sourceFormat: string): Promise<void> {
-    try {
-      // Determine if display mode (block vs inline)
-      const isDisplay = this.detectDisplayMode(element);
-      
-      // Get the content based on element type and format
-      const content = this.extractContent(element, sourceFormat);
-      
-      // Skip if no content
-      if (!content) {
-        return;
-      }
-      
-      // Get target format and create converter
-      const outputFormat = this.options.outputFormat.toLowerCase();
-      const converter = this.converterFactory.createConverter(outputFormat);
-      
-      if (!converter) {
-        throw new Error(`No converter available for format: ${outputFormat}`);
-      }
-      
-      // Configure context with options
-      const context = {
-        sourceFormat,
-        isDisplay,
-        element,
-        options: {
-          inlineDelimiter: this.options.inlineDelimiter,
-          blockDelimiter: this.options.blockDelimiter,
-          protectLatex: this.options.protectLatex
+      return {
+        html,
+        restoreMarkdown: async (markdown: string) => markdown,
+        debug: {
+          placeholderCount: 0,
+          placeholders: []
         }
       };
-      
-      // Convert the content
-      const convertedContent = await converter.convert(content, context);
-      
-      // Create a replacement element - use a span for inline, div for block
-      const tagName = isDisplay ? 'div' : 'span';
-      const replacementElement = element.ownerDocument.createElement(tagName);
-      
-      // Apply CSS classes for better flexibility
-      replacementElement.className = isDisplay ? 'math-block' : 'math-inline';
-      
-      // Add data attributes for processing by the rule
-      this.applyDataAttributes(replacementElement, {
-        format: outputFormat,
-        display: isDisplay ? 'block' : 'inline',
-        inlineDelimiter: this.options.inlineDelimiter,
-        blockDelimiter: this.options.blockDelimiter,
-        protectLatex: String(this.options.protectLatex)
-      });
-      
-      // Preserve the original content if needed
-      if (this.options.preserveOriginal) {
-        this.applyDataAttributes(replacementElement, {
-          original: content,
-          originalFormat: sourceFormat
-        });
-      }
-      
-      // Protect LaTeX special characters from Markdown escaping
-      // by using a special data attribute if needed
-      if (this.options.protectLatex && outputFormat === 'latex') {
-        replacementElement.setAttribute('data-raw-latex', convertedContent);
-        replacementElement.textContent = convertedContent;
-      } else {
-        // Set the content normally
-        replacementElement.textContent = convertedContent;
-      }
-      
-      // Replace the original element
-      if (element.parentNode) {
-        element.parentNode.replaceChild(replacementElement, element);
-      }
-    } catch (error) {
-      this.logger.error(`Error processing math element: ${error instanceof Error ? error.message : String(error)}`);
-      this.handleProcessingError(element, sourceFormat, error);
     }
   }
   
   /**
-   * Handle errors during math element processing by creating a fallback element
+   * Process HTML directly and return with math content extracted and formatted
+   * This is a convenience method for direct processing without using placeholders
    */
-  private handleProcessingError(element: Element, sourceFormat: string, error: unknown): void {
+  async preprocessHtml(html: string): Promise<string> {
     try {
-      const textContent = element.textContent || '';
-      const isDisplay = this.detectDisplayMode(element);
-      const delimiter = isDisplay ? this.options.blockDelimiter : this.options.inlineDelimiter;
+      // Process the HTML
+      const result = await this.process(html);
       
-      // Create a fallback using the template
-      let fallbackContent = this.options.fallbackTemplate
-        .replace('{delim}', delimiter)
-        .replace('{content}', this.cleanText(textContent));
+      // Convert the HTML with placeholders back to markdown
+      const turndownService = require('turndown');
+      const td = new turndownService();
+      const markdown = td.turndown(result.html);
       
-      // Create appropriate fallback element
-      const tagName = isDisplay ? 'div' : 'span';
-      const fallbackElement = element.ownerDocument.createElement(tagName);
-      fallbackElement.className = isDisplay ? 'math-block math-fallback' : 'math-inline math-fallback';
+      // Restore the math content in the markdown
+      const processedMarkdown = await result.restoreMarkdown(markdown);
       
-      // Apply data attributes
-      this.applyDataAttributes(fallbackElement, {
-        format: 'text',
-        fallback: 'true',
-        display: isDisplay ? 'block' : 'inline',
-        inlineDelimiter: this.options.inlineDelimiter,
-        blockDelimiter: this.options.blockDelimiter,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      fallbackElement.textContent = fallbackContent;
-      
-      if (element.parentNode) {
-        element.parentNode.replaceChild(fallbackElement, element);
+      // Convert the processed markdown back to HTML
+      // This would require a markdown-to-HTML converter, which isn't included
+      // For now, we'll just return the original HTML with a warning
+      this.logger.warn('Direct HTML preprocessing is not fully implemented');
+      return html;
+    } catch (error) {
+      this.logger.error('Error during direct HTML preprocessing');
+      if (error instanceof Error) {
+        this.logger.debug(`Error: ${error.message}`);
       }
-    } catch (fallbackError) {
-      this.logger.error('Fallback processing also failed for math element');
+      
+      return html;
     }
-  }
-  
-  /**
-   * Apply multiple data attributes to an element
-   */
-  private applyDataAttributes(element: Element, attributes: Record<string, string | boolean>): void {
-    Object.entries(attributes).forEach(([key, value]) => {
-      element.setAttribute(`data-math-${key}`, String(value));
-    });
-  }
-  
-  /**
-   * Extract content from an element based on format
-   */
-  private extractContent(element: Element, format: string): string {
-    // Check element type first
-    if (format === 'mathml' && element.nodeName.toLowerCase() === 'math') {
-      return element.outerHTML;
-    }
-    
-    // Try multiple ways to extract content - in order of preference
-    
-    // 1. Check for data attributes with format-specific content
-    if (element.hasAttribute(`data-${format}`)) {
-      return element.getAttribute(`data-${format}`) || '';
-    }
-    
-    // 2. Check for plain 'data-math' attribute
-    if (element.hasAttribute('data-math')) {
-      return element.getAttribute('data-math') || '';
-    }
-    
-    // 3. For script elements, use text content
-    if (element.nodeName.toLowerCase() === 'script') {
-      return element.textContent || '';
-    }
-    
-    // 4. Look for a specific format attribute
-    if (element.hasAttribute(format)) {
-      return element.getAttribute(format) || '';
-    }
-    
-    // 5. Try 'math' attribute if it exists
-    if (element.hasAttribute('math')) {
-      return element.getAttribute('math') || '';
-    }
-    
-    // 6. Fall back to textContent if all else fails
-    return element.textContent || '';
-  }
-  
-  /**
-   * Determine if an element should be displayed in block mode
-   * Using multiple signals to increase accuracy
-   */
-  private detectDisplayMode(element: Element): boolean {
-    // 1. Explicit attribute indicators
-    if (element.getAttribute('display') === 'block' || 
-        element.getAttribute('data-display') === 'block' ||
-        element.getAttribute('data-math-display') === 'block') {
-      return true;
-    }
-    
-    // 2. Class indicators
-    if (element.classList.contains('display-math') || 
-        element.classList.contains('math-display') ||
-        element.classList.contains('block') ||
-        element.classList.contains('equation')) {
-      return true;
-    }
-    
-    // 3. Script with mode=display
-    if (element.nodeName.toLowerCase() === 'script' && 
-        element.getAttribute('type')?.includes('mode=display')) {
-      return true;
-    }
-    
-    // 4. MathML specifics
-    if (element.nodeName.toLowerCase() === 'math' && 
-        (element.getAttribute('display') === 'block' || element.getAttribute('mode') === 'display')) {
-      return true;
-    }
-    
-    // 5. Element type and style context
-    if (['div', 'p', 'figure', 'center'].includes(element.nodeName.toLowerCase())) {
-      return true;
-    }
-    
-    // 6. Check parent element
-    const parent = element.parentElement;
-    if (parent && ['div', 'p', 'figure', 'center'].includes(parent.nodeName.toLowerCase()) &&
-        (parent.childNodes.length === 1 || parent.classList.contains('math-container'))) {
-      return true;
-    }
-    
-    // 7. Check if the element is alone on its line
-    if (element.previousSibling === null && element.nextSibling === null) {
-      return true;
-    }
-    
-    // Default to inline
-    return false;
-  }
-  
-  /**
-   * Clean up text content
-   */
-  private cleanText(text: string): string {
-    return text
-      .replace(/\&lt;/g, '<')
-      .replace(/\&gt;/g, '>')
-      .replace(/\&amp;/g, '&')
-      .replace(/\&quot;/g, '"')
-      .replace(/\&apos;/g, "'")
-      .replace(/\&#39;/g, "'")
-      .replace(/\&#x27;/g, "'")
-      .replace(/\&#x2F;/g, "/")
-      .replace(/\&#x3D;/g, "=")
-      .replace(/\&#x3C;/g, "<")
-      .replace(/\&#x3E;/g, ">")
-      .replace(/\s+/g, ' ')
-      .trim();
   }
 }

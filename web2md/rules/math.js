@@ -1,184 +1,82 @@
 /**
- * Enhanced math expression handling rule
- * Works with any element processed by the math processor
- * and preserves math content without Markdown escaping
+ * Enhanced math rule to preserve placeholders in Turndown
+ * This is critical to ensure our math content survives the conversion process
  */
 export default {
   name: 'math',
   
+  // Filter to match both our special wrapper spans and any node containing our placeholder pattern
   filter: (node) => {
-    // Enhanced pattern matching for math elements
-    
-    // 1. Check for class-based indicators
-    const className = node.className ? node.className.toString() : '';
-    if (className.includes('math-inline') || className.includes('math-block')) {
+    // Check if this is our special math placeholder wrapper
+    if (node.nodeName === 'SPAN' && 
+        node.className === 'math-placeholder-wrapper' &&
+        node.getAttribute('data-math-placeholder') === 'true') {
       return true;
     }
     
-    // 2. Check for data attributes
-    const hasMathDataAttr = node.hasAttribute && (
-      node.hasAttribute('data-math-format') ||
-      node.hasAttribute('data-math-display') ||
-      node.hasAttribute('data-math-original') ||
-      node.hasAttribute('data-math') || 
-      node.hasAttribute('data-latex') || 
-      node.hasAttribute('data-mathml') || 
-      node.hasAttribute('data-asciimath')
-    );
-    
-    if (hasMathDataAttr) {
+    // Check for text nodes that contain our placeholder pattern
+    if (node.nodeType === 3 && // Text node
+        node.nodeValue && 
+        node.nodeValue.includes('%%MATH_PLACEHOLDER_')) {
       return true;
     }
     
-    // 3. Check for element types
-    const nodeName = node.nodeName ? node.nodeName.toLowerCase() : '';
-    if (nodeName === 'math') {
-      return true;
-    }
-    
-    // 4. Check for script elements with math content
-    if (nodeName === 'script' && node.getAttribute) {
-      const type = node.getAttribute('type') || '';
-      return type.includes('math/');
-    }
-    
-    // 5. Check for specially marked elements
-    if (node.getAttribute && (
-      node.getAttribute('math') || 
-      node.getAttribute('latex') || 
-      node.getAttribute('tex') || 
-      node.getAttribute('asciimath')
-    )) {
-      return true;
+    // If the node has a text child that contains our pattern
+    if (node.childNodes) {
+      for (let i = 0; i < node.childNodes.length; i++) {
+        const child = node.childNodes[i];
+        if (child.nodeType === 3 && // Text node
+            child.nodeValue && 
+            child.nodeValue.includes('%%MATH_PLACEHOLDER_')) {
+          return true;
+        }
+      }
     }
     
     return false;
   },
   
-  replacement: (content, node, options) => {
-    try {
-      // Get display mode and content
-      const isBlock = getDisplayMode(node);
-      let mathContent = content.trim();
-      
-      // Skip empty content
-      if (!mathContent) {
-        return '';
-      }
-      
-      // CRITICAL: Don't let Turndown escape special characters in math content
-      // This is necessary for LaTeX to render correctly
-      mathContent = unescapeLatex(mathContent);
-      
-      // Get delimiters - try multiple sources in order of preference
-      const inlineDelimiter = getDelimiter(node, 'inline', options);
-      const blockDelimiter = getDelimiter(node, 'block', options);
-      
-      // Use appropriate delimiter based on display mode
-      const delimiter = isBlock ? blockDelimiter : inlineDelimiter;
-      
-      // Handle spacing differently for block vs inline
-      if (isBlock) {
-        // For block math, add line breaks before and after
-        return `\n\n${delimiter}${mathContent}${delimiter}\n\n`;
-      } else {
-        // For inline math, ensure there's proper spacing
-        return delimiter + mathContent + delimiter;
-      }
-    } catch (error) {
-      console.error('Error in math rule:', error);
-      
-      // Fallback - at least return the original content
-      return content;
+  // This is the critical part - we preserve the placeholder text exactly as-is
+  replacement: (content, node) => {
+    // If this is our wrapper span, return its text content directly
+    if (node.nodeName === 'SPAN' && 
+        node.className === 'math-placeholder-wrapper' &&
+        node.getAttribute('data-math-placeholder') === 'true') {
+      return node.textContent || '';
     }
+    
+    // If this is a text node with a placeholder, return it as-is
+    if (node.nodeType === 3 && 
+        node.nodeValue && 
+        node.nodeValue.includes('%%MATH_PLACEHOLDER_')) {
+      return node.nodeValue;
+    }
+    
+    // If the node contains a placeholder in its children, we need special handling
+    if (node.childNodes) {
+      for (let i = 0; i < node.childNodes.length; i++) {
+        const child = node.childNodes[i];
+        if (child.nodeType === 3 && 
+            child.nodeValue && 
+            child.nodeValue.includes('%%MATH_PLACEHOLDER_')) {
+          
+          // Extract the placeholder pattern
+          const match = child.nodeValue.match(/%%MATH_PLACEHOLDER_\d+%%/);
+          if (match) {
+            // Return the placeholder directly, bypassing any Turndown processing
+            return match[0];
+          }
+        }
+      }
+    }
+    
+    // If we somehow got here but still have placeholder text in the content
+    const match = content.match(/%%MATH_PLACEHOLDER_\d+%%/);
+    if (match) {
+      return match[0];
+    }
+    
+    // Fallback: just return the content (this shouldn't happen with our filter)
+    return content;
   }
 };
-
-/**
- * Determine if math should be displayed in block mode
- */
-function getDisplayMode(node) {
-  // Check multiple indicators for display mode
-  
-  // 1. Check explicit data attribute
-  if (node.getAttribute && node.getAttribute('data-math-display') === 'block') {
-    return true;
-  }
-  
-  // 2. Check class name
-  const className = node.className ? node.className.toString() : '';
-  if (className.includes('math-block') || className.includes('display-math')) {
-    return true;
-  }
-  
-  // 3. Check element type
-  const isBlockElement = node.nodeName && ['div', 'p', 'figure'].includes(
-    node.nodeName.toLowerCase()
-  );
-  
-  if (isBlockElement) {
-    return true;
-  }
-  
-  // 4. Check script type for display mode
-  if (node.nodeName && node.nodeName.toLowerCase() === 'script' && 
-      node.getAttribute && node.getAttribute('type') && 
-      node.getAttribute('type').includes('mode=display')) {
-    return true;
-  }
-  
-  // Default to inline
-  return false;
-}
-
-/**
- * Get the appropriate delimiter from node attributes or options
- */
-function getDelimiter(node, mode, options) {
-  // Try multiple sources in order of preference
-  
-  // 1. Look for specific attribute on the node
-  const delimAttr = node.getAttribute && node.getAttribute(`data-math-${mode}-delimiter`);
-  if (delimAttr) {
-    return delimAttr;
-  }
-  
-  // 2. Look for general attribute with mode prefix
-  if (node.getAttribute) {
-    for (const attr of ['delimiter', 'delim', 'marker']) {
-      const value = node.getAttribute(`data-${mode}-${attr}`);
-      if (value) return value;
-    }
-  }
-  
-  // 3. Check for format-specific default from options
-  const format = node.getAttribute && node.getAttribute('data-math-format');
-  if (format && options && options[`${format}${mode.charAt(0).toUpperCase() + mode.slice(1)}Delimiter`]) {
-    return options[`${format}${mode.charAt(0).toUpperCase() + mode.slice(1)}Delimiter`];
-  }
-  
-  // 4. Use generic default from options
-  if (options && options[`${mode}Delimiter`]) {
-    return options[`${mode}Delimiter`];
-  }
-  
-  // 5. Default fallbacks based on mode
-  return mode === 'inline' ? '$' : '$$';
-}
-
-/**
- * Unescape Markdown/LaTeX special characters that might have been escaped
- * This is critical for math content to render correctly
- */
-function unescapeLatex(text) {
-  // Unescape backslashes (\\foo -> \foo)
-  let result = text.replace(/\\\\([\\{}$_^])/g, '\\$1');
-  
-  // Unescape underscores (\_foo -> _foo)
-  result = result.replace(/\\_/g, '_');
-  
-  // Unescape other LaTeX special characters
-  result = result.replace(/\\(\^|\{|\}|\$)/g, '$1');
-  
-  return result;
-}
