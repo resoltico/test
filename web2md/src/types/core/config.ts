@@ -138,6 +138,16 @@ export interface CLICommandOptions {
    * Debug mode
    */
   debug?: boolean;
+  
+  /**
+   * Save original HTML content to file
+   */
+  saveOriginal?: boolean;
+  
+  /**
+   * Enable/disable compression support
+   */
+  compression?: boolean;
 }
 
 /**

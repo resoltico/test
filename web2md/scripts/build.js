@@ -102,6 +102,47 @@ function copyRulesToDist() {
 }
 
 /**
+ * Copy type definitions to dist
+ */
+function copyTypeDefinitions() {
+  log('Copying vendor type definitions', colors.bright);
+  
+  // Create vendor types directory in dist
+  const sourceVendorTypesDir = resolve('src/types/vendor');
+  const distVendorTypesDir = resolve('dist/types/vendor');
+  
+  if (!existsSync(distVendorTypesDir)) {
+    mkdirSync(distVendorTypesDir, { recursive: true });
+  }
+  
+  try {
+    // Read all .d.ts files in vendor directory
+    const typeFiles = readdirSync(sourceVendorTypesDir)
+      .filter(file => file.endsWith('.d.ts'));
+      
+    // Copy each type definition file
+    typeFiles.forEach(file => {
+      const sourcePath = resolve(sourceVendorTypesDir, file);
+      const destPath = resolve(distVendorTypesDir, file);
+      
+      copyFileSync(sourcePath, destPath);
+      log(`Copied ${file} to dist/types/vendor/`, colors.green);
+    });
+    
+    // Also copy the index.ts file
+    if (existsSync(resolve(sourceVendorTypesDir, 'index.ts'))) {
+      copyFileSync(
+        resolve(sourceVendorTypesDir, 'index.ts'),
+        resolve(distVendorTypesDir, 'index.js')
+      );
+      log('Copied vendor index.ts to dist/types/vendor/index.js', colors.green);
+    }
+  } catch (error) {
+    log(`Failed to copy type definitions: ${error.message}`, colors.red);
+  }
+}
+
+/**
  * Make the bin script executable
  */
 function makeExecutable() {
@@ -137,6 +178,9 @@ async function build() {
   
   // Copy rules to dist
   copyRulesToDist();
+  
+  // Copy type definitions
+  copyTypeDefinitions();
   
   // Make bin script executable
   makeExecutable();

@@ -40,10 +40,18 @@ export class HTTPClient {
     this.logger.debug(`Using user agent: ${this.options.userAgent}`);
     
     try {
+      // Update Accept-Encoding based on enabled compression formats
+      const acceptEncoding = this.options.compression.enabled 
+        ? this.options.compression.formats.join(', ')
+        : 'identity';
+        
+      this.logger.debug(`Using Accept-Encoding: ${acceptEncoding}`);
+        
       // Prepare the got options
       const gotOptions = {
         headers: {
           'User-Agent': this.options.userAgent,
+          'Accept-Encoding': acceptEncoding,
           ...this.options.headers
         },
         timeout: {
@@ -55,6 +63,7 @@ export class HTTPClient {
         followRedirect: this.options.requestOptions.followRedirects,
         maxRedirects: this.options.requestOptions.maxRedirects,
         throwHttpErrors: this.options.requestOptions.throwHttpErrors,
+        // Let got handle these compression formats, but not all
         decompress: this.options.compression.enabled
       };
       

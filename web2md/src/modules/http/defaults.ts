@@ -12,7 +12,8 @@ export class HTTPDefaults {
       userAgent: 'web2md/1.0',
       compression: {
         enabled: true,
-        formats: ['gzip', 'br', 'deflate', 'zstd']
+        // Only include compression formats we truly support well
+        formats: ['gzip', 'br', 'deflate']
       },
       requestOptions: {
         timeout: 30000,
@@ -27,7 +28,8 @@ export class HTTPDefaults {
       },
       headers: {
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Encoding': 'gzip, deflate, br, zstd',
+        // Only list compression formats we have good support for
+        'Accept-Encoding': 'gzip, deflate, br',
         'Accept-Language': 'en-US,en;q=0.9',
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive'

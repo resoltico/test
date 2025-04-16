@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
+import { promises as fs } from 'node:fs';
 import { CLICommandOptions, Config } from '../../types/core/config.js';
 import { ConfigLoader } from '../config/loader.js';
 import { HTTPClient } from '../http/client.js';
@@ -57,6 +58,8 @@ export class CLI {
       .option('--deobfuscate', 'Force enable deobfuscation (overrides config)')
       .option('--no-deobfuscate', 'Disable deobfuscation (overrides config)')
       .option('--debug', 'Enable debug mode with detailed logging')
+      .option('--save-original', 'Save original HTML content to file before processing')
+      .option('--no-compression', 'Disable support for compressed responses')
       .action(async (options) => {
         try {
           await this.handleCommand(options);
@@ -76,7 +79,10 @@ export class CLI {
    * Handle the command
    * @param options Command options
    */
-  private async handleCommand(options: CLICommandOptions): Promise<void> {
+  private async handleCommand(options: CLICommandOptions & { 
+    saveOriginal?: boolean; 
+    compression?: boolean;
+  }): Promise<void> {
     // Ensure either file or URL is provided
     if (!options.file && !options.url) {
       throw new Error('You must specify either a file (-f) or URL (-u)');
@@ -85,6 +91,7 @@ export class CLI {
     // Enable debug mode if requested
     if (options.debug) {
       this.logger.setDebug(true);
+      this.logger.debug('Debug mode enabled');
     }
     
     // Load configurations
@@ -101,6 +108,12 @@ export class CLI {
     
     if (options.userAgent && config.http) {
       config.http.userAgent = options.userAgent;
+    }
+    
+    // Handle compression option
+    if (options.compression === false && config.http) {
+      config.http.compression.enabled = false;
+      this.logger.debug('Compression support disabled via command line option');
     }
     
     // Configure the HTTP client with options from config
@@ -126,6 +139,17 @@ export class CLI {
     } else {
       this.logger.info(`Reading file: ${sourcePath}`);
       html = await this.fileReader.read(sourcePath);
+    }
+    
+    // Save original HTML if requested
+    if (options.saveOriginal) {
+      const originalFilePath = `${sourcePath.replace(/\/$/, '')}.original.html`;
+      try {
+        await fs.writeFile(originalFilePath, html, 'utf-8');
+        this.logger.info(`Original HTML content saved to ${originalFilePath}`);
+      } catch (error) {
+        this.logger.error(`Failed to save original HTML: ${error instanceof Error ? error.message : String(error)}`);
+      }
     }
     
     // Apply deobfuscation if enabled

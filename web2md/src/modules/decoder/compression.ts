@@ -1,5 +1,6 @@
 import { promisify } from 'node:util';
 import { gunzip, inflate, brotliDecompress as nodeBrotliDecompress } from 'node:zlib';
+import zstd from 'zstd-napi';
 import { CompressionHandler } from '../../types/modules/decoder.js';
 import { Logger } from '../../shared/logger/console.js';
 
@@ -20,14 +21,21 @@ export class CompressionHandlerImpl implements CompressionHandler {
       return false;
     }
     
-    // Check if the content appears to be compressed
-    if (!this.isCompressedContent(content)) {
+    // Check if we support the encoding
+    const supportedEncodings = ['gzip', 'br', 'brotli', 'deflate', 'zstd'];
+    const isSupported = supportedEncodings.some(encoding => contentEncoding.includes(encoding));
+    
+    if (!isSupported) {
       return false;
     }
     
-    // Check if we support the encoding
-    const supportedEncodings = ['gzip', 'br', 'brotli', 'deflate', 'zstd'];
-    return supportedEncodings.some(encoding => contentEncoding.includes(encoding));
+    // Check if the content appears to be compressed
+    // Only check for non-zstd content since zstd detection is less reliable
+    if (!contentEncoding.includes('zstd') && !this.isCompressedContent(content)) {
+      return false;
+    }
+    
+    return true;
   }
   
   /**
@@ -38,7 +46,7 @@ export class CompressionHandlerImpl implements CompressionHandler {
     // This is not foolproof but works for most cases
     const nonPrintableChars = content.split('').filter(char => {
       const code = char.charCodeAt(0);
-      return code < 32 || code > 126;
+      return (code < 32 && code !== 9 && code !== 10 && code !== 13) || code > 126;
     }).length;
     
     // If more than 10% of characters are non-printable, it's likely compressed
@@ -50,11 +58,6 @@ export class CompressionHandlerImpl implements CompressionHandler {
    */
   async decompress(content: string, contentEncoding: string): Promise<string> {
     this.logger.debug(`Decompressing content with encoding: ${contentEncoding}`);
-    
-    if (!this.isCompressedContent(content)) {
-      this.logger.debug('Content does not appear to be compressed, skipping decompression');
-      return content;
-    }
     
     try {
       if (contentEncoding.includes('gzip')) {
@@ -72,6 +75,8 @@ export class CompressionHandlerImpl implements CompressionHandler {
     } catch (error) {
       if (error instanceof Error) {
         this.logger.error(`Decompression failed: ${error.message}`);
+      } else {
+        this.logger.error(`Decompression failed with unknown error`);
       }
       return content; // Return original content on error
     }
@@ -86,7 +91,7 @@ export class CompressionHandlerImpl implements CompressionHandler {
     try {
       const buffer = Buffer.from(content, 'binary');
       const decompressed = await promisify(gunzip)(buffer);
-      return decompressed.toString();
+      return decompressed.toString('utf-8');
     } catch (error) {
       this.logger.error('Failed to decompress gzip content');
       throw error;
@@ -103,7 +108,7 @@ export class CompressionHandlerImpl implements CompressionHandler {
       const buffer = Buffer.from(content, 'binary');
       // Use the promisified version of brotliDecompress
       const decompressed = await brotliDecompressAsync(buffer);
-      return decompressed.toString();
+      return decompressed.toString('utf-8');
     } catch (error) {
       this.logger.error('Failed to decompress brotli content');
       throw error;
@@ -119,7 +124,7 @@ export class CompressionHandlerImpl implements CompressionHandler {
     try {
       const buffer = Buffer.from(content, 'binary');
       const decompressed = await promisify(inflate)(buffer);
-      return decompressed.toString();
+      return decompressed.toString('utf-8');
     } catch (error) {
       this.logger.error('Failed to decompress deflate content');
       throw error;
@@ -132,9 +137,34 @@ export class CompressionHandlerImpl implements CompressionHandler {
   private async decompressZstd(content: string): Promise<string> {
     this.logger.debug('Decompressing zstd content');
     
-    // Note: Node.js doesn't have native zstd support
-    // In a real implementation, you would use a library like 'node-zstandard'
-    this.logger.warn('Zstd decompression not implemented yet - would require additional dependency');
-    return content;
+    try {
+      // For zstd content, try both binary and utf8 encoding
+      // Sometimes the response might not be properly encoded as binary
+      try {
+        // First try as binary
+        const buffer = Buffer.from(content, 'binary');
+        this.logger.debug(`Attempting to decompress zstd with binary buffer of length: ${buffer.length}`);
+        const decompressed = zstd.decompress(buffer);
+        return decompressed.toString('utf-8');
+      } catch (binaryError) {
+        // If that fails, try as utf8
+        this.logger.debug(`Binary buffer decompression failed, trying UTF-8: ${binaryError instanceof Error ? binaryError.message : String(binaryError)}`);
+        const buffer = Buffer.from(content, 'utf8');
+        this.logger.debug(`Attempting to decompress zstd with utf8 buffer of length: ${buffer.length}`);
+        const decompressed = zstd.decompress(buffer);
+        return decompressed.toString('utf-8');
+      }
+    } catch (error) {
+      this.logger.error('Failed to decompress zstd content');
+      if (error instanceof Error) {
+        this.logger.debug(`Error details: ${error.message}`);
+        
+        // Check for typical Zstandard errors and log helpful messages
+        if (error.message.includes('header')) {
+          this.logger.debug('This may not be valid zstd-compressed content or the header may be corrupted');
+        }
+      }
+      throw error;
+    }
   }
 }

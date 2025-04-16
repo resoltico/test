@@ -22,10 +22,33 @@ export class ContentDecoder implements ContentDecoderInterface {
     const contentEncoding = response.contentEncoding.toLowerCase();
     const contentType = response.contentType.toLowerCase();
     
+    // Log some details about the content to help with debugging
+    this.logger.debug(`Content encoding from headers: ${contentEncoding || 'not specified'}`);
+    this.logger.debug(`Content type from headers: ${contentType || 'not specified'}`);
+    this.logger.debug(`Content length: ${content.length} characters`);
+    
     // Handle compression if needed
-    if (this.compressionHandler.canDecompress(contentEncoding, content)) {
-      this.logger.debug(`Detected content encoding: ${contentEncoding}`);
-      content = await this.compressionHandler.decompress(content, contentEncoding);
+    if (contentEncoding && contentEncoding !== 'identity') {
+      if (this.compressionHandler.canDecompress(contentEncoding, content)) {
+        this.logger.debug(`Detected supported content encoding: ${contentEncoding}`);
+        try {
+          content = await this.compressionHandler.decompress(content, contentEncoding);
+          this.logger.debug(`Successfully decompressed content (${contentEncoding})`);
+          this.logger.debug(`Decompressed content length: ${content.length} characters`);
+        } catch (error) {
+          // Log the error but continue with the original content
+          if (error instanceof Error) {
+            this.logger.error(`Failed to decompress ${contentEncoding} content: ${error.message}`);
+          } else {
+            this.logger.error(`Failed to decompress ${contentEncoding} content`);
+          }
+          // Try to continue with the original content
+        }
+      } else {
+        this.logger.debug(`Content encoding ${contentEncoding} detected but content doesn't appear to be compressed`);
+      }
+    } else {
+      this.logger.debug('No content encoding specified or identity encoding, skipping decompression');
     }
     
     // Detect character encoding from content-type header
@@ -34,13 +57,42 @@ export class ContentDecoder implements ContentDecoderInterface {
     if (!charset) {
       // If no charset in content-type, try to detect from the content
       charset = this.charsetHandler.detectCharset(content);
+      this.logger.debug(`No charset in headers, detected: ${charset}`);
+    } else {
+      this.logger.debug(`Charset from headers: ${charset}`);
     }
-    
-    this.logger.debug(`Using character encoding: ${charset}`);
     
     // Convert to UTF-8 if needed
     if (charset && charset.toLowerCase() !== 'utf-8') {
-      content = this.charsetHandler.convertCharset(content, charset);
+      try {
+        const originalContent = content;
+        content = this.charsetHandler.convertCharset(content, charset);
+        
+        // Check if conversion actually changed anything
+        if (content !== originalContent) {
+          this.logger.debug(`Successfully converted content from ${charset} to UTF-8`);
+        } else {
+          this.logger.debug(`Character encoding conversion from ${charset} had no effect`);
+        }
+      } catch (error) {
+        if (error instanceof Error) {
+          this.logger.error(`Character encoding conversion failed: ${error.message}`);
+        }
+        // Continue with original content
+      }
+    }
+    
+    // Check if the content looks like HTML
+    const isHTML = content.includes('<!DOCTYPE html>') || 
+                  content.includes('<html') || 
+                  (content.includes('<head') && content.includes('<body'));
+                  
+    if (!isHTML) {
+      this.logger.debug('Warning: Content does not appear to be HTML. This may indicate decompression issues.');
+      
+      // Log a sample of the content for debugging
+      const sample = content.length > 100 ? content.substring(0, 100) + '...' : content;
+      this.logger.debug(`Content sample: ${sample}`);
     }
     
     this.logger.debug('Content decoding process completed');
