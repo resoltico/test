@@ -8,3 +8,9 @@ export * from './detector.js';
 
 // Converter architecture
 export * from './converters/index.js';
+
+/**
+ * Note: This file remains unchanged from the original
+ * The exports from the modularized files maintain the same interface
+ * so this barrel file continues to work as expected
+ */

@@ -54,6 +54,8 @@ export interface MathProcessingResult {
   debug?: {
     placeholderCount: number;
     placeholders: string[];
+    displayCount?: number;
+    inlineCount?: number;
   };
 }
 
