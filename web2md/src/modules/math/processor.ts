@@ -88,6 +88,9 @@ export class MathProcessor {
         };
       }
       
+      // Pre-process HTML to protect non-math dollar signs
+      html = this.preProcessDollarSigns(html);
+      
       // Extract math content and replace with placeholders
       const extraction = this.extractor.extract(html);
       const placeholderCount = extraction.placeholderMap.size;
@@ -155,6 +158,33 @@ export class MathProcessor {
   }
   
   /**
+   * Pre-process HTML to protect certain dollar signs that aren't part of math formulas
+   * This helps avoid issues with unbalanced delimiters
+   */
+  private preProcessDollarSigns(html: string): string {
+    // Protect dollar signs in specific contexts that aren't math
+    
+    // 1. Currency values (e.g., $100)
+    html = html.replace(/\$(\d+(\.\d+)?)/g, '&#36;$1');
+    
+    // 2. Dollar signs in code blocks/samples
+    const codeTagRegex = /<code[^>]*>([^<]*\$[^<]*)<\/code>/g;
+    html = html.replace(codeTagRegex, (match, content) => {
+      // Replace dollar signs with entities within code tags
+      return match.replace(/\$/g, '&#36;');
+    });
+    
+    // 3. Dollar signs in pre tags
+    const preTagRegex = /<pre[^>]*>([^]*?)<\/pre>/g;
+    html = html.replace(preTagRegex, (match) => {
+      // Replace dollar signs with entities within pre tags
+      return match.replace(/\$/g, '&#36;');
+    });
+    
+    return html;
+  }
+  
+  /**
    * Validate the restoration process
    */
   private validateRestoration(
@@ -180,8 +210,12 @@ export class MathProcessor {
     const inlineDelimiter = this.options.inlineDelimiter;
     const blockDelimiter = this.options.blockDelimiter;
     
-    const inlineDelimiterCount = (markdown.match(new RegExp(this.escapeRegExp(inlineDelimiter), 'g')) || []).length;
-    const blockDelimiterCount = (markdown.match(new RegExp(this.escapeRegExp(blockDelimiter), 'g')) || []).length;
+    // Look for unescaped delimiters (not preceded by backslash)
+    const unescapedInlinePattern = new RegExp(`(?<!\\\\)${this.escapeRegExp(inlineDelimiter)}`, 'g');
+    const unescapedBlockPattern = new RegExp(`(?<!\\\\)${this.escapeRegExp(blockDelimiter)}`, 'g');
+    
+    const inlineDelimiterCount = (markdown.match(unescapedInlinePattern) || []).length;
+    const blockDelimiterCount = (markdown.match(unescapedBlockPattern) || []).length;
     
     // We should have an even number of each delimiter
     if (inlineDelimiterCount % 2 !== 0) {

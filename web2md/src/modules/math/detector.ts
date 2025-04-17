@@ -159,6 +159,18 @@ export class MathFormatDetector {
   private detectFormatFromContent(element: Element): string | null {
     const content = element.textContent || '';
     
+    // Skip checking content for certain element types that typically
+    // won't contain math directly
+    const skipElementTypes = ['div', 'section', 'article', 'aside', 'nav', 'header', 'footer'];
+    if (skipElementTypes.includes(element.nodeName.toLowerCase()) && !this.hasLikelyMathClasses(element)) {
+      return null;
+    }
+    
+    // Skip elements with lots of text - likely not math
+    if (content.length > 200 && !this.hasHighMathDensity(content)) {
+      return null;
+    }
+    
     // Check for MathML tags
     if (content.includes('<math') && content.includes('</math>')) {
       return 'mathml';
@@ -180,13 +192,22 @@ export class MathFormatDetector {
       // Greek letters
       /\\(alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|pi|rho|sigma|tau|upsilon|phi|chi|psi|omega)/i,
       
-      // Math delimiters
-      /\$\$.+?\$\$/, /\$.+?\$/,
+      // Math delimiters - modified to avoid false positives
+      /\$\$.+?\$\$/,
       
       // Other common LaTeX markers
       /\\(left|right|text|mathbb|mathcal|mathrm|mathbf|mathit)/
     ];
+
+    // Check for math inside dollar signs (being more cautious)
+    // Only count this as math if it contains mathematical notation
+    const dollarFormulaRegex = /\$([^$\n]+?)\$/;
+    const match = dollarFormulaRegex.exec(content);
+    if (match && this.containsMathNotation(match[1])) {
+      return 'latex';
+    }
     
+    // Check for other LaTeX patterns
     if (latexPatterns.some(pattern => pattern.test(content))) {
       return 'latex';
     }
@@ -211,16 +232,75 @@ export class MathFormatDetector {
       return 'ascii';
     }
     
-    // If it has only a few math symbols and no explicit format indicators,
-    // it's most likely to be LaTeX as that's the most common format
+    // If it has a significant amount of math symbols and no explicit format indicators,
+    // be cautious - only return a format if it really looks like math
     const mathSymbols = /[+\-*\/=^_{}[\]()]/g;
     const mathSymbolCount = (content.match(mathSymbols) || []).length;
     
-    if (mathSymbolCount > 3) {
+    if (mathSymbolCount > 5 && this.containsMathNotation(content) && content.length < 100) {
       return 'latex';
     }
     
     return null;
+  }
+  
+  /**
+   * Check if content contains actual mathematical notation, not just symbols
+   */
+  private containsMathNotation(content: string): boolean {
+    // Look for patterns that are distinctly mathematical
+    const mathPatterns = [
+      // Mathematical operations with variables
+      /[a-zA-Z][+\-*\/=<>][a-zA-Z]/,
+      
+      // Fractions, exponents, subscripts
+      /[a-zA-Z0-9](\^|\/)[\{a-zA-Z0-9]/,
+      
+      // Common math functions
+      /\b(sin|cos|tan|log|ln|lim|max|min|sup|inf)\b/,
+      
+      // Greek letters (common in math)
+      /\b(alpha|beta|gamma|delta|theta|lambda|sigma|omega)\b/i,
+      
+      // Common mathematical symbols in context
+      /[\u2200\u2203\u2208\u2209\u2227\u2228\u2264\u2265\u221E]/u  // ∀, ∃, ∈, ∉, ∧, ∨, ≤, ≥, ∞
+    ];
+    
+    return mathPatterns.some(pattern => pattern.test(content));
+  }
+  
+  /**
+   * Check if an element has classes suggesting it might contain math
+   */
+  private hasLikelyMathClasses(element: Element): boolean {
+    const mathClasses = [
+      'math', 'formula', 'equation', 'expression', 'mathematics',
+      'latex', 'tex', 'katex', 'mathjax', 'mathml'
+    ];
+    
+    return Array.from(element.classList).some(cls => 
+      mathClasses.some(mathClass => cls.toLowerCase().includes(mathClass))
+    );
+  }
+  
+  /**
+   * Check if content has a high density of mathematical notation
+   */
+  private hasHighMathDensity(content: string): boolean {
+    // Count math-specific symbols
+    const mathSymbols = /[+\-*\/=^_{}[\]()\\]/g;
+    const mathSymbolCount = (content.match(mathSymbols) || []).length;
+    
+    // Check for specific math patterns
+    const hasLatex = /\\[a-zA-Z]+\{/.test(content);
+    const hasGreekLetters = /\\(?:alpha|beta|gamma|delta|epsilon|zeta|eta|theta)/.test(content);
+    const hasMathML = /<m(?:row|i|o|n|sup|sub|frac)/.test(content);
+    
+    // Calculate density
+    const density = mathSymbolCount / content.length;
+    
+    // High density or specific math notation
+    return (density > 0.1) || hasLatex || hasGreekLetters || hasMathML;
   }
   
   /**

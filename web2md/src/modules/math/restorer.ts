@@ -72,11 +72,13 @@ export class MathRestorer {
         return markdown;
       }
       
+      // Escape existing dollar signs that aren't part of math formulas
+      // Look for dollar signs that aren't preceded or followed by a placeholder marker
+      let processedMarkdown = this.escapeNonMathDelimiters(markdown, placeholderMap);
+      
       // Create a map of conversions to avoid repeated work
       const conversionCache = new Map<string, string>();
       
-      // Start with the original markdown
-      let processedMarkdown = markdown;
       let placeholdersReplaced = 0;
       
       // First pass: handle formatted placeholders (%%MATH_PLACEHOLDER_N%%)
@@ -177,6 +179,55 @@ export class MathRestorer {
       return markdown;
     }
   }
+
+  /**
+   * Escape dollar signs that aren't part of math formulas
+   * This helps prevent issues with unbalanced delimiters
+   */
+  private escapeNonMathDelimiters(markdown: string, placeholderMap: Map<string, any>): string {
+    // First, create a set of placeholder positions
+    const placeholderPositions: {start: number, end: number}[] = [];
+    
+    // Find all placeholder positions
+    for (const placeholder of placeholderMap.keys()) {
+      let pos = 0;
+      while ((pos = markdown.indexOf(placeholder, pos)) !== -1) {
+        placeholderPositions.push({
+          start: pos,
+          end: pos + placeholder.length
+        });
+        pos += placeholder.length;
+      }
+    }
+    
+    // Sort positions to help with non-overlapping checks
+    placeholderPositions.sort((a, b) => a.start - b.start);
+    
+    // Find dollar signs outside placeholder regions
+    const dollarPositions: number[] = [];
+    let pos = 0;
+    while ((pos = markdown.indexOf('$', pos)) !== -1) {
+      // Check if this dollar sign is within any placeholder
+      const isInPlaceholder = placeholderPositions.some(
+        p => pos >= p.start && pos < p.end
+      );
+      
+      if (!isInPlaceholder) {
+        dollarPositions.push(pos);
+      }
+      
+      pos += 1;
+    }
+    
+    // Escape dollar signs from end to start (to avoid index shifts)
+    let result = markdown;
+    for (let i = dollarPositions.length - 1; i >= 0; i--) {
+      const pos = dollarPositions[i];
+      result = result.substring(0, pos) + '\\' + result.substring(pos);
+    }
+    
+    return result;
+  }
   
   /**
    * Convert math content based on format
@@ -274,11 +325,16 @@ export class MathRestorer {
       return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     };
     
+    // Count unescaped delimiters only
     const inlineDelimiter = this.options.inlineDelimiter;
     const blockDelimiter = this.options.blockDelimiter;
     
-    const inlineCount = (markdown.match(new RegExp(escapeRegExp(inlineDelimiter), 'g')) || []).length;
-    const blockCount = (markdown.match(new RegExp(escapeRegExp(blockDelimiter), 'g')) || []).length;
+    // Look for unescaped delimiters (not preceded by backslash)
+    const unescapedInlinePattern = new RegExp(`(?<!\\\\)${escapeRegExp(inlineDelimiter)}`, 'g');
+    const unescapedBlockPattern = new RegExp(`(?<!\\\\)${escapeRegExp(blockDelimiter)}`, 'g');
+    
+    const inlineCount = (markdown.match(unescapedInlinePattern) || []).length;
+    const blockCount = (markdown.match(unescapedBlockPattern) || []).length;
     
     if (inlineCount % 2 !== 0) {
       this.logger.warn(`Detected unbalanced inline delimiters: ${inlineCount} occurrences of '${inlineDelimiter}'`);
