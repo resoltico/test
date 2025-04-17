@@ -26,6 +26,21 @@ export class LaTeXConverter extends MathConverter {
     try {
       this.logger.debug(`Processing LaTeX content`);
       
+      // Skip processing if content is empty
+      if (!content || content.trim().length === 0) {
+        return '';
+      }
+      
+      // Check if content is already LaTeX - we detect by looking for backslashes and braces
+      const hasLatexMarkers = /[\\{}]/.test(content);
+      
+      if (!hasLatexMarkers) {
+        // If it doesn't look like LaTeX, wrap simple expressions
+        if (/^[a-zA-Z0-9+\-*\/=^()[\] ]+$/.test(content)) {
+          return content;
+        }
+      }
+      
       // Simply clean and normalize the LaTeX
       const cleanedLatex = this.cleanLatex(content);
       
@@ -50,6 +65,9 @@ export class LaTeXConverter extends MathConverter {
     // Clean HTML entities and basic formatting
     let cleaned = this.cleanContent(latex);
     
+    // Remove HTML-like tags that might be present
+    cleaned = cleaned.replace(/<[^>]+>/g, '');
+    
     // Remove excessive curly braces
     cleaned = cleaned
       .replace(/\{\s*([a-zA-Z0-9])\s*\}/g, '$1') // Replace {x} with x for single characters
@@ -61,10 +79,30 @@ export class LaTeXConverter extends MathConverter {
     // Ensure no double backslashes (which would appear in Markdown)
     cleaned = cleaned.replace(/\\\\/g, '\\');
     
-    // Add proper spacing around operators
+    // Fix common LaTeX syntax errors
     cleaned = cleaned
+      // Fix missing braces for multi-character superscripts/subscripts
+      .replace(/\^([a-zA-Z0-9]{2,})/g, '^{$1}')
+      .replace(/_([a-zA-Z0-9]{2,})/g, '_{$1}')
+      
+      // Add proper spacing around operators
       .replace(/([0-9])([+\-*\/=])/g, '$1 $2 ')
-      .replace(/([+\-*\/=])([0-9])/g, '$1 $2');
+      .replace(/([+\-*\/=])([0-9])/g, '$1 $2')
+      
+      // Add commands to common operators
+      .replace(/\bsum\b(?!\{)/g, '\\sum')
+      .replace(/\bint\b(?!\{)/g, '\\int')
+      .replace(/\bprod\b(?!\{)/g, '\\prod')
+      .replace(/\blim\b(?!\{)/g, '\\lim')
+      
+      // Add braces to fractions with simple numerators/denominators
+      .replace(/\\frac([a-zA-Z0-9])([a-zA-Z0-9])/g, '\\frac{$1}{$2}')
+      
+      // Fix common escaping issues
+      .replace(/\_/g, '_')
+      
+      // Ensure proper formatting for functions
+      .replace(/\\([a-zA-Z]+)([^a-zA-Z{]|$)/g, '\\$1 $2');
       
     // Ensure proper spacing for math functions
     this.texWords.forEach(word => {
@@ -79,5 +117,33 @@ export class LaTeXConverter extends MathConverter {
     cleaned = cleaned.replace(/\s+/g, ' ').trim();
     
     return cleaned;
+  }
+  
+  /**
+   * Process LaTeX special characters for Markdown compatibility
+   * Override the base method for LaTeX-specific handling
+   */
+  protected processLatexSpecialChars(latex: string, shouldProtect = true): string {
+    if (!shouldProtect) {
+      return latex;
+    }
+    
+    // Make sure backslashes are single (not doubled)
+    let result = latex.replace(/\\\\/g, '\\');
+    
+    // Handle underscores - critical for subscripts in LaTeX
+    // Replace any unescaped underscores with escaped ones for Markdown compatibility
+    result = result.replace(/([^\\])_/g, '$1\\_');
+    
+    // Handle asterisks - they should be literal in math, not bold/italic markers
+    result = result.replace(/([^\\])\*/g, '$1\\*');
+    
+    // Fix cases where we incorrectly escaped characters inside LaTeX commands
+    result = result.replace(/\\\\([a-zA-Z]+)/g, '\\$1');
+    
+    // Make sure any \$ is treated as a literal $, not a math delimiter
+    result = result.replace(/\\\$/g, '\\\\$');
+    
+    return result;
   }
 }

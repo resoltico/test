@@ -6,7 +6,7 @@ import { ASCIIMathConverter } from './ascii.js';
 
 /**
  * Factory for creating math format converters
- * This allows for runtime registration of new converters
+ * This allows for dynamic registration of converters at runtime
  */
 export class MathConverterFactory {
   private converters = new Map<string, (logger: Logger) => MathConverter>();
@@ -24,6 +24,8 @@ export class MathConverterFactory {
     
     this.registerConverterType('ascii', (logger) => new ASCIIMathConverter(logger));
     this.registerAlias('asciimath', 'ascii');
+    
+    this.logger.debug('MathConverterFactory initialized with default converters');
   }
   
   /**
@@ -105,5 +107,13 @@ export class MathConverterFactory {
     
     // Not an alias, return as is
     return format;
+  }
+  
+  /**
+   * Get all registered format types
+   * @returns Array of format names
+   */
+  getAllFormats(): string[] {
+    return [...this.converters.keys()];
   }
 }

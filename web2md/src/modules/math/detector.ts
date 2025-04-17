@@ -109,6 +109,11 @@ export class MathFormatDetector {
       return 'mathml';
     }
     
+    // If it contains a math element, it's MathML
+    if (element.querySelector('math')) {
+      return 'mathml';
+    }
+    
     // Script elements with type attribute
     if (nodeName === 'script') {
       const type = (element.getAttribute('type') || '').toLowerCase();
@@ -154,12 +159,17 @@ export class MathFormatDetector {
   private detectFormatFromContent(element: Element): string | null {
     const content = element.textContent || '';
     
-    // Check for MathML
+    // Check for MathML tags
     if (content.includes('<math') && content.includes('</math>')) {
       return 'mathml';
     }
     
-    // Check for LaTeX markers - more comprehensive pattern detection
+    if (content.includes('<mrow') || content.includes('<mi') || 
+        content.includes('<mo') || content.includes('<msub')) {
+      return 'mathml';
+    }
+    
+    // Check for LaTeX markers - comprehensive pattern detection
     const latexPatterns = [
       // LaTeX environments
       /\\begin\{([^}]+)\}/, /\\end\{([^}]+)\}/,
@@ -201,6 +211,15 @@ export class MathFormatDetector {
       return 'ascii';
     }
     
+    // If it has only a few math symbols and no explicit format indicators,
+    // it's most likely to be LaTeX as that's the most common format
+    const mathSymbols = /[+\-*\/=^_{}[\]()]/g;
+    const mathSymbolCount = (content.match(mathSymbols) || []).length;
+    
+    if (mathSymbolCount > 3) {
+      return 'latex';
+    }
+    
     return null;
   }
   
@@ -208,7 +227,7 @@ export class MathFormatDetector {
    * Check if a format string is valid
    */
   private isValidFormat(format: string): boolean {
-    const validFormats = ['latex', 'tex', 'mathml', 'ascii', 'asciimath'];
+    const validFormats = ['latex', 'tex', 'mathml', 'mml', 'ascii', 'asciimath'];
     return validFormats.includes(format.toLowerCase());
   }
 }

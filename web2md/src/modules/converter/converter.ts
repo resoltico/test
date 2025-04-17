@@ -6,65 +6,6 @@ import { Logger } from '../../shared/logger/console.js';
 import { MathProcessor } from '../math/processor.js';
 
 /**
- * Function to patch Turndown service to preserve math placeholders
- */
-function patchTurndownService(turndownService: TurndownService, logger: Logger, placeholders: string[]): void {
-  // Skip if no placeholders to preserve
-  if (!placeholders || placeholders.length === 0) {
-    return;
-  }
-  
-  logger.debug(`Patching Turndown to preserve ${placeholders.length} placeholders`);
-  
-  // Save the original escape method
-  const originalEscape = turndownService.escape;
-
-  // Override the escape method to bypass our placeholders
-  turndownService.escape = function(text: string): string {
-    // Skip escaping if the text is a placeholder
-    if (placeholders.includes(text)) {
-      logger.debug(`Preserved placeholder from escaping: ${text}`);
-      return text;
-    }
-    
-    // Check if this text contains a placeholder
-    const placeholderIndex = placeholders.findIndex(p => text.includes(p));
-    if (placeholderIndex !== -1) {
-      const placeholder = placeholders[placeholderIndex];
-      logger.debug(`Found placeholder in text: ${placeholder}`);
-      
-      // Split the text by the placeholder
-      const parts = text.split(placeholder);
-      
-      // Escape each part and join with the unescaped placeholder
-      return parts.map(part => originalEscape.call(turndownService, part))
-        .join(placeholder);
-    }
-    
-    // Use the original escape method for normal text
-    return originalEscape.call(turndownService, text);
-  };
-  
-  // Add a special rule to preserve our placeholders
-  turndownService.addRule('preserveMathPlaceholders', {
-    filter: (node: Node) => {
-      // Skip non-text nodes
-      if (node.nodeType !== 3) return false;
-      
-      // Check if this node contains a placeholder
-      const textContent = node.textContent || '';
-      return placeholders.some(p => textContent.includes(p));
-    },
-    replacement: (content: string) => {
-      // Return the content unchanged to preserve placeholders
-      return content;
-    }
-  });
-  
-  logger.debug('Turndown has been patched to preserve placeholders');
-}
-
-/**
  * Converter for HTML to Markdown transformation
  */
 export class Converter {
@@ -94,10 +35,10 @@ export class Converter {
       // Process math elements if math processor is available
       let processedHtml = html;
       let restoreMarkdown = async (markdown: string) => markdown;
-      let placeholders: string[] = [];
+      let mathDebugInfo = null;
       
       if (this.mathProcessor && config.math.enabled) {
-        this.logger.debug('Pre-processing math elements with placeholder approach');
+        this.logger.debug('Pre-processing math elements');
         
         // Configure the math processor with the config
         this.mathProcessor.configure({
@@ -112,19 +53,11 @@ export class Converter {
         const mathProcessingResult = await this.mathProcessor.process(html);
         processedHtml = mathProcessingResult.html;
         restoreMarkdown = mathProcessingResult.restoreMarkdown;
+        mathDebugInfo = mathProcessingResult.debug;
         
-        if (mathProcessingResult.debug) {
-          placeholders = mathProcessingResult.debug.placeholders;
-          this.logger.debug(`Math processing extracted ${mathProcessingResult.debug.placeholderCount} placeholders`);
-          
-          // Debug: Check if placeholders are in the HTML
-          for (const placeholder of placeholders) {
-            if (processedHtml.includes(placeholder)) {
-              this.logger.debug(`Found placeholder in HTML after extraction: ${placeholder}`);
-            } else {
-              this.logger.warn(`Placeholder not found in HTML after extraction: ${placeholder}`);
-            }
-          }
+        if (mathDebugInfo) {
+          this.logger.debug(`Math processing extracted ${mathDebugInfo.placeholderCount} placeholders`);
+          this.logger.debug(`Math breakdown: ${mathDebugInfo.displayCount} display equations, ${mathDebugInfo.inlineCount} inline equations`);
         }
       }
       
@@ -150,47 +83,17 @@ export class Converter {
       // Apply custom rules
       this.applyRules(turndownService, rules);
       
-      // Patch Turndown to preserve placeholders
-      if (placeholders.length > 0) {
-        patchTurndownService(turndownService, this.logger, placeholders);
-      }
-      
       // Convert to Markdown
       let markdown = turndownService.turndown(document.body);
       
       // Post-process the output
       markdown = this.postProcessMarkdown(markdown, config);
       
-      // Detect and log placeholder presence for debugging
-      if (placeholders.length > 0) {
-        for (const placeholder of placeholders) {
-          if (markdown.includes(placeholder)) {
-            this.logger.debug(`Found placeholder in Markdown: ${placeholder}`);
-          } else {
-            // Check for unformatted placeholders (without %%)
-            const unformattedPlaceholder = placeholder.replace(/%%/g, '');
-            if (markdown.includes(unformattedPlaceholder)) {
-              this.logger.debug(`Found unformatted placeholder in Markdown: ${unformattedPlaceholder}`);
-            } else {
-              this.logger.warn(`Placeholder not found in Markdown: ${placeholder}`);
-            }
-          }
-        }
-      }
-      
       // Restore math content from placeholders
-      this.logger.debug('Restoring math content from placeholders');
-      markdown = await restoreMarkdown(markdown);
-      
-      // Final verification - make sure no placeholders remain
-      const remainingPlaceholders = this.checkForRemainingPlaceholders(markdown);
-      if (remainingPlaceholders.length > 0) {
-        this.logger.warn(`Found ${remainingPlaceholders.length} remaining placeholders after restoration`);
-        for (const placeholder of remainingPlaceholders) {
-          this.logger.debug(`Remaining placeholder: ${placeholder}`);
-        }
-      } else {
-        this.logger.debug('All math placeholders successfully processed');
+      if (this.mathProcessor && config.math.enabled && mathDebugInfo && mathDebugInfo.placeholderCount > 0) {
+        this.logger.debug('Restoring math content from placeholders');
+        markdown = await restoreMarkdown(markdown);
+        this.logger.debug('Math restoration completed');
       }
       
       this.logger.debug('HTML to Markdown conversion completed');
@@ -261,27 +164,17 @@ export class Converter {
   private postProcessMarkdown(markdown: string, config: Config): string {
     // Clean up multiple blank lines
     let processed = markdown.replace(/\n{3,}/g, '\n\n');
+    
+    // Ensure proper spacing around block math delimiters
+    if (config.math.enabled) {
+      const blockDelimiter = config.math.blockDelimiter;
+      const escapedDelimiter = blockDelimiter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      
+      // Add blank lines around block math if they don't already have them
+      const blockMathRegex = new RegExp(`([^\n])(${escapedDelimiter}[^${escapedDelimiter}]+?${escapedDelimiter})([^\n])`, 'g');
+      processed = processed.replace(blockMathRegex, '$1\n\n$2\n\n$3');
+    }
+    
     return processed;
-  }
-  
-  /**
-   * Check for remaining placeholders in the output
-   */
-  private checkForRemainingPlaceholders(markdown: string): string[] {
-    const found: string[] = [];
-    
-    // Check for formatted placeholders
-    const formattedMatches = markdown.match(/%%MATH_PLACEHOLDER_\d+%%/g);
-    if (formattedMatches) {
-      found.push(...formattedMatches);
-    }
-    
-    // Check for unformatted placeholders
-    const unformattedMatches = markdown.match(/MATH_PLACEHOLDER_\d+/g);
-    if (unformattedMatches) {
-      found.push(...unformattedMatches);
-    }
-    
-    return found;
   }
 }

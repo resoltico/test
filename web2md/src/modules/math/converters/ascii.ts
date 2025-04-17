@@ -6,6 +6,101 @@ import { Logger } from '../../../shared/logger/console.js';
  * Converter for ASCII math format
  */
 export class ASCIIMathConverter extends MathConverter {
+  // Mapping of ASCIIMath symbols to LaTeX
+  private readonly symbolMap: Record<string, string> = {
+    // Greek letters
+    'alpha': '\\alpha',
+    'beta': '\\beta',
+    'gamma': '\\gamma',
+    'Gamma': '\\Gamma',
+    'delta': '\\delta',
+    'Delta': '\\Delta',
+    'epsilon': '\\epsilon',
+    'varepsilon': '\\varepsilon',
+    'zeta': '\\zeta',
+    'eta': '\\eta',
+    'theta': '\\theta',
+    'Theta': '\\Theta',
+    'iota': '\\iota',
+    'kappa': '\\kappa',
+    'lambda': '\\lambda',
+    'Lambda': '\\Lambda',
+    'mu': '\\mu',
+    'nu': '\\nu',
+    'xi': '\\xi',
+    'Xi': '\\Xi',
+    'pi': '\\pi',
+    'Pi': '\\Pi',
+    'rho': '\\rho',
+    'sigma': '\\sigma',
+    'Sigma': '\\Sigma',
+    'tau': '\\tau',
+    'upsilon': '\\upsilon',
+    'Upsilon': '\\Upsilon',
+    'phi': '\\phi',
+    'Phi': '\\Phi',
+    'chi': '\\chi',
+    'psi': '\\psi',
+    'Psi': '\\Psi',
+    'omega': '\\omega',
+    'Omega': '\\Omega',
+    
+    // Operators
+    '+-': '\\pm',
+    'plus-minus': '\\pm',
+    '-+': '\\mp',
+    'minus-plus': '\\mp',
+    'times': '\\times',
+    'div': '\\div',
+    '/': '\\div',
+    'sqrt': '\\sqrt',
+    'root': '\\sqrt',
+    '^': '\\hat',
+    '**': '\\cdot',
+    'cdot': '\\cdot',
+    'o+': '\\oplus',
+    'ox': '\\otimes',
+    'sum': '\\sum',
+    'prod': '\\prod',
+    'lim': '\\lim',
+    
+    // Relations
+    '!=': '\\neq',
+    'ne': '\\neq',
+    '<=': '\\leq',
+    'le': '\\leq',
+    '>=': '\\geq',
+    'ge': '\\geq',
+    'lt': '<',
+    'gt': '>',
+    'subset': '\\subset',
+    'supset': '\\supset',
+    'in': '\\in',
+    'notin': '\\notin',
+    
+    // Miscellaneous
+    'infinity': '\\infty',
+    'oo': '\\infty',
+    'partial': '\\partial',
+    'grad': '\\nabla',
+    'del': '\\nabla',
+    'space': '\\;',
+    
+    // Functions
+    'sin': '\\sin',
+    'cos': '\\cos',
+    'tan': '\\tan',
+    'cot': '\\cot',
+    'sec': '\\sec',
+    'csc': '\\csc',
+    'log': '\\log',
+    'ln': '\\ln',
+    'exp': '\\exp',
+    'arcsin': '\\arcsin',
+    'arccos': '\\arccos',
+    'arctan': '\\arctan'
+  };
+  
   constructor(logger: Logger) {
     super(logger);
   }
@@ -17,16 +112,17 @@ export class ASCIIMathConverter extends MathConverter {
     try {
       this.logger.debug(`Converting ASCIIMath to LaTeX`);
       
-      // If the target format is ASCIIMath and the source is already ASCIIMath,
-      // just clean and return
-      const outputFormat: string = this.getContextValue(context, 'outputFormat', 'latex');
-      // Use as string to avoid TypeScript literal type inference issues
-      if (outputFormat as string === 'ascii' && context.sourceFormat === 'ascii') {
-        return this.cleanASCIIMath(content);
+      // Clean the input content
+      const cleanedContent = this.cleanContent(content);
+      
+      // If the content already looks like LaTeX (has backslashes), assume it is
+      if (cleanedContent.includes('\\')) {
+        this.logger.debug('Content appears to already be LaTeX, skipping conversion');
+        return cleanedContent;
       }
       
-      // Otherwise, convert ASCIIMath to LaTeX
-      const latex = this.convertASCIIToLaTeX(content);
+      // Convert ASCIIMath to LaTeX
+      const latex = this.convertASCIIToLaTeX(cleanedContent);
       
       // Process special Markdown-sensitive characters
       const shouldProtect = this.getContextValue(context, 'protectLatex', true);
@@ -43,53 +139,61 @@ export class ASCIIMathConverter extends MathConverter {
   }
   
   /**
-   * Clean and normalize ASCII math
-   */
-  private cleanASCIIMath(ascii: string): string {
-    // Clean HTML entities and basic formatting
-    return this.cleanContent(ascii);
-  }
-  
-  /**
    * Convert ASCII math to LaTeX
-   * This is a simplified implementation as a full one would need a proper ASCIIMath parser
+   * This is a simplified implementation that handles common ASCIIMath patterns
    */
   private convertASCIIToLaTeX(ascii: string): string {
-    // Clean the input
-    let content = this.cleanContent(ascii);
+    let content = ascii;
     
-    // Apply a series of replacements to convert ASCIIMath syntax to LaTeX
+    // Replace symbols and operators based on the mapping
+    Object.entries(this.symbolMap).forEach(([asciiSymbol, latexSymbol]) => {
+      // Create a regex that finds the symbol surrounded by whitespace or at start/end of string
+      const regex = new RegExp(`(^|\\s)${asciiSymbol}($|\\s)`, 'g');
+      content = content.replace(regex, `$1${latexSymbol}$2`);
+    });
     
-    // Fractions
-    content = content.replace(/(\w+)\/(\w+)/g, '\\frac{$1}{$2}');
+    // Replace the most common ASCIIMath syntax patterns
     
-    // Superscripts (e.g., x^2)
-    content = content.replace(/(\w)\^(\w+)/g, '$1^{$2}');
+    // Fractions (numerator/denominator)
+    content = content.replace(/\{([^{}]+)\}\/\{([^{}]+)\}/g, '\\frac{$1}{$2}');
     
-    // Subscripts (e.g., x_n)
-    content = content.replace(/(\w)_(\w+)/g, '$1_{$2}');
+    // Simple fractions with single terms (a/b)
+    content = content.replace(/([a-zA-Z0-9])\/([a-zA-Z0-9])/g, '\\frac{$1}{$2}');
     
-    // Square roots
-    content = content.replace(/sqrt\(([^)]+)\)/g, '\\sqrt{$1}');
+    // Superscripts with single character (x^2)
+    content = content.replace(/([a-zA-Z0-9])(\^)([a-zA-Z0-9])/g, '$1^{$3}');
     
-    // Common functions
-    content = content.replace(/\b(sin|cos|tan|log|ln|exp)\(/g, '\\$1(');
+    // Superscripts with braces (x^{a+b})
+    content = content.replace(/([a-zA-Z0-9])(\^)\{([^{}]+)\}/g, '$1^{$3}');
     
-    // Greek letters
-    content = content.replace(/\b(alpha|beta|gamma|delta|epsilon|theta|pi)\b/g, '\\$1');
+    // Subscripts with single character (x_n)
+    content = content.replace(/([a-zA-Z0-9])(_)([a-zA-Z0-9])/g, '$1_{$3}');
     
-    // Standard operators
+    // Subscripts with braces (x_{i+j})
+    content = content.replace(/([a-zA-Z0-9])(_)\{([^{}]+)\}/g, '$1_{$3}');
+    
+    // Square roots (sqrt(x))
+    content = content.replace(/sqrt\(([^()]+)\)/g, '\\sqrt{$1}');
+    
+    // nth roots (root(n)(x))
+    content = content.replace(/root\(([^()]+)\)\(([^()]+)\)/g, '\\sqrt[$1]{$2}');
+    
+    // Text in quotes
+    content = content.replace(/"([^"]+)"/g, '\\text{$1}');
+    
+    // Matrices
+    content = content.replace(/\[\[([^\[\]]+)\]\]/g, '\\begin{bmatrix}$1\\end{bmatrix}');
+    
+    // Matrix rows
+    content = content.replace(/\],\[/g, '\\\\');
+    content = content.replace(/,/g, '&');
+    
+    // Fix spacing around operators
     content = content
-      .replace(/\*\*/g, '^') // Exponentiation
-      .replace(/!=|ne/g, '\\neq') // Not equal
-      .replace(/<=|le/g, '\\leq') // Less than or equal
-      .replace(/>=|ge/g, '\\geq') // Greater than or equal
-      .replace(/infinity|oo/g, '\\infty') // Infinity
-      .replace(/([^\\])pi/g, '$1\\pi') // Pi symbol
-      .replace(/\bsum\b/g, '\\sum') // Sum symbol
-      .replace(/\bprod\b/g, '\\prod') // Product symbol
-      .replace(/\blim\b/g, '\\lim') // Limit
-      .replace(/\bint\b/g, '\\int'); // Integral
+      .replace(/([0-9a-zA-Z}])([+\-=<>])/g, '$1 $2 ')
+      .replace(/([+\-=<>])([0-9a-zA-Z\\{])/g, '$1 $2')
+      .replace(/\s+/g, ' ')
+      .trim();
     
     return content;
   }

@@ -65,12 +65,22 @@ export class RulesManager {
   private async loadRulesFromConfig(config: Config): Promise<Rule[]> {
     const rules: Rule[] = [];
     
+    // Always ensure math rule is included if math is enabled
+    const mathEnabled = config.math?.enabled !== false;
+    let includedMathRule = false;
+    
     // Determine which built-in rules to load
     if (config.useBuiltInRules !== false) {
       // If useBuiltInRules is true or not specified, and builtInRules is specified,
       // use only the specified built-in rules
       if (config.builtInRules && config.builtInRules.length > 0) {
         this.logger.info('Loading specified built-in rules');
+        
+        // Check if 'math' is in the built-in rules list when math is enabled
+        if (mathEnabled && config.builtInRules.includes('math')) {
+          includedMathRule = true;
+        }
+        
         const builtInRulePaths = config.builtInRules.map(name => 
           this.registry.getBuiltInRulePath(name));
         
@@ -82,6 +92,12 @@ export class RulesManager {
       else {
         this.logger.info('Loading all built-in rules');
         const allBuiltInRuleNames = this.registry.getAllBuiltInRuleNames();
+        
+        // Set flag if math rule will be loaded
+        if (mathEnabled && allBuiltInRuleNames.includes('math')) {
+          includedMathRule = true;
+        }
+        
         const builtInRulePaths = allBuiltInRuleNames.map(name => 
           this.registry.getBuiltInRulePath(name));
         
@@ -105,6 +121,33 @@ export class RulesManager {
       
       const customRules = await this.loadRulesFromPaths(customRulePaths);
       rules.push(...customRules);
+      
+      // Check if any custom rules are for math
+      for (const rule of customRules) {
+        if (rule.name === 'math') {
+          includedMathRule = true;
+          break;
+        }
+      }
+    }
+    
+    // If math is enabled but no math rule was loaded, add it explicitly
+    if (mathEnabled && !includedMathRule) {
+      this.logger.info('Adding math rule for math processing');
+      
+      try {
+        const mathRulePath = this.registry.getBuiltInRulePath('math');
+        const mathRules = await this.loadRulesFromPaths([mathRulePath]);
+        
+        if (mathRules.length > 0) {
+          rules.push(...mathRules);
+          this.logger.debug('Added math rule');
+        } else {
+          this.logger.warn('Failed to load math rule');
+        }
+      } catch (error) {
+        this.logger.error(`Error loading math rule: ${error instanceof Error ? error.message : String(error)}`);
+      }
     }
     
     return rules;
