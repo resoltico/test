@@ -1,19 +1,21 @@
-# WEB2MD: YAML-Based Rules System Specification
+# WEB2MD: CommonMark-Based Rules System Specification
 
 ## Core Architecture
 
-WEB2MD is a Node.js CLI application that transforms HTML webpages into semantically structured Markdown documents. At the heart of this conversion process lies a strictly-defined YAML-based rules system that defines how HTML elements are transformed into their Markdown counterparts.
+WEB2MD is a Node.js CLI application that transforms HTML webpages into semantically structured Markdown documents. At the heart of this conversion process lies a strictly-defined YAML-based rules system that defines how HTML elements are transformed into their CommonMark-compliant Markdown counterparts.
+
+The conversion engine is built on a custom CommonMark-compliant parser/renderer implemented specifically for web2md, providing fine-grained control over the transformation process while ensuring complete compliance with the CommonMark specification 0.31.2.
 
 ## System Overview
 
-The WEB2MD architecture follows a simple input-process-output pipeline:
+The WEB2MD architecture follows a streamlined input-process-output pipeline:
 
 1. **Input**: HTML content from files or URLs (with customizable HTTP options)
 2. **Pre-Process**: Apply deobfuscation and handle content encoding/compression
-3. **Process**: Apply conversion rules to transform HTML to Markdown
+3. **Process**: Convert HTML to AST, apply transformation rules, generate Markdown
 4. **Output**: Write Markdown content to file or stdout
 
-The YAML-based rules system controls the transformation process, allowing for customization while providing sensible defaults.
+The YAML-based rules system controls the transformation process, allowing for customization while providing sensible defaults that comply with the CommonMark spec.
 
 ## Technology Stack
 
@@ -24,191 +26,198 @@ The implementation relies on the following key technologies:
 - chalk (^5.4.1): Terminal styling for intuitive user feedback
 - node:fs/promises: Native file system operations for input/output
 - got (^14.4.7): HTTP client for retrieving remote content
-- turndown (^7.2.0): Core HTML-to-Markdown conversion engine
+- jsdom (^26.1.0): DOM manipulation for HTML processing
 - typescript (^5.8.3): Type safety and improved developer experience
 - eslint (^9.24.0): Code quality enforcement and style consistency
 - esbuild (^0.25.2): Build tool for JavaScript/TypeScript
 - tsx (^4.19.3): TypeScript execution for development and testing
 - zod (^3.24.2): Schema validation for configurations and rules
 - js-yaml (^4.1.0): YAML parsing for rules and configuration
-- jsdom (^26.1.0): DOM manipulation for HTML processing
 - tough-cookie (^5.1.2): Cookie handling for HTTP requests
 - https-proxy-agent (^7.0.6): HTTP proxy support
 - mathjax-node (^2.1.1): Math expression processing
 - zstd-napi (^0.0.10): Zstandard compression support
 
-## System Flow
+## Diagram
 
-The system follows a clear flow from input to output:
+flowchart TB
+    subgraph "Input Layer"
+        CLI[CLI Interface]
+        ConfigLoader[Configuration Loader]
+        FileReader[File Reader]
+        URLFetcher[URL Fetcher]
+    end
+    
+    subgraph "Pre-Processing Layer"
+        ContentDecoder[Content Decoder]
+        Deobfuscator[Deobfuscator]
+        HTMLParser[HTML Parser]
+    end
+    
+    subgraph "Core Conversion Pipeline"
+        DOMTree[DOM Tree]
+        RuleSystem[Rule System]
+        ASTBuilder[Markdown AST Builder]
+        ASTOptimizer[AST Optimizer]
+        MarkdownRenderer[CommonMark Renderer]
+    end
+    
+    subgraph "Specialized Processors"
+        MathProcessor[Math Processor]
+        TableProcessor[Table Processor]
+        CodeProcessor[Code Block Processor]
+    end
+    
+    subgraph "Rule Management"
+        RuleRegistry[Rule Registry]
+        RuleLoader[Rule Loader]
+        direction LR
+        YAMLRules[YAML Rules]
+        JSRules[JS Rules]
+        RuleLoader --> YAMLRules
+        RuleLoader --> JSRules
+    end
+    
+    subgraph "Output Layer"
+        OutputWriter[Output Writer]
+        PostProcessor[Post Processor]
+    end
+    
+    %% Input flow
+    CLI --> ConfigLoader
+    CLI --> FileReader
+    CLI --> URLFetcher
+    
+    %% Pre-processing flow
+    FileReader --> ContentDecoder
+    URLFetcher --> ContentDecoder
+    ContentDecoder --> Deobfuscator
+    Deobfuscator --> HTMLParser
+    
+    %% Core conversion flow
+    HTMLParser --> DOMTree
+    DOMTree --> ASTBuilder
+    RuleSystem --> ASTBuilder
+    ASTBuilder --> ASTOptimizer
+    ASTOptimizer --> MarkdownRenderer
+    
+    %% Rule management flow
+    ConfigLoader --> RuleRegistry
+    RuleRegistry --> RuleLoader
+    RuleLoader --> RuleSystem
+    
+    %% Specialized processors integration
+    MathProcessor <--> ASTBuilder
+    TableProcessor <--> ASTBuilder
+    CodeProcessor <--> ASTBuilder
+    
+    %% Output flow
+    MarkdownRenderer --> PostProcessor
+    PostProcessor --> OutputWriter
+    
+    %% Information flow for configuration
+    ConfigLoader --> RuleSystem
+    ConfigLoader --> MathProcessor
+    ConfigLoader --> ContentDecoder
+    ConfigLoader --> Deobfuscator
+    ConfigLoader --> OutputWriter
 
-1. **Input Handling**: Read HTML from files or URLs
-2. **HTTP Processing**: Apply custom user agent, headers, and handle compression
-3. **Content Decoding**: Decompress and decode content as needed
-4. **Deobfuscation**: Detect and decode obfuscated content
-5. **Rule Loading**: Load rules from built-in sets and custom files
-6. **HTML to Markdown Conversion**: Apply rules during conversion
-7. **Output Generation**: Write Markdown to file or stdout
 
-## Type System Architecture
+graph TD
+    A[HTML Input] --> B[HTML Parser]
+    B --> C[DOM Tree]
+    
+    C --> D[Node Processor]
+    D --> |Apply Rules| E[AST Builder]
+    
+    F[Rule Registry] --> |Load Rules| D
+    G[CommonMark Spec] --> |Define Grammar| E
+    
+    E --> H[Markdown AST]
+    H --> I[AST Optimizer]
+    I --> J[Markdown Renderer]
+    J --> K[Markdown Output]
+    
+    L[HTTP Client] --> |Fetch URLs| A
+    M[Deobfuscator] --> |Clean HTML| A
+    N[Math Processor] --> |Handle Math| D
+    
+    O[Config Manager] --> F
+    O --> L
+    O --> M
+    O --> N
+    
+    P[CLI Interface] --> O
+    
+    subgraph Core Conversion Pipeline
+        B
+        C
+        D
+        E
+        H
+        I
+        J
+    end
+    
+    subgraph Support Services
+        L
+        M
+        N
+    end
+    
+    subgraph Configuration
+        F
+        O
+        P
+    end
 
-WEB2MD employs a dedicated, centralized type system for maximum maintainability and clarity:
 
-```
-src/
-├── types/                        # Central location for all type definitions
-│   ├── index.ts                  # Exports all shared types
-│   ├── core/                     # Core application types
-│   │   ├── index.ts              # Exports all core types
-│   │   ├── rule.ts               # Rule-related core types
-│   │   ├── config.ts             # Configuration-related core types
-│   │   ├── deobfuscation.ts      # Deobfuscation-related core types
-│   │   ├── http.ts               # HTTP-related core types
-│   │   └── io.ts                 # Input/Output-related core types
-│   ├── modules/                  # Module-specific types
-│   │   ├── index.ts              # Exports all module types
-│   │   ├── decoder.ts            # Content decoder module types
-│   │   └── ...                   # Other module-specific types
-│   └── vendor/                   # Third-party library type augmentations
-│       ├── index.ts              # Exports all vendor type augmentations
-│       ├── turndown.d.ts         # Turndown type declarations
-│       └── ...                   # Other vendor type declarations
-```
+## HTML-to-Markdown Conversion Pipeline
 
-This type system provides clear organization, centralized type management, and properly isolated third-party type definitions.
+The CommonMark-based conversion pipeline follows these steps:
 
-## HTTP Options and Content Handling
+1. **HTML Parsing**: Parse HTML into a DOM tree using jsdom
+2. **DOM Traversal**: Traverse the DOM tree in a depth-first manner
+3. **Node Transformation**: Apply rules to transform HTML nodes to Markdown AST nodes
+4. **AST Optimization**: Optimize the Markdown AST for cleaner output
+5. **Markdown Rendering**: Render the AST to CommonMark-compliant Markdown
 
-The web2md tool supports customizable HTTP options and automatic handling of compressed content, allowing more control over how content is retrieved from the web.
+This approach offers several advantages:
+- Full compliance with the CommonMark specification
+- Greater control over the conversion process
+- Better support for complex HTML structures
+- Improved handling of edge cases
+- Enhanced customization through the rules system
 
-### HTTP Options
+## CommonMark Specification Compliance
 
-HTTP options can be specified in the configuration file (`web2md.yaml`).
+The converter strictly follows the CommonMark specification version 0.31.2, ensuring that:
 
-Example HTTP configuration within `web2md.yaml`:
+1. **Block Elements**: All block-level elements (paragraphs, lists, code blocks, etc.) are properly handled
+2. **Inline Elements**: Inline formatting (emphasis, links, code, etc.) follows the CommonMark rules
+3. **Precedence Rules**: Element precedence rules are correctly applied
+4. **Edge Cases**: Special cases and edge conditions are handled according to the spec
 
-```yaml
-# web2md.yaml
-headingStyle: atx      # atx (#) or setext (===)
-listMarker: "-"        # -, *, or +
-codeBlockStyle: fenced # fenced (```) or indented (4 spaces)
-preserveTableAlignment: true
+The implementation passes all test cases from the CommonMark specification, ensuring reliable and consistent output.
 
-# HTTP options
-http:
-  userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Edg/122.0.0.0"
-  compression:
-    enabled: true
-    formats:
-      - gzip
-      - br
-      - deflate
-      - zstd
-  requestOptions:
-    timeout: 30000
-    retry: 3
-    followRedirects: true
-    maxRedirects: 10
-    throwHttpErrors: false
-  cookies:
-    enabled: true
-    jar: true
-  headers:
-    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8"
-    Accept-Encoding: "gzip, deflate, br, zstd"
-    Accept-Language: "en-US,en;q=0.9"
-    Cache-Control: "no-cache"
-    Connection: "keep-alive"
-    DNT: "1"
-  proxy:
-    enabled: false
-    url: "http://proxy.example.com:8080"
-    auth:
-      username: ""
-      password: ""
-
-# Tags to completely ignore during conversion
-ignoreTags:
-  - script
-  - style
-  - noscript
-  - iframe
-
-# Either use all built-ins (default if this section is omitted)
-useBuiltInRules: true
-
-# Or explicitly select which built-in rule sets to use
-builtInRules:
-  - common-elements    # Basic HTML elements (headings, paragraphs, lists)
-  - text-formatting    # Bold, italic, etc.
-  - text-links         # Hyperlinks and references
-  - media-images       # Images and figures
-  - tables             # Table formatting
-  - code-blocks        # Code blocks with language highlighting
-  - math               # Mathematical expressions
-  - deobfuscation      # Link and email deobfuscation rules
-
-# Custom rules to extend or override built-ins (must be absolute paths or relative to working directory)
-customRules:
-  - ./my-rules/special-blocks.yaml  # Custom YAML rules
-  - ./my-rules/math-enhanced.js     # Custom JS rules
-
-# Deobfuscation options
-deobfuscation:
-  enabled: true                    # Enable deobfuscation module
-  decoders:
-    - cloudflare                   # Cloudflare email protection
-    - base64                       # Base64-encoded links and content
-    - rot13                        # ROT13 encoded text
-  emailLinks: true                 # Convert to 'mailto:' links after decoding
-  cleanScripts: true               # Remove deobfuscation scripts when found
-  preserveRawLinks: false          # Keep the original link in an HTML comment
-
-# Math processing options
-math:
-  enabled: true
-  inlineDelimiter: "$"
-  blockDelimiter: "$$"
-
-# Debug mode for detailed logging
-debug: false
-```
-
-### Content Handling
-
-The system automatically handles various content encodings and compression methods that websites might serve:
-
-1. **Automatic Detection**: The system detects the content encoding from HTTP headers
-2. **Decompression**: Compressed content is automatically decompressed before processing
-3. **Character Encoding**: Different character encodings are handled appropriately
-4. **Fallback Mechanisms**: If encoding detection fails, the system uses heuristics to determine the encoding
-
-#### Supported Content Encodings
-
-The following compression methods are supported:
-
-- **gzip**: The most common compression method used on the web
-- **deflate**: An older compression method still in use on some websites
-- **br** (Brotli): A newer, more efficient compression algorithm
-- **zstd** (Zstandard): An advanced compression method gaining popularity
-
-#### Character Encodings
-
-In addition to content compression, the system handles various character encodings:
-
-- UTF-8 (default)
-- UTF-16 (LE/BE)
-- ISO-8859-1
-- Windows-1252
-- And other common encodings
-
-### YAML-Based Rules System
+## YAML-Based Rules System
 
 The YAML-based rules system defines how HTML elements are transformed into Markdown. The system provides:
 
-1. **Smart Defaults**: All built-in rules are applied without any configuration
+1. **Smart Defaults**: All built-in rules comply with the CommonMark specification
 2. **Selective Activation**: Easy enabling/disabling of specific rule sets
 3. **Custom Extensions**: Simple addition of custom rules
 4. **Clear Precedence**: Explicit rule priority handling
+
+### Node-Based Rule Architecture
+
+The rules system is based on a node-based architecture where each rule:
+
+1. **Matches**: Determines if it applies to a specific DOM node
+2. **Transforms**: Converts the DOM node to a Markdown AST node
+3. **Renders**: Specifies how to render the AST node to Markdown text
+
+This three-stage process allows for complex transformations while maintaining clean separation of concerns.
 
 ### Rule Definition Formats
 
@@ -222,35 +231,31 @@ Simple rules are defined in YAML for clarity and readability:
 # rules/text-formatting.yaml
 rules:
   bold:
-    filter: "strong, b"
-    replacement: "**{content}**"
+    match: "strong, b"
+    transform: "strong"
     
   italic:
-    filter: "em, i"
-    replacement: "*{content}*"
+    match: "em, i"
+    transform: "emphasis"
     
   strikethrough:
-    filter: "del, s, strike"
-    replacement: "~~{content}~~"
+    match: "del, s, strike"
+    transform: "strikethrough"
     
   highlight:
-    filter: "mark, span.highlight"
-    replacement: "=={content}=="
+    match: "mark, span.highlight"
+    transform: "highlight"
     
   code:
-    filter: "code"
-    replacement: "`{content}`"
+    match: "code"
+    transform: "code"
 ```
 
 The YAML rule format uses the following components:
-- **filter**: CSS selector(s) that match HTML elements
-- **replacement**: Template string with placeholders
+- **match**: CSS selector(s) that match HTML elements
+- **transform**: The AST node type to create
 - **attributes** (optional): Array of attributes to extract from elements
-
-Available placeholders in replacement templates:
-- `{content}`: The processed content of the element
-- `{attr:name}`: The value of the named attribute (e.g., `{attr:href}` for links)
-- `{raw}`: The raw HTML content of the element
+- **options** (optional): Additional options for the transformation
 
 #### 2. JavaScript Rules
 
@@ -261,7 +266,7 @@ Complex rules that require programmatic logic use JavaScript:
 export default {
   name: 'math',
   
-  filter: (node) => {
+  match: (node) => {
     const nodeName = node.nodeName.toLowerCase();
     
     // Match common math element types
@@ -271,25 +276,37 @@ export default {
            node.hasAttribute('data-math');
   },
   
-  replacement: (content, node) => {
-    // This is a simplified version of the actual implementation
+  transform: (node, context) => {
     // Determine if display or inline math
     const isDisplay = 
       node.getAttribute('display') === 'block' ||
       node.classList.contains('display-math') ||
       node.nodeName.toLowerCase() === 'div';
     
+    // Extract math content
+    const content = node.textContent || '';
+    
+    // Return the appropriate AST node
+    return {
+      type: 'math',
+      display: isDisplay,
+      value: content
+    };
+  },
+  
+  render: (node, options) => {
     // Format with appropriate delimiters
-    const delimiter = isDisplay ? '$$' : '$';
-    return `${delimiter}${content}${delimiter}${isDisplay ? '\n\n' : ''}`;
+    const delimiter = node.display ? options.blockMathDelimiter : options.inlineMathDelimiter;
+    return `${delimiter}${node.value}${delimiter}${node.display ? '\n\n' : ''}`;
   }
 };
 ```
 
 JavaScript rules require:
 - **name**: Unique identifier for the rule
-- **filter**: Function that determines if the rule applies to a node
-- **replacement**: Function that generates the Markdown output
+- **match**: Function that determines if the rule applies to a node
+- **transform**: Function that converts the node to an AST node
+- **render**: Function that generates the Markdown output
 
 ### Rule Organization
 
@@ -297,17 +314,59 @@ Built-in rules are organized in a flat structure for simplicity:
 
 ```
 rules/
-├── common-elements.yaml          # Basic HTML element rules
-├── text-formatting.yaml          # Text formatting rules
-├── text-links.yaml               # Link formatting rules
-├── media-images.yaml             # Image handling
-├── tables.yaml                   # Table conversion rules
-├── code-blocks.yaml              # Code block formatting
-├── deobfuscation.yaml            # Basic deobfuscation patterns
-└── math.js                       # Math expressions handling
+├── blocks/
+│   ├── headings.yaml         # Heading elements (h1-h6)
+│   ├── paragraphs.yaml       # Paragraph handling
+│   ├── lists.yaml            # Ordered and unordered lists
+│   ├── blockquotes.yaml      # Blockquote handling
+│   ├── code-blocks.yaml      # Code block formatting
+│   └── thematic-breaks.yaml  # Horizontal rules
+├── inlines/
+│   ├── text-formatting.yaml  # Text formatting rules
+│   ├── links.yaml            # Link formatting rules
+│   ├── images.yaml           # Image handling
+│   ├── code-spans.yaml       # Inline code formatting
+│   └── line-breaks.yaml      # Hard and soft line breaks
+├── tables.yaml               # Table conversion rules
+├── math.js                   # Math expressions handling
+└── deobfuscation.yaml        # Basic deobfuscation patterns
 ```
 
-Each file represents a cohesive set of related rules that can be enabled or disabled together.
+This organization separates block-level elements from inline elements, following the structure of the CommonMark specification.
+
+### AST Node Types
+
+The Markdown AST uses the following node types, based on the CommonMark specification:
+
+#### Block Nodes
+- **document**: Root node containing all other nodes
+- **paragraph**: Basic paragraph of text
+- **heading**: Section heading with level 1-6
+- **blockquote**: Quoted block of content
+- **list**: Ordered or unordered list
+- **list_item**: Individual item in a list
+- **code_block**: Block of code with optional language info
+- **html_block**: Raw HTML block
+- **thematic_break**: Horizontal rule (hr)
+
+#### Inline Nodes
+- **text**: Plain text content
+- **softbreak**: Soft line break
+- **hardbreak**: Hard line break
+- **emphasis**: Emphasized text (usually italics)
+- **strong**: Strongly emphasized text (usually bold)
+- **code**: Inline code span
+- **link**: Hyperlink with text, URL, and optional title
+- **image**: Image with alt text, URL, and optional title
+- **html_inline**: Raw HTML inline
+
+#### Extended Nodes
+- **table**: Table with headers and rows
+- **math**: Mathematical expression (inline or block)
+- **strikethrough**: Struck-through text
+- **highlight**: Highlighted text
+- **footnote**: Footnote reference
+- **footnote_definition**: Footnote content definition
 
 ### Rule Resolution Process
 
@@ -316,23 +375,20 @@ The rule resolution process follows these steps:
 1. **Retrieve Content with HTTP Options**: If retrieving from a URL, apply the configured HTTP options
 2. **Decompress/Decode Content**: If the content is compressed or encoded, handle it appropriately
 3. **Pre-Process Deobfuscation**: If deobfuscation is enabled, detect and decode obfuscated content
-4. **Check CLI Override**: If `--rules-dir` is specified, use only rules explicitly listed in that directory manifest file
-5. **Load Configuration**: Read the YAML configuration file
-6. **Determine Rule Sources**:
-   - If `useBuiltInRules` is true, use all built-in rules from the registry
-   - If `builtInRules` is specified, use only those built-in rule sets from the registry
-   - If neither is specified but `customRules` exists, use only custom rules
-   - If none of the above, use all built-in rules by default
-7. **Validate Rules**: Validate all rule files before attempting to load them
-8. **Load Rules**: Load all applicable rules from their validated sources
-9. **Apply Rules**: Apply rules during HTML-to-Markdown conversion
+4. **Parse HTML**: Convert HTML into a DOM tree
+5. **Load Rules**: Load all applicable rules from configuration
+6. **Transform to AST**: Transform the DOM tree to a Markdown AST by applying rules
+7. **Optimize AST**: Apply optimizations to the AST for cleaner output
+8. **Render Markdown**: Convert the AST to CommonMark-compliant Markdown
+9. **Apply Post-Processing**: Apply any required post-processing
 
-The rule resolution algorithm uses a clear precedence order:
-1. CLI-specified rules (highest precedence)
-2. Custom rules from configuration
-3. Built-in rules (lowest precedence)
-
-Within each category, rules are applied in the order they are defined.
+The rule application algorithm follows these steps:
+1. For each DOM node, find all matching rules
+2. Sort rules by priority
+3. Apply the highest-priority rule's transformation
+4. Process child nodes recursively
+5. Assemble the Markdown AST
+6. Render the AST to Markdown text
 
 ### Built-in Rule Registry
 
@@ -341,14 +397,25 @@ The system includes a static registry of built-in rules. This registry is a fixe
 ```typescript
 // Static registry of built-in rules
 const BUILT_IN_RULES_REGISTRY = {
-  'common-elements': 'common-elements.yaml',
-  'text-formatting': 'text-formatting.yaml',
-  'text-links': 'text-links.yaml',
-  'media-images': 'media-images.yaml',
+  // Block elements
+  'headings': 'blocks/headings.yaml',
+  'paragraphs': 'blocks/paragraphs.yaml',
+  'lists': 'blocks/lists.yaml',
+  'blockquotes': 'blocks/blockquotes.yaml',
+  'code-blocks': 'blocks/code-blocks.yaml',
+  'thematic-breaks': 'blocks/thematic-breaks.yaml',
+  
+  // Inline elements
+  'text-formatting': 'inlines/text-formatting.yaml',
+  'links': 'inlines/links.yaml',
+  'images': 'inlines/images.yaml',
+  'code-spans': 'inlines/code-spans.yaml',
+  'line-breaks': 'inlines/line-breaks.yaml',
+  
+  // Special elements
   'tables': 'tables.yaml',
-  'code-blocks': 'code-blocks.yaml',
-  'deobfuscation': 'deobfuscation.yaml',
-  'math': 'math.js'
+  'math': 'math.js',
+  'deobfuscation': 'deobfuscation.yaml'
 };
 ```
 
@@ -377,11 +444,64 @@ The math processor supports:
 - MathML to LaTeX conversion
 - Fallback mechanisms for handling errors
 
+## HTTP and Content Handling
+
+The HTTP module provides comprehensive options for web requests:
+
+```yaml
+# web2md.yaml configuration example
+http:
+  userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+  compression:
+    enabled: true
+    formats:
+      - gzip
+      - br
+      - deflate
+      - zstd
+  requestOptions:
+    timeout: 30000
+    retry: 3
+    followRedirects: true
+    maxRedirects: 10
+    throwHttpErrors: false
+  cookies:
+    enabled: true
+    jar: true
+  headers:
+    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8"
+    Accept-Encoding: "gzip, deflate, br, zstd"
+    Accept-Language: "en-US,en;q=0.9"
+  proxy:
+    enabled: false
+    url: "http://proxy.example.com:8080"
+    auth:
+      username: ""
+      password: ""
+```
+
+Key features:
+- **Custom User Agents**: Configurable user agent strings
+- **Compression Support**: Handles gzip, brotli, deflate, and zstd
+- **Cookie Management**: Automatic cookie handling with jar support
+- **Proxy Support**: HTTP/HTTPS proxy with authentication
+- **Custom Headers**: Configurable request headers
+- **Charset Handling**: Automatic detection and conversion of character encodings
+
+## Deobfuscation System
+
+The deobfuscation module handles various forms of obfuscated content:
+
+- **Cloudflare Email Protection**: Decodes Cloudflare-protected email addresses
+- **Base64 Encoding**: Detects and decodes base64-encoded content
+- **ROT13 Encoding**: Detects and decodes ROT13-encoded text
+- **Script Cleaning**: Removes deobfuscation scripts from the HTML
+
+The system is extensible with additional decoders for other obfuscation methods.
+
 ## User Workflow
 
 ### Basic Usage (No Configuration)
-
-For most users, the built-in rules provide excellent results without configuration:
 
 ```bash
 # Convert an HTML file to Markdown
@@ -393,8 +513,6 @@ web2md -u https://example.com -o example.md
 # Convert a web page with a custom user agent
 web2md -u https://example.com -o example.md --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 ```
-
-The system will use all built-in rules with default settings, including deobfuscation and content encoding handling.
 
 ### Configuration with HTTP Options
 
@@ -428,10 +546,10 @@ Specify only the built-in rule sets you need:
 # web2md.yaml
 # Only use heading, formatting, link, and deobfuscation rules
 builtInRules:
-  - common-elements   # For headings, paragraphs, etc.
-  - text-formatting   # For bold, italic, etc.
-  - text-links        # For hyperlinks
-  - deobfuscation     # For handling obfuscated content
+  - blocks/headings
+  - inlines/text-formatting
+  - inlines/links
+  - deobfuscation
 ```
 
 ### Custom Rules
@@ -470,8 +588,6 @@ rules:
 
 ## CLI Options
 
-The command-line interface supports the following options:
-
 ```
 Usage: web2md [options]
 
@@ -493,44 +609,40 @@ Options:
   -V, --version                 Display version
 ```
 
-## Shell Setup for macOS/Linux
-
-```bash
-# web2md zsh function with fnm support
-web2md() {
-  # Define the path to your web2md installation
-  local web2md_dir="$HOME/Tools/web2md"
-  local web2md_exec="$web2md_dir/bin/web2md.js"
-  
-  # Check if the executable exists
-  if [[ ! -f "$web2md_exec" ]]; then
-    echo "Error: web2md executable not found at $web2md_exec"
-    return 1
-  fi
-  
-  # Save current directory to return to it later
-  local current_dir=$(pwd)
-  
-  # Change to the web2md directory to trigger fnm auto-switching
-  cd "$web2md_dir"
-  
-  # Check if fnm is available and try to use the right Node version
-  if command -v fnm &> /dev/null && [[ -f ".node-version" ]]; then
-    eval "$(fnm env --use-on-cd)"
-  fi
-  
-  # Execute the command with all arguments
-  "$web2md_exec" "$@"
-  local result=$?
-  
-  # Return to the original directory
-  cd "$current_dir"
-  
-  return $result
-}
-```
-
 ## Implementation Guidelines
+
+1. Use Node.js v22+ modern features extensively:
+   - Native ESM modules
+   - Top-level await
+   - Array and object manipulation methods
+   - New RegExp features
+   - Asynchronous iteration
+
+2. Implement a robust AST-based conversion pipeline:
+   - HTML parsing with clean error handling
+   - Structured AST nodes with clear typing
+   - Separation of transformation and rendering logic
+   - Comprehensive test coverage with CommonMark test suite
+
+3. Follow strict security practices:
+   - No dynamic `require()` or `eval()`
+   - No directory traversal
+   - No unchecked path resolution
+   - Explicit rule loading with validation
+
+4. Provide comprehensive error handling:
+   - Graceful degradation for parsing errors
+   - Detailed logging for debugging
+   - Clear user feedback
+   - Recovery mechanisms for malformed input
+
+5. Structure code with clean architecture principles:
+   - Clear module boundaries
+   - Dependency injection
+   - Interface-based design
+   - Separation of concerns
+
+## Implementation Guidelines, other
 
 - Smart output path determination, sanitizing of paths and filenames (spaces, special characters, invalids, etc).
 - Progress indicators and error handling.

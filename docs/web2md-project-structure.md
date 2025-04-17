@@ -1,6 +1,6 @@
 # WEB2MD Project Structure
 
-This document outlines the current project structure for WEB2MD, designed to support a secure, predictable YAML-based rules system with enhanced HTTP options for user agent customization and content compression handling. The structure emphasizes maintainability, modularity, clear separation of concerns, and security-focused rule loading.
+This document outlines the recommended project structure for WEB2MD reimagined as a CommonMark-based HTML-to-Markdown converter. The design emphasizes modularity, clear separation of concerns, and compliance with the CommonMark specification without reliance on third-party conversion libraries.
 
 ## Directory Structure
 
@@ -11,503 +11,685 @@ web2md/
 │
 ├── src/
 │   ├── app.ts                          # Application composition
-│   ├── types/                          # Centralized type system
-│   │   ├── index.ts                    # Exports all shared types
-│   │   ├── core/                       # Core application types
-│   │   │   ├── index.ts                # Exports all core types
-│   │   │   ├── rule.ts                 # Rule-related core types
-│   │   │   ├── config.ts               # Configuration-related core types
-│   │   │   ├── deobfuscation.ts        # Deobfuscation-related core types
-│   │   │   ├── http.ts                 # HTTP-related core types
-│   │   │   └── io.ts                   # Input/Output-related core types
-│   │   ├── modules/                    # Module-specific types
-│   │   │   ├── index.ts                # Exports all module types
-│   │   │   ├── decoder.ts              # Content decoder module types
-│   │   │   └── ...                     # Other module types
-│   │   └── vendor/                     # Third-party library type augmentations
-│   │       ├── index.ts                # Exports all vendor type augmentations
-│   │       ├── turndown.d.ts           # Turndown type declarations
-│   │       ├── mathjax-node.d.ts       # MathJax type declarations
-│   │       └── zstd-napi.d.ts          # Zstd type declarations
 │   │
-│   ├── modules/
-│   │   ├── cli/                        # CLI module
-│   │   │   ├── index.ts                # Public API
-│   │   │   └── command.ts              # CLI implementation
+│   ├── core/                           # Core conversion pipeline
+│   │   ├── parser/                     # HTML parsing
+│   │   │   ├── index.ts                # Parser exports
+│   │   │   └── html-parser.ts          # HTML to DOM parser
 │   │   │
-│   │   ├── config/                     # Configuration module
-│   │   │   ├── index.ts                # Public API
-│   │   │   ├── loader.ts               # YAML configuration loader
-│   │   │   └── schema.ts               # Configuration schema
+│   │   ├── ast/                        # AST management
+│   │   │   ├── index.ts                # AST exports
+│   │   │   ├── types.ts                # AST node types
+│   │   │   ├── builder.ts              # AST construction
+│   │   │   └── optimizer.ts            # AST optimization
 │   │   │
-│   │   ├── deobfuscator/               # Deobfuscation module
-│   │   │   ├── index.ts                # Public API
-│   │   │   ├── deobfuscator.ts         # Main deobfuscation orchestrator
-│   │   │   ├── patterns.ts             # Pattern detection for obfuscation
-│   │   │   ├── decoder.ts              # Decoder interface
-│   │   │   └── decoders/               # Specialized decoders
-│   │   │       ├── index.ts            # Exports all decoders
-│   │   │       ├── cloudflare.ts       # Cloudflare email protection decoder
-│   │   │       ├── base64.ts           # Base64 decoder
-│   │   │       └── rot13.ts            # ROT13 decoder
+│   │   ├── processor/                  # Node processing
+│   │   │   ├── index.ts                # Processor exports
+│   │   │   ├── node-processor.ts       # DOM to AST processor
+│   │   │   └── context.ts              # Processing context
 │   │   │
-│   │   ├── http/                       # HTTP module
-│   │   │   ├── index.ts                # Public API
-│   │   │   ├── client.ts               # HTTP client with options
-│   │   │   └── defaults.ts             # Default HTTP options
+│   │   ├── renderer/                   # Markdown rendering
+│   │   │   ├── index.ts                # Renderer exports
+│   │   │   ├── markdown-renderer.ts    # AST to Markdown renderer
+│   │   │   └── commonmark-rules.ts     # CommonMark rendering rules
 │   │   │
-│   │   ├── decoder/                    # Content decoder module
-│   │   │   ├── index.ts                # Public API
-│   │   │   ├── content-decoder.ts      # Content decoding manager
-│   │   │   ├── compression.ts          # Compression format handling
-│   │   │   └── charset.ts              # Character encoding handling
-│   │   │
-│   │   ├── rules/                      # Rules system module
-│   │   │   ├── index.ts                # Public API
-│   │   │   ├── manager.ts              # Rules management
-│   │   │   ├── registry.ts             # Rules registry
-│   │   │   ├── validator.ts            # Rule validation
-│   │   │   ├── manifest-loader.ts      # Manifest loader
-│   │   │   └── loaders/                # Rule loaders
-│   │   │       ├── index.ts            # Loaders API
-│   │   │       ├── yaml-loader.ts      # YAML rule loader
-│   │   │       └── js-loader.ts        # JavaScript rule loader
-│   │   │
-│   │   ├── converter/                  # Conversion module
-│   │   │   ├── index.ts                # Public API
-│   │   │   └── converter.ts            # HTML to Markdown converter
-│   │   │
-│   │   ├── math/                       # Math processing module
-│   │   │   ├── index.ts                # Public API
-│   │   │   └── processor.ts            # Math expression processor
-│   │   │
-│   │   └── io/                         # Input/Output module
-│   │       ├── index.ts                # Public API
-│   │       ├── reader.ts               # Content readers (file/URL)
-│   │       └── writer.ts               # Output writers
+│   │   └── index.ts                    # Core exports
 │   │
-│   └── shared/                         # Shared utilities
-│       ├── logger/                     # Logging
-│       │   ├── index.ts                # Logger API
-│       │   └── console.ts              # Console logger
-│       └── utils/                      # Utility functions (if needed)
+│   ├── rules/                          # Rule system
+│   │   ├── types.ts                    # Rule type definitions
+│   │   ├── registry.ts                 # Rule registry
+│   │   ├── loader.ts                   # Rule loading
+│   │   ├── validator.ts                # Rule validation
+│   │   ├── block-processor.ts          # Block-level rule processing
+│   │   ├── inline-processor.ts         # Inline-level rule processing
+│   │   └── index.ts                    # Rules exports
+│   │
+│   ├── services/                       # Supporting services
+│   │   ├── http/                       # HTTP client
+│   │   │   ├── index.ts                # HTTP exports
+│   │   │   ├── client.ts               # HTTP client
+│   │   │   ├── compression.ts          # Compression handling
+│   │   │   └── charset.ts              # Charset handling
+│   │   │
+│   │   ├── deobfuscator/               # Deobfuscation
+│   │   │   ├── index.ts                # Deobfuscator exports
+│   │   │   ├── detector.ts             # Obfuscation detection
+│   │   │   ├── deobfuscator.ts         # Deobfuscation engine
+│   │   │   └── decoders/               # Specific decoders
+│   │   │       ├── index.ts            # Decoders exports
+│   │   │       ├── cloudflare.ts       # Cloudflare email protection
+│   │   │       ├── base64.ts           # Base64 decoding
+│   │   │       └── rot13.ts            # ROT13 decoding
+│   │   │
+│   │   ├── math/                       # Math processing
+│   │   │   ├── index.ts                # Math exports
+│   │   │   ├── detector.ts             # Math content detection
+│   │   │   ├── processor.ts            # Math processing engine
+│   │   │   └── converters/             # Format converters
+│   │   │       ├── index.ts            # Converters exports
+│   │   │       ├── mathml.ts           # MathML to LaTeX
+│   │   │       └── asciimath.ts        # AsciiMath to LaTeX
+│   │   │
+│   │   └── index.ts                    # Services exports
+│   │
+│   ├── config/                         # Configuration
+│   │   ├── index.ts                    # Config exports
+│   │   ├── types.ts                    # Config type definitions
+│   │   ├── loader.ts                   # Config loading
+│   │   ├── validator.ts                # Config validation
+│   │   └── defaults.ts                 # Default settings
+│   │
+│   ├── cli/                            # CLI interface
+│   │   ├── index.ts                    # CLI exports
+│   │   ├── command.ts                  # CLI command definitions
+│   │   └── options.ts                  # CLI option parsing
+│   │
+│   ├── utils/                          # Shared utilities
+│   │   ├── index.ts                    # Utils exports
+│   │   ├── logger.ts                   # Logging
+│   │   ├── dom.ts                      # DOM helpers
+│   │   └── string.ts                   # String manipulation
+│   │
+│   └── index.ts                        # Root exports
 │
-├── rules/                              # Built-in rules (flat structure)
-│   ├── common-elements.yaml            # Common HTML elements
-│   ├── text-formatting.yaml            # Text formatting rules
-│   ├── text-links.yaml                 # Link formatting rules
-│   ├── media-images.yaml               # Media handling: images
-│   ├── tables.yaml                     # Table handling
-│   ├── code-blocks.yaml                # Code formatting: blocks
-│   ├── deobfuscation.yaml              # Deobfuscation rules
-│   └── math.js                         # Math expressions handling
+├── rules/                              # Built-in rules
+│   ├── blocks/                         # Block-level rules
+│   │   ├── headings.yaml               # Heading rules
+│   │   ├── paragraphs.yaml             # Paragraph rules
+│   │   ├── lists.yaml                  # List rules
+│   │   ├── blockquotes.yaml            # Blockquote rules
+│   │   ├── code-blocks.yaml            # Code block rules
+│   │   └── thematic-breaks.yaml        # Horizontal rule rules
+│   │
+│   ├── inlines/                        # Inline-level rules
+│   │   ├── text-formatting.yaml        # Text styling rules
+│   │   ├── links.yaml                  # Link rules
+│   │   ├── images.yaml                 # Image rules
+│   │   ├── code-spans.yaml             # Inline code rules
+│   │   └── line-breaks.yaml            # Line break rules
+│   │
+│   ├── tables.yaml                     # Table rules
+│   ├── math.js                         # Math rules
+│   └── deobfuscation.yaml              # Deobfuscation rules
 │
 ├── tests/                              # Tests
 │   ├── unit/                           # Unit tests
-│   │   ├── modules/                    # Tests for modules
-│   │   │   ├── decoder/                # Decoder tests
-│   │   │   ├── math/                   # Math processor tests
-│   │   │   └── ...                     # Other module tests
-│   │   └── shared/                     # Tests for shared utilities
+│   │   ├── core/                       # Core tests
+│   │   ├── rules/                      # Rules tests
+│   │   └── services/                   # Services tests
 │   │
 │   ├── integration/                    # Integration tests
-│   │   ├── rule-loading.test.ts        # Rule loading tests
-│   │   ├── deobfuscation.test.ts       # Deobfuscation tests
-│   │   ├── http-options.test.ts        # HTTP options tests
-│   │   └── ...                         # Other integration tests
+│   │
+│   ├── commonmark/                     # CommonMark spec tests
 │   │
 │   └── fixtures/                       # Test fixtures
-│       ├── html/                       # Sample HTML files
-│       ├── config/                     # Sample configurations
-│       ├── rules/                      # Sample rules
-│       └── expected/                   # Expected output
+│       ├── html/                       # Sample HTML
+│       ├── markdown/                   # Expected Markdown
+│       └── rules/                      # Test rules
 │
-├── scripts/                            # Build and utility scripts
-│   └── build.js                        # Build script for production
+├── scripts/                            # Build scripts
 │
-├── .eslintrc.js                        # ESLint configuration
-├── .gitignore                          # Git ignore file
-├── .node-version                       # Node.js version (for fnm)
-├── tsconfig.json                       # TypeScript configuration
+├── .eslintrc.js                        # ESLint config
+├── .gitignore                          # Git ignore
+├── .node-version                       # Node.js version
+├── tsconfig.json                       # TypeScript config
 ├── package.json                        # Package metadata
 └── README.md                           # Project readme
 ```
 
+## Core Components
+
+### 1. HTML to DOM Parser
+
+The parser module provides a clean abstraction around JSDOM to convert HTML content into a DOM tree:
+
+```typescript
+// src/core/parser/html-parser.ts
+export class HtmlParser {
+  parse(html: string, options?: ParserOptions): Document {
+    // Parse HTML to DOM using JSDOM
+    const dom = new JSDOM(html, {
+      contentType: 'text/html',
+      ...options
+    });
+    
+    return dom.window.document;
+  }
+  
+  // Additional utility methods for document manipulation
+}
+```
+
+### 2. AST System
+
+The AST module defines the structure of the Markdown Abstract Syntax Tree and provides tools for building and optimizing it:
+
+#### Node Types
+
+```typescript
+// src/core/ast/types.ts
+export type NodeType = 
+  // Block types
+  | 'document'
+  | 'paragraph'
+  | 'heading'
+  | 'blockquote'
+  | 'list'
+  | 'list_item'
+  | 'code_block'
+  | 'html_block'
+  | 'thematic_break'
+  // Inline types
+  | 'text'
+  | 'softbreak'
+  | 'hardbreak'
+  | 'emphasis'
+  | 'strong'
+  | 'code'
+  | 'link'
+  | 'image'
+  | 'html_inline'
+  // Extended types
+  | 'table'
+  | 'math'
+  | 'strikethrough'
+  | 'highlight';
+
+export interface Node {
+  type: NodeType;
+  children?: Node[];
+  [key: string]: any; // Additional properties specific to node types
+}
+
+// Type definitions for specific node types
+export interface Document extends Node { type: 'document'; children: Node[] }
+export interface Heading extends Node { type: 'heading'; level: number; children: Node[] }
+// ... other node type definitions
+```
+
+#### AST Builder
+
+```typescript
+// src/core/ast/builder.ts
+export class AstBuilder {
+  createDocument(): Document {
+    return { type: 'document', children: [] };
+  }
+  
+  createHeading(level: number, children: Node[] = []): Heading {
+    return { type: 'heading', level, children };
+  }
+  
+  // Methods for creating other types of nodes
+  
+  appendChild(parent: Node, child: Node): void {
+    if (!parent.children) {
+      parent.children = [];
+    }
+    parent.children.push(child);
+  }
+  
+  // Other tree manipulation methods
+}
+```
+
+#### AST Optimizer
+
+```typescript
+// src/core/ast/optimizer.ts
+export class AstOptimizer {
+  optimize(ast: Document): Document {
+    // Apply various optimizations
+    this.mergeAdjacentTextNodes(ast);
+    this.removeEmptyNodes(ast);
+    this.normalizeWhitespace(ast);
+    // More optimizations...
+    
+    return ast;
+  }
+  
+  private mergeAdjacentTextNodes(node: Node): void {
+    // Implementation
+  }
+  
+  private removeEmptyNodes(node: Node): void {
+    // Implementation
+  }
+  
+  private normalizeWhitespace(node: Node): void {
+    // Implementation
+  }
+  
+  // Other optimization methods
+}
+```
+
+### 3. Node Processor
+
+The processor module converts DOM nodes to AST nodes by applying rules:
+
+```typescript
+// src/core/processor/node-processor.ts
+export class NodeProcessor {
+  constructor(
+    private ruleRegistry: RuleRegistry,
+    private astBuilder: AstBuilder
+  ) {}
+  
+  process(document: Document): ast.Document {
+    // Create root AST node
+    const root = this.astBuilder.createDocument();
+    
+    // Create processing context
+    const context = new ProcessingContext(this.ruleRegistry, this.astBuilder);
+    
+    // Process the document body
+    this.processNode(document.body, root, context);
+    
+    return root;
+  }
+  
+  private processNode(node: DOMNode, parent: ast.Node, context: ProcessingContext): void {
+    // Find matching rules for this node
+    const rules = context.findMatchingRules(node);
+    
+    if (rules.length > 0) {
+      // Apply the highest-priority rule
+      const rule = rules[0];
+      const astNode = rule.transform(node, context);
+      
+      if (astNode) {
+        this.astBuilder.appendChild(parent, astNode);
+      }
+    } else {
+      // Default handling for unmatched nodes
+      this.processDefaultNode(node, parent, context);
+    }
+    
+    // Process child nodes (if not handled by the rule)
+    this.processChildNodes(node, parent, context);
+  }
+  
+  private processChildNodes(node: DOMNode, parent: ast.Node, context: ProcessingContext): void {
+    // Process each child node
+  }
+  
+  private processDefaultNode(node: DOMNode, parent: ast.Node, context: ProcessingContext): void {
+    // Default handling for nodes without matching rules
+  }
+}
+```
+
+### 4. Markdown Renderer
+
+The renderer module converts the AST back to Markdown text:
+
+```typescript
+// src/core/renderer/markdown-renderer.ts
+export interface RenderOptions {
+  headingStyle: 'atx' | 'setext';
+  bulletListMarker: '-' | '*' | '+';
+  codeBlockStyle: 'indented' | 'fenced';
+  // Other options...
+}
+
+export class MarkdownRenderer {
+  constructor(private options: RenderOptions) {}
+  
+  render(ast: ast.Document): string {
+    return this.renderNode(ast);
+  }
+  
+  private renderNode(node: ast.Node): string {
+    switch (node.type) {
+      case 'document':
+        return this.renderChildren(node);
+        
+      case 'heading':
+        return this.renderHeading(node as ast.Heading);
+        
+      // Cases for other node types
+        
+      default:
+        return '';
+    }
+  }
+  
+  private renderHeading(node: ast.Heading): string {
+    const content = this.renderChildren(node);
+    
+    if (this.options.headingStyle === 'atx') {
+      // ATX style (# Heading)
+      return '#'.repeat(node.level) + ' ' + content + '\n\n';
+    } else {
+      // Setext style (Heading\n=====)
+      const underline = node.level === 1 ? '=======' : '-------';
+      return content + '\n' + underline + '\n\n';
+    }
+  }
+  
+  private renderChildren(node: ast.Node): string {
+    if (!node.children) return '';
+    return node.children.map(child => this.renderNode(child)).join('');
+  }
+  
+  // Methods for rendering other node types
+}
+```
+
+## Rule System
+
+The rule system defines how HTML elements are transformed into Markdown AST nodes:
+
+### Rule Types
+
+```typescript
+// src/rules/types.ts
+export interface Rule {
+  name: string;
+  priority: number;
+  match: (node: DOMNode) => boolean;
+  transform: (node: DOMNode, context: ProcessingContext) => ast.Node | null;
+}
+
+export interface YamlRule {
+  match: string;
+  transform: string;
+  options?: Record<string, any>;
+  priority?: number;
+}
+
+export interface JsRule {
+  name: string;
+  priority?: number;
+  match: (node: DOMNode) => boolean;
+  transform: (node: DOMNode, context: ProcessingContext) => ast.Node | null;
+}
+```
+
+### Rule Registry
+
+```typescript
+// src/rules/registry.ts
+export class RuleRegistry {
+  private rules: Rule[] = [];
+  
+  registerRule(rule: Rule): void {
+    this.rules.push(rule);
+    // Sort rules by priority
+    this.rules.sort((a, b) => b.priority - a.priority);
+  }
+  
+  getMatchingRules(node: DOMNode): Rule[] {
+    return this.rules.filter(rule => rule.match(node));
+  }
+  
+  // Other methods for rule management
+}
+```
+
+### Rule Loader
+
+```typescript
+// src/rules/loader.ts
+export class RuleLoader {
+  constructor(
+    private registry: RuleRegistry,
+    private validator: RuleValidator
+  ) {}
+  
+  async loadRules(config: Config): Promise<void> {
+    // Load built-in rules
+    await this.loadBuiltInRules(config);
+    
+    // Load custom rules
+    if (config.customRules) {
+      await this.loadCustomRules(config.customRules);
+    }
+  }
+  
+  private async loadBuiltInRules(config: Config): Promise<void> {
+    // Implementation
+  }
+  
+  private async loadCustomRules(rulePaths: string[]): Promise<void> {
+    // Implementation
+  }
+  
+  private async loadYamlRule(path: string): Promise<Rule[]> {
+    // Implementation
+  }
+  
+  private async loadJsRule(path: string): Promise<Rule[]> {
+    // Implementation
+  }
+}
+```
+
+## Supporting Services
+
+### HTTP Client
+
+```typescript
+// src/services/http/client.ts
+export class HttpClient {
+  constructor(private options: HttpOptions) {}
+  
+  async fetch(url: string): Promise<HttpResponse> {
+    // Implementation using 'got' with compression, proxy support, etc.
+  }
+}
+```
+
+### Deobfuscator
+
+```typescript
+// src/services/deobfuscator/deobfuscator.ts
+export class Deobfuscator {
+  constructor(private decoders: DecoderRegistry) {}
+  
+  async process(html: string): Promise<string> {
+    // Detect and decode obfuscated content
+  }
+}
+```
+
+### Math Processor
+
+```typescript
+// src/services/math/processor.ts
+export class MathProcessor {
+  constructor(private options: MathOptions) {}
+  
+  async process(html: string): Promise<MathProcessingResult> {
+    // Extract and process math content
+  }
+  
+  async convertMathML(mathml: string, isDisplay: boolean): Promise<string> {
+    // Convert MathML to LaTeX
+  }
+  
+  // Other math processing methods
+}
+```
+
+## Configuration Management
+
+```typescript
+// src/config/loader.ts
+export class ConfigLoader {
+  async loadConfig(path?: string): Promise<Config> {
+    // Load and validate configuration from YAML file
+  }
+}
+
+// src/config/defaults.ts
+export const DEFAULT_CONFIG: Config = {
+  // Default settings
+};
+```
+
+## CLI Interface
+
+```typescript
+// src/cli/command.ts
+export class Command {
+  constructor(private services: Services) {}
+  
+  async execute(args: string[]): Promise<void> {
+    // Parse command-line arguments
+    const options = this.parseOptions(args);
+    
+    // Load configuration
+    const config = await this.services.config.loadConfig(options.configPath);
+    
+    // Apply CLI overrides to config
+    this.applyOverrides(config, options);
+    
+    // Perform the conversion
+    await this.runConversion(config, options);
+  }
+  
+  private parseOptions(args: string[]): CommandOptions {
+    // Parse command-line arguments using commander
+  }
+  
+  private async runConversion(config: Config, options: CommandOptions): Promise<void> {
+    // Implement the conversion pipeline
+    let html = await this.getInput(options);
+    
+    // Apply deobfuscation if enabled
+    if (config.deobfuscation.enabled) {
+      html = await this.services.deobfuscator.process(html);
+    }
+    
+    // Convert HTML to Markdown
+    const markdown = await this.services.converter.convert(html, config);
+    
+    // Output the result
+    await this.writeOutput(markdown, options);
+  }
+  
+  // Other CLI methods
+}
+```
+
+## Application Composition
+
+```typescript
+// src/app.ts
+export function createApp(options: AppOptions): App {
+  // Create all the necessary components
+  const logger = new Logger(options.debug);
+  
+  const astBuilder = new AstBuilder();
+  const astOptimizer = new AstOptimizer();
+  
+  const ruleRegistry = new RuleRegistry();
+  const ruleValidator = new RuleValidator(logger);
+  const ruleLoader = new RuleLoader(ruleRegistry, ruleValidator);
+  
+  const htmlParser = new HtmlParser();
+  const nodeProcessor = new NodeProcessor(ruleRegistry, astBuilder);
+  const markdownRenderer = new MarkdownRenderer(options);
+  
+  const converter = new Converter(
+    htmlParser,
+    nodeProcessor,
+    astOptimizer,
+    markdownRenderer,
+    logger
+  );
+  
+  // Create services
+  const httpClient = new HttpClient(options.http);
+  const decoderRegistry = new DecoderRegistry();
+  const deobfuscator = new Deobfuscator(decoderRegistry);
+  const mathProcessor = new MathProcessor(options.math);
+  
+  // Register decoders
+  decoderRegistry.register(new CloudflareDecoder());
+  decoderRegistry.register(new Base64Decoder());
+  decoderRegistry.register(new Rot13Decoder());
+  
+  // Create configuration loader
+  const configLoader = new ConfigLoader(logger);
+  
+  // Create services container
+  const services = {
+    converter,
+    httpClient,
+    deobfuscator,
+    mathProcessor,
+    config: configLoader,
+    rules: ruleLoader,
+    logger
+  };
+  
+  // Create CLI command
+  const command = new Command(services);
+  
+  // Return the application interface
+  return {
+    run: (args: string[]) => command.execute(args)
+  };
+}
+```
+
 ## Key Architectural Features
 
-### 1. Centralized Type System
-
-The project features a dedicated types directory that serves as the single source of truth for all type definitions:
-
-```
-src/
-├── types/                        # Centralized type system
-│   ├── index.ts                  # Exports all shared types
-│   ├── core/                     # Core application types
-│   │   ├── index.ts              # Exports all core types
-│   │   ├── rule.ts               # Rule-related core types
-│   │   ├── config.ts             # Configuration-related core types
-│   │   ├── deobfuscation.ts      # Deobfuscation-related core types
-│   │   ├── http.ts               # HTTP-related core types
-│   │   └── io.ts                 # Input/Output-related core types
-│   ├── modules/                  # Module-specific types
-│   │   ├── index.ts              # Exports all module types
-│   │   ├── decoder.ts            # Content decoder module types
-│   │   └── ...                   # Other module types
-│   └── vendor/                   # Third-party library type augmentations
-│       ├── index.ts              # Exports all vendor type augmentations
-│       ├── turndown.d.ts         # Turndown type declarations
-│       └── ...                   # Other vendor type declarations
-```
-
-This structure provides:
-
-1. **Centralized Type Management**: All types are in a single location
-2. **Clear Categorization**: Types are organized by their purpose
-3. **Enhanced Discoverability**: Directory structure makes it clear where to find types
-4. **Simplified Imports**: Index files provide consolidated exports
-5. **Better Third-Party Integration**: Type declarations for external libraries are isolated
-
-### 2. Modular Architecture
-
-The system is divided into focused, cohesive modules:
-
-```
-src/
-├── modules/
-│   ├── cli/                        # CLI module
-│   ├── config/                     # Configuration module
-│   ├── deobfuscator/               # Deobfuscation module
-│   ├── http/                       # HTTP module
-│   ├── decoder/                    # Content decoder module
-│   ├── rules/                      # Rules system module
-│   ├── converter/                  # Conversion module
-│   ├── math/                       # Math processing module
-│   └── io/                         # Input/Output module
-```
-
-Each module:
-- Has a clear, singular responsibility
-- Exposes a well-defined public API through index.ts
-- Encapsulates its implementation details
-- Handles a specific aspect of the application
-
-### 3. Enhanced HTTP and Content Handling
-
-The HTTP module provides comprehensive options for web requests:
-
-```
-src/
-├── modules/
-│   ├── http/                       # HTTP module
-│   │   ├── index.ts                # Public API
-│   │   ├── client.ts               # HTTP client with options
-│   │   └── defaults.ts             # Default HTTP options
-│   │
-│   └── decoder/                    # Content decoder module
-│       ├── index.ts                # Public API
-│       ├── content-decoder.ts      # Content decoding manager
-│       ├── compression.ts          # Compression format handling
-│       └── charset.ts              # Character encoding handling
-```
-
-Key features:
-- **Custom User Agents**: Configurable user agent strings
-- **Compression Support**: Handles gzip, brotli, deflate, and zstd
-- **Cookie Management**: Automatic cookie handling with jar support
-- **Proxy Support**: HTTP/HTTPS proxy with authentication
-- **Custom Headers**: Configurable request headers
-- **Charset Handling**: Automatic detection and conversion of character encodings
-
-### 4. Secure Rule Loading
-
-The rules system follows a strict security-focused design:
-
-```
-src/
-├── modules/
-│   └── rules/                      # Rules system module
-│       ├── index.ts                # Public API
-│       ├── manager.ts              # Rules management
-│       ├── registry.ts             # Rules registry
-│       ├── validator.ts            # Rule validation
-│       ├── manifest-loader.ts      # Manifest loader
-│       └── loaders/                # Rule loaders
-│           ├── index.ts            # Loaders API
-│           ├── yaml-loader.ts      # YAML rule loader
-│           └── js-loader.ts        # JavaScript rule loader
-```
-
-Security principles:
-- **Static Registry**: Built-in rules are defined in a fixed registry mapping
-- **No Directory Scanning**: Directory scanning is completely eliminated
-- **Manifest-Based Approach**: CLI directory overrides use a manifest file listing specific rules
-- **Content Validation**: Rule file content structure is validated before loading
-- **Path Resolution Security**: All relative paths are carefully resolved
-
-### 5. Math Processing
-
-The project includes a dedicated math processing module:
-
-```
-src/
-├── modules/
-│   └── math/                       # Math processing module
-│       ├── index.ts                # Public API
-│       └── processor.ts            # Math expression processor
-```
-
-Features:
-- **MathML Support**: Converts MathML elements to LaTeX
-- **Math Expression Detection**: Identifies various math formats in HTML
-- **Customizable Delimiters**: Configurable inline and block math delimiters
-- **Preprocessing**: Standardizes math elements before conversion
-- **Fallback Mechanisms**: Graceful handling of errors in math processing
-
-### 6. Deobfuscation System
-
-The deobfuscation module handles various forms of obfuscated content:
-
-```
-src/
-├── modules/
-│   └── deobfuscator/               # Deobfuscation module
-│       ├── index.ts                # Public API
-│       ├── deobfuscator.ts         # Main deobfuscation orchestrator
-│       ├── patterns.ts             # Pattern detection for obfuscation
-│       ├── decoder.ts              # Decoder interface
-│       └── decoders/               # Specialized decoders
-│           ├── index.ts            # Exports all decoders
-│           ├── cloudflare.ts       # Cloudflare email protection decoder
-│           ├── base64.ts           # Base64 decoder
-│           └── rot13.ts            # ROT13 decoder
-```
-
-Features:
-- **Pattern Detection**: Identifies common obfuscation patterns
-- **Pluggable Decoders**: Extensible decoder system
-- **Email Protection**: Handles Cloudflare email protection
-- **Encoding Support**: Decodes base64 and ROT13 encoded content
-- **Script Cleaning**: Removes deobfuscation scripts
-
-## Module Dependencies
-
-The project uses a structured, modular architecture with well-defined dependencies:
-
-```
-┌───────────┐     ┌───────────┐     ┌───────────┐     ┌───────────┐
-│    CLI    │────▶│   Config  │     │   HTTP    │────▶│  Decoder  │
-└─────┬─────┘     └─────┬─────┘     └─────┬─────┘     └─────┬─────┘
-      │                 │                 │                 │
-      │                 │                 │                 │
-      │     ┌───────────▼─────┐   ┌───────▼─────┐   ┌───────▼─────┐
-      ├────▶│ Deobfuscator    │   │    IO       │◀──┤ Math        │
-      │     └───────────┬─────┘   └─────┬───────┘   └─────────────┘
-      │                 │               │
-      │                 │               │
-      │    ┌────────────▼────┐    ┌────▼────────┐
-      └───▶│   Rules         │    │  Converter  │
-           └────────────┬────┘    └─────┬───────┘
-                        │              │
-                        └──────────────┘
-
- ┌───────────────────────────────────────────────┐
- │                Type System                     │
- └───────────────────────────────────────────────┘
-```
-
-Each module has well-defined responsibilities:
-
-1. **CLI Module**: Command-line interface and user interaction
-2. **Config Module**: Configuration loading and validation
-3. **HTTP Module**: Web request handling with options
-4. **Decoder Module**: Content decoding and charset handling
-5. **Deobfuscator Module**: Detection and decoding of obfuscated content
-6. **Rules Module**: Rule loading, validation, and management
-7. **Converter Module**: HTML to Markdown conversion
-8. **Math Module**: Math expression processing
-9. **IO Module**: File and network input/output operations
-
-All modules interact with the centralized type system, ensuring consistency across the application.
-
-## Key Design Principles
-
-### 1. HTTP-First Processing
-
-The system follows an HTTP-first processing approach:
-
-- **Custom User Agent**: Configurable user agent string for fetching web content
-- **Content Compression Handling**: Automatic detection and decompression of compressed content
-- **Character Encoding Support**: Proper handling of different character encodings
-- **HTTP Options Configuration**: Flexible configuration of HTTP requests
-- **Multiple Configuration Sources**: Support for CLI options and main web2md.yaml config
-
-### 2. Content Handling
-
-The content decoder system follows a modular design:
-
-- **Compression Format Support**: Automatic handling of gzip, brotli, deflate, and zstd
-- **Character Encoding Detection**: Smart detection of content encoding from headers and content
-- **Fallback Mechanisms**: Graceful handling when encoding information is missing
-- **Clean Integration**: Seamless integration with the HTTP client and deobfuscation system
-
-### 3. Configuration Flexibility
-
-The configuration system is designed for flexibility:
-
-- **Main Configuration**: All web2md options in web2md.yaml, including HTTP options
-- **CLI Overrides**: Command-line options that override configuration
-- **Config Precedence**: Clear precedence order for configuration sources
-- **Zod Schema Validation**: Strict validation of configuration values
-
-### 4. Secure Rule Loading
-
-The rule loading system follows these secure design principles:
-
-- **Static registry**: Built-in rules are defined in a static registry mapping identifiers to file paths
-- **No directory scanning**: Directory scanning is completely eliminated
-- **Manifest-based approach**: CLI directory overrides use a manifest file listing specific rules
-- **Path validation**: All paths are validated before loading
-- **Content validation**: Rule file content structure is validated
-- **Path resolution security**: All relative paths are carefully resolved
-
-### 5. Module Independence
-
-Each module remains an independent unit with clear responsibilities:
-
-- **CLI Module**: Handles command-line interface and arguments
-- **Config Module**: Manages configuration loading and validation
-- **HTTP Module**: Handles web requests with custom user agent and options
-- **Decoder Module**: Processes compressed and encoded content
-- **Deobfuscator Module**: Detects and decodes obfuscated content
-- **Rules Module**: Handles rule loading, resolution, and management via registry
-- **Converter Module**: Transforms HTML to Markdown using rules
-- **Math Module**: Processes mathematical expressions
-- **IO Module**: Handles file and network operations
-
-## Implementation Details
-
-### 1. TypeScript Configuration
-
-The TypeScript configuration is set up to leverage the modular type system:
-
-```json
-{
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "esModuleInterop": true,
-    "strict": true,
-    "outDir": "dist",
-    "rootDir": "src",
-    "declaration": true,
-    "sourceMap": true,
-    "skipLibCheck": true,
-    "resolveJsonModule": true,
-    "forceConsistentCasingInFileNames": true,
-    "lib": ["ES2022", "DOM"],
-    "typeRoots": [
-      "./node_modules/@types",
-      "./src/types/vendor"
-    ],
-    "baseUrl": ".",
-    "paths": {
-      "@types/*": ["src/types/*"]
-    }
-  },
-  "include": ["src/**/*.ts", "src/**/*.d.ts"],
-  "exclude": ["node_modules", "dist", "tests"]
-}
-```
-
-Key features:
-- **ES Modules**: Uses Native ESM with NodeNext module resolution
-- **DOM Library**: Includes DOM types for HTML processing
-- **Strict Mode**: Enforces type safety with strict mode
-- **Type Roots**: Includes vendor-specific type declarations
-- **Path Aliases**: Makes type imports more concise
-
-### 2. Build Process
-
-The build process is handled by a dedicated script:
-
-```javascript
-// scripts/build.js
-async function build() {
-  // Prepare the dist directory
-  prepareDistDirectory();
-  
-  // Run TypeScript compiler
-  execute('tsc --project tsconfig.json');
-  
-  // Copy rules to dist - uses explicit paths from registry
-  copyRulesToDist();
-  
-  // Make bin script executable
-  makeExecutable();
-}
-```
-
-Key aspects:
-- **TypeScript Compilation**: Uses tsc for type checking and transpilation
-- **Rules Copying**: Explicitly copies each rule file from the registry
-- **Executable Marking**: Makes the bin script executable for CLI use
-- **No Directory Scanning**: Only copies files explicitly listed in the registry
-
-### 3. Shell Integration
-
-The project includes a shell integration function:
-
-```bash
-# web2md zsh function with fnm support
-web2md() {
-  # Define the path to your web2md installation
-  local web2md_dir="$HOME/Tools/web2md"
-  local web2md_exec="$web2md_dir/bin/web2md.js"
-  
-  # Check if the executable exists
-  if [[ ! -f "$web2md_exec" ]]; then
-    echo "Error: web2md executable not found at $web2md_exec"
-    return 1
-  fi
-  
-  # Save current directory to return to it later
-  local current_dir=$(pwd)
-  
-  # Change to the web2md directory to trigger fnm auto-switching
-  cd "$web2md_dir"
-  
-  # Check if fnm is available and try to use the right Node version
-  if command -v fnm &> /dev/null && [[ -f ".node-version" ]]; then
-    eval "$(fnm env --use-on-cd)"
-  fi
-  
-  # Execute the command with all arguments
-  "$web2md_exec" "$@"
-  local result=$?
-  
-  # Return to the original directory
-  cd "$current_dir"
-  
-  return $result
-}
-```
-
-This function:
-- **Handles Node Version**: Uses fnm to ensure the correct Node.js version
-- **Preserves Working Directory**: Returns to the original directory after execution
-- **Provides Error Handling**: Checks for executable existence
-- **Preserves Arguments**: Passes all arguments to the executable
-
-## Future Enhancements
-
-The current architecture provides a solid foundation for future enhancements:
-
-1. **Additional Decoders**: The deobfuscator module could be extended with more decoders
-2. **Plugin System**: A plugin system could be implemented for third-party extensions
-3. **Output Format Options**: Support for additional output formats beyond Markdown
-4. **Advanced Math Support**: Enhanced math processing for specialized scientific content
-5. **Interactive Mode**: An interactive mode for step-by-step conversion
-
-The modular architecture makes these enhancements straightforward to implement without affecting existing functionality.
+### 1. CommonMark Compliance
+
+The renderer strictly follows the CommonMark specification, ensuring that all output is fully compliant. This is achieved by:
+
+- Implementing the exact rendering rules described in the spec
+- Testing against the CommonMark specification test suite
+- Handling edge cases explicitly
+
+### 2. Modular Rule System
+
+The rule system allows for easy customization and extension:
+
+- Clear separation between matching, transformation, and rendering
+- Support for both YAML and JavaScript rules
+- Priority-based rule application
+
+### 3. AST-Based Pipeline
+
+The AST-based pipeline offers several advantages:
+
+- Clean separation between parsing, transformation, and rendering
+- Ability to optimize the AST before rendering
+- Potential for supporting multiple output formats beyond CommonMark
+
+### 4. Comprehensive Test Suite
+
+The project includes a comprehensive test suite:
+
+- Unit tests for individual components
+- Integration tests for end-to-end behavior
+- Tests against the CommonMark specification
+- Custom tests for extended functionality (tables, math, etc.)
+
+## Extension Points
+
+The architecture provides several extension points for future development:
+
+1. **Additional Rules**: New rules can be added to support custom HTML elements or alternative Markdown formats
+
+2. **Alternative Renderers**: The AST structure allows for rendering to formats other than Markdown (e.g., HTML, PDF)
+
+3. **Additional Processors**: New processors can be added to handle specialized content types (e.g., diagrams, charts)
+
+4. **Plugin System**: A plugin architecture could be added to allow for third-party extensions
+
+## Implementation Guidelines
+
+- Use TypeScript for all code to ensure type safety
+- Follow ESM module format for modern compatibility
+- Maintain high test coverage, especially for the core conversion pipeline
+- Use explicit error handling with meaningful error messages
+- Implement detailed logging throughout the pipeline
+- Support both synchronous and asynchronous operations where appropriate
+- Optimize for performance in the critical path
+- Apply modular design to simplify testing and maintenance
