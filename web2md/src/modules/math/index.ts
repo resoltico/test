@@ -7,10 +7,4 @@ export * from './restorer.js';
 export * from './detector.js';
 
 // Converter architecture
-export * from './converters/base.js';
-export * from './converters/factory.js';
-
-// Implementation converters
-export * from './converters/latex.js';
-export * from './converters/mathml.js';
-export * from './converters/ascii.js';
+export * from './converters/index.js';

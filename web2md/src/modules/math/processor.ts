@@ -1,39 +1,7 @@
 import { Logger } from '../../shared/logger/console.js';
-import { MathExtractor, MathExtractorOptions } from './extractor.js';
-import { MathRestorer, MathRestorerOptions } from './restorer.js';
-
-/**
- * Options for the math processor
- */
-export interface MathProcessorOptions extends MathExtractorOptions, MathRestorerOptions {
-  /**
-   * Whether to preserve original math content in a data attribute
-   */
-  preserveOriginal: boolean;
-}
-
-/**
- * Math processing result
- */
-export interface MathProcessingResult {
-  /**
-   * The HTML with math content extracted and replaced with placeholders
-   */
-  html: string;
-  
-  /**
-   * Function to restore math content in Markdown
-   */
-  restoreMarkdown: (markdown: string) => Promise<string>;
-  
-  /**
-   * Debug info - for troubleshooting
-   */
-  debug?: {
-    placeholderCount: number;
-    placeholders: string[];
-  };
-}
+import { MathExtractor } from './extractor.js';
+import { MathRestorer } from './restorer.js';
+import { MathProcessorOptions, MathProcessingResult } from '../../types/modules/math.js';
 
 /**
  * Math processor that uses a placeholder-based approach
@@ -139,38 +107,6 @@ export class MathProcessor {
           placeholders: []
         }
       };
-    }
-  }
-  
-  /**
-   * Process HTML directly and return with math content extracted and formatted
-   * This is a convenience method for direct processing without using placeholders
-   */
-  async preprocessHtml(html: string): Promise<string> {
-    try {
-      // Process the HTML
-      const result = await this.process(html);
-      
-      // Convert the HTML with placeholders back to markdown
-      const turndownService = require('turndown');
-      const td = new turndownService();
-      const markdown = td.turndown(result.html);
-      
-      // Restore the math content in the markdown
-      const processedMarkdown = await result.restoreMarkdown(markdown);
-      
-      // Convert the processed markdown back to HTML
-      // This would require a markdown-to-HTML converter, which isn't included
-      // For now, we'll just return the original HTML with a warning
-      this.logger.warn('Direct HTML preprocessing is not fully implemented');
-      return html;
-    } catch (error) {
-      this.logger.error('Error during direct HTML preprocessing');
-      if (error instanceof Error) {
-        this.logger.debug(`Error: ${error.message}`);
-      }
-      
-      return html;
     }
   }
 }

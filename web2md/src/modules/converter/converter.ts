@@ -4,7 +4,65 @@ import { Config } from '../../types/core/config.js';
 import { Rule } from '../../types/core/rule.js';
 import { Logger } from '../../shared/logger/console.js';
 import { MathProcessor } from '../math/processor.js';
-import { patchTurndownService } from './turndown-patch.js';
+
+/**
+ * Function to patch Turndown service to preserve math placeholders
+ */
+function patchTurndownService(turndownService: TurndownService, logger: Logger, placeholders: string[]): void {
+  // Skip if no placeholders to preserve
+  if (!placeholders || placeholders.length === 0) {
+    return;
+  }
+  
+  logger.debug(`Patching Turndown to preserve ${placeholders.length} placeholders`);
+  
+  // Save the original escape method
+  const originalEscape = turndownService.escape;
+
+  // Override the escape method to bypass our placeholders
+  turndownService.escape = function(text: string): string {
+    // Skip escaping if the text is a placeholder
+    if (placeholders.includes(text)) {
+      logger.debug(`Preserved placeholder from escaping: ${text}`);
+      return text;
+    }
+    
+    // Check if this text contains a placeholder
+    const placeholderIndex = placeholders.findIndex(p => text.includes(p));
+    if (placeholderIndex !== -1) {
+      const placeholder = placeholders[placeholderIndex];
+      logger.debug(`Found placeholder in text: ${placeholder}`);
+      
+      // Split the text by the placeholder
+      const parts = text.split(placeholder);
+      
+      // Escape each part and join with the unescaped placeholder
+      return parts.map(part => originalEscape.call(turndownService, part))
+        .join(placeholder);
+    }
+    
+    // Use the original escape method for normal text
+    return originalEscape.call(turndownService, text);
+  };
+  
+  // Add a special rule to preserve our placeholders
+  turndownService.addRule('preserveMathPlaceholders', {
+    filter: (node: Node) => {
+      // Skip non-text nodes
+      if (node.nodeType !== 3) return false;
+      
+      // Check if this node contains a placeholder
+      const textContent = node.textContent || '';
+      return placeholders.some(p => textContent.includes(p));
+    },
+    replacement: (content: string) => {
+      // Return the content unchanged to preserve placeholders
+      return content;
+    }
+  });
+  
+  logger.debug('Turndown has been patched to preserve placeholders');
+}
 
 /**
  * Converter for HTML to Markdown transformation
@@ -127,8 +185,10 @@ export class Converter {
       // Final verification - make sure no placeholders remain
       const remainingPlaceholders = this.checkForRemainingPlaceholders(markdown);
       if (remainingPlaceholders.length > 0) {
-        this.logger.warn(`Final check: ${remainingPlaceholders.length} placeholders remain. Applying emergency replacement.`);
-        markdown = this.applyEmergencyReplacement(markdown);
+        this.logger.warn(`Found ${remainingPlaceholders.length} remaining placeholders after restoration`);
+        for (const placeholder of remainingPlaceholders) {
+          this.logger.debug(`Remaining placeholder: ${placeholder}`);
+        }
       } else {
         this.logger.debug('All math placeholders successfully processed');
       }
@@ -145,10 +205,6 @@ export class Converter {
       try {
         const turndownService = new TurndownService();
         let markdown = turndownService.turndown(html);
-        
-        // Apply emergency replacement to handle any math placeholders
-        markdown = this.applyEmergencyReplacement(markdown);
-        
         return markdown;
       } catch (fallbackError) {
         this.logger.error('Fallback conversion also failed');
@@ -205,7 +261,6 @@ export class Converter {
   private postProcessMarkdown(markdown: string, config: Config): string {
     // Clean up multiple blank lines
     let processed = markdown.replace(/\n{3,}/g, '\n\n');
-    
     return processed;
   }
   
@@ -228,18 +283,5 @@ export class Converter {
     }
     
     return found;
-  }
-  
-  /**
-   * Apply emergency replacement for known formulas
-   * This is a last resort to ensure no placeholders remain in the output
-   */
-  private applyEmergencyReplacement(markdown: string): string {
-    // Replace all known placeholders with hardcoded formulas
-    return markdown
-      .replace(/%%MATH_PLACEHOLDER_1%%/g, "$T(n) = c_1n^2 + c_2n\\cdot\\log(n) + c_3n + c_4$")
-      .replace(/%%MATH_PLACEHOLDER_2%%/g, "$J = T\\cdot\\sqrt{S}\\cdot\\frac{P}{\\log(\\text{audience})}$")
-      .replace(/MATH_PLACEHOLDER_1/g, "$T(n) = c_1n^2 + c_2n\\cdot\\log(n) + c_3n + c_4$")
-      .replace(/MATH_PLACEHOLDER_2/g, "$J = T\\cdot\\sqrt{S}\\cdot\\frac{P}{\\log(\\text{audience})}$");
   }
 }

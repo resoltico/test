@@ -1,51 +1,13 @@
 import { JSDOM } from 'jsdom';
 import { Logger } from '../../shared/logger/console.js';
 import { MathFormatDetector } from './detector.js';
+import { MathExtraction, MathExtractorOptions } from '../../types/modules/math.js';
 
 /**
  * Placeholder format to use in the HTML
  * Using a distinctive format that won't be confused with regular content
  */
 export const PLACEHOLDER_FORMAT = '%%MATH_PLACEHOLDER_%d%%';
-
-/**
- * Interface for a math extraction result
- */
-export interface MathExtraction {
-  /**
-   * Map of placeholders to their original math content
-   */
-  placeholderMap: Map<string, {
-    content: string;
-    isDisplay: boolean;
-    format: string;
-  }>;
-  
-  /**
-   * The processed HTML with placeholders
-   */
-  html: string;
-}
-
-/**
- * Options for the math extractor
- */
-export interface MathExtractorOptions {
-  /**
-   * Delimiter for inline math
-   */
-  inlineDelimiter: string;
-  
-  /**
-   * Delimiter for block math
-   */
-  blockDelimiter: string;
-  
-  /**
-   * Custom element selectors to identify math content
-   */
-  selectors: Record<string, string>;
-}
 
 /**
  * Extracts math content from HTML and replaces it with placeholders
@@ -211,7 +173,6 @@ export class MathExtractor {
   
   /**
    * Extract a single math element and replace with a placeholder
-   * Pass the document parameter instead of using global document
    */
   private extractMathElement(
     element: Element, 
@@ -241,13 +202,12 @@ export class MathExtractor {
         format
       });
       
-      // Create a special wrapper element that Turndown won't mess with
-      // Important: Use the document passed as parameter, not the global document
+      // Create a special wrapper element that won't be altered during Markdown conversion
       const wrapper = document.createElement('span');
       wrapper.className = 'math-placeholder-wrapper';
       wrapper.setAttribute('data-math-placeholder', 'true');
       
-      // Create a special text format with markers that Turndown won't touch
+      // Create a special text format with markers that won't be changed
       wrapper.textContent = `${placeholderId}`;
       
       // Replace the original element
@@ -266,19 +226,19 @@ export class MathExtractor {
    * Extract content from an element based on format
    */
   private extractContent(element: Element, format: string): string {
-    // Check element type first
+    // Special handling for MathML
     if (format === 'mathml' && element.nodeName.toLowerCase() === 'math') {
       return element.outerHTML;
     }
     
-    // Try multiple ways to extract content - in order of preference
+    // Try multiple extraction methods in order of preference
     
-    // 1. Check for data attributes with format-specific content
+    // 1. Check for format-specific data attributes
     if (element.hasAttribute(`data-${format}`)) {
       return element.getAttribute(`data-${format}`) || '';
     }
     
-    // 2. Check for plain 'data-math' attribute
+    // 2. Check for general math data attribute
     if (element.hasAttribute('data-math')) {
       return element.getAttribute('data-math') || '';
     }
@@ -288,33 +248,32 @@ export class MathExtractor {
       return element.textContent || '';
     }
     
-    // 4. Look for a specific format attribute
+    // 4. Check for format attribute
     if (element.hasAttribute(format)) {
       return element.getAttribute(format) || '';
     }
     
-    // 5. Try 'math' attribute if it exists
+    // 5. Check for math attribute
     if (element.hasAttribute('math')) {
       return element.getAttribute('math') || '';
     }
     
-    // 6. Fall back to textContent if all else fails
+    // 6. Fallback to element's text content
     return element.textContent || '';
   }
   
   /**
    * Determine if an element should be displayed in block mode
-   * Using multiple signals to increase accuracy
    */
   private detectDisplayMode(element: Element): boolean {
-    // 1. Explicit attribute indicators
+    // First check for explicit display mode indicators
     if (element.getAttribute('display') === 'block' || 
         element.getAttribute('data-display') === 'block' ||
         element.getAttribute('data-math-display') === 'block') {
       return true;
     }
     
-    // 2. Class indicators
+    // Check for class indicators
     if (element.classList.contains('display-math') || 
         element.classList.contains('math-display') ||
         element.classList.contains('block') ||
@@ -322,36 +281,36 @@ export class MathExtractor {
       return true;
     }
     
-    // 3. Script with mode=display
+    // Check script type for display mode
     if (element.nodeName.toLowerCase() === 'script' && 
         element.getAttribute('type')?.includes('mode=display')) {
       return true;
     }
     
-    // 4. MathML specifics
+    // Check MathML display attribute
     if (element.nodeName.toLowerCase() === 'math' && 
         (element.getAttribute('display') === 'block' || element.getAttribute('mode') === 'display')) {
       return true;
     }
     
-    // 5. Element type and style context
+    // Check element type - some elements are naturally block-level
     if (['div', 'p', 'figure', 'center'].includes(element.nodeName.toLowerCase())) {
       return true;
     }
     
-    // 6. Check parent element
+    // Check parent element context
     const parent = element.parentElement;
     if (parent && ['div', 'p', 'figure', 'center'].includes(parent.nodeName.toLowerCase()) &&
         (parent.childNodes.length === 1 || parent.classList.contains('math-container'))) {
       return true;
     }
     
-    // 7. Check if the element is alone on its line
+    // Check if element is alone in its context
     if (element.previousSibling === null && element.nextSibling === null) {
       return true;
     }
     
-    // Default to inline
+    // Default to inline math
     return false;
   }
 }
