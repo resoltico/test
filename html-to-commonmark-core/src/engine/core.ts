@@ -12,7 +12,8 @@ import { RuleRegistry } from '../rules/registry.js';
 import { TagRule } from '../rules/base.js';
 import { ConversionError } from '../utils/errors.js';
 import { EventEmitter } from '../utils/events.js';
-import { defaultRuleMap, allRules } from '../rules/index.js';
+import { allRules } from '../rules/index.js';
+import { establishRelationships, verifyRelationships } from '../ast/relationship.js';
 
 /**
  * Options for the conversion engine
@@ -42,6 +43,16 @@ export interface EngineOptions {
    * Whether to include debugging information
    */
   debug?: boolean;
+  
+  /**
+   * Whether to establish relationships after AST generation
+   */
+  establishRelationships?: boolean;
+  
+  /**
+   * Whether to verify relationships
+   */
+  verifyRelationships?: boolean;
 }
 
 /**
@@ -52,6 +63,7 @@ export interface DebugTiming {
   walkTime: number;
   normalizeTime: number;
   renderTime: number;
+  relationshipTime: number;
   totalTime: number;
 }
 
@@ -105,7 +117,11 @@ export class HtmlToCommonMarkEngine {
    * @param rules Initial rules
    */
   constructor(options: EngineOptions = {}, rules: TagRule[] = []) {
-    this.options = options;
+    this.options = {
+      establishRelationships: true,
+      verifyRelationships: true,
+      ...options
+    };
     
     // Initialize with all default rules
     this.rules = new RuleRegistry(allRules);
@@ -130,6 +146,7 @@ export class HtmlToCommonMarkEngine {
       let parseTime = 0;
       let walkTime = 0;
       let normalizeTime = 0;
+      let relationshipTime = 0;
       
       // Emit 'beforeParse' event
       await this.events.emit('beforeParse', html);
@@ -144,11 +161,13 @@ export class HtmlToCommonMarkEngine {
       // Emit 'afterParse' event
       await this.events.emit('afterParse', dom);
       
-      // Create the walker
+      // Create the walker with relationship-aware options
       const walkStartTime = this.options.debug ? Date.now() : 0;
       const walker = new Walker({
         ruleMap: this.rules.getAllRules(),
         defaultRule: this.rules.getDefaultRule(),
+        establishRelationships: this.options.establishRelationships,
+        verifyRelationships: this.options.verifyRelationships,
         ...this.options.walker,
       });
       
@@ -161,15 +180,35 @@ export class HtmlToCommonMarkEngine {
       // Emit 'beforeNormalize' event
       await this.events.emit('beforeNormalize', ast);
       
-      // Normalize the AST
+      // Normalize the AST with relationship-aware options
       const normalizeStartTime = this.options.debug ? Date.now() : 0;
-      const normalizedAst = normalizeAst(ast, this.options.normalizer);
+      const normalizedAst = normalizeAst(ast, {
+        verifyRelationships: this.options.verifyRelationships,
+        ...this.options.normalizer
+      });
       if (this.options.debug) {
         normalizeTime = Date.now() - normalizeStartTime;
       }
       
       // Emit 'afterNormalize' event
       await this.events.emit('afterNormalize', normalizedAst);
+      
+      // Ensure relationships are established and verified if needed
+      if (this.options.establishRelationships && !this.options.walker?.establishRelationships) {
+        const relationshipStartTime = this.options.debug ? Date.now() : 0;
+        
+        // Establish relationships
+        establishRelationships(normalizedAst);
+        
+        // Verify relationships if needed
+        if (this.options.verifyRelationships) {
+          verifyRelationships(normalizedAst);
+        }
+        
+        if (this.options.debug) {
+          relationshipTime = Date.now() - relationshipStartTime;
+        }
+      }
       
       // For debugging purposes, store the timing information on the instance
       if (this.options.debug) {
@@ -178,6 +217,7 @@ export class HtmlToCommonMarkEngine {
           parseTime,
           walkTime,
           normalizeTime,
+          relationshipTime,
           renderTime: 0,
           totalTime,
         };
@@ -224,7 +264,12 @@ export class HtmlToCommonMarkEngine {
         const totalTime = Date.now() - startTime;
         // Use previous debug info and add render time
         debug = {
-          ...(this._lastDebugInfo || { parseTime: 0, walkTime: 0, normalizeTime: 0 }),
+          ...(this._lastDebugInfo || { 
+            parseTime: 0, 
+            walkTime: 0, 
+            normalizeTime: 0,
+            relationshipTime: 0 
+          }),
           renderTime,
           totalTime,
         };

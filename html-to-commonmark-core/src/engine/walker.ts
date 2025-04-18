@@ -1,14 +1,15 @@
 /**
  * DOM Walker module
- * Traverses HTML DOM and applies rules to convert to AST
+ * Traverses HTML DOM and applies rules to convert to AST with proper relationships
  */
 
-import { ASTNode } from '../ast/types.js';
-import { TagRule, createRuleContext } from '../rules/base.js';
+import { ASTNode, ParentNode } from '../ast/types.js';
+import { TagRule, RuleContext, createRuleContext } from '../rules/base.js';
 import { ElementNode, HtmlNode, TextNode, isElementNode, isTextNode } from '../types/html.js';
 import { RuleError } from '../utils/errors.js';
 import * as builder from '../ast/builder.js';
 import { defaultRuleMap } from '../rules/index.js';
+import { establishRelationships, verifyRelationships } from '../ast/relationship.js';
 
 /**
  * Options for the HTML walker
@@ -33,6 +34,16 @@ export interface WalkerOptions {
    * Whether to preserve comments
    */
   preserveComments?: boolean;
+  
+  /**
+   * Whether to establish relationships after walking
+   */
+  establishRelationships?: boolean;
+  
+  /**
+   * Whether to verify relationships after establishing them
+   */
+  verifyRelationships?: boolean;
 }
 
 /**
@@ -41,6 +52,8 @@ export interface WalkerOptions {
 const DEFAULT_OPTIONS: Partial<WalkerOptions> = {
   strictRules: false,
   preserveComments: false,
+  establishRelationships: true,
+  verifyRelationships: true,
 };
 
 /**
@@ -71,6 +84,8 @@ export class Walker {
   private strictRules: boolean;
   private defaultRule: TagRule;
   private preserveComments: boolean;
+  private doEstablishRelationships: boolean;
+  private doVerifyRelationships: boolean;
   
   /**
    * Creates a new Walker
@@ -81,6 +96,8 @@ export class Walker {
     this.strictRules = options.strictRules ?? DEFAULT_OPTIONS.strictRules!;
     this.defaultRule = options.defaultRule || FALLBACK_RULE;
     this.preserveComments = options.preserveComments ?? DEFAULT_OPTIONS.preserveComments!;
+    this.doEstablishRelationships = options.establishRelationships ?? DEFAULT_OPTIONS.establishRelationships!;
+    this.doVerifyRelationships = options.verifyRelationships ?? DEFAULT_OPTIONS.verifyRelationships!;
   }
   
   /**
@@ -94,7 +111,21 @@ export class Walker {
     
     // Process all child nodes
     const childNodes = this.walkNode(rootNode, []);
-    document.children = childNodes;
+    
+    // Add children to document, establishing parent-child relationships
+    for (const child of childNodes) {
+      document.appendChild(child);
+    }
+    
+    // Establish relationships throughout the AST if needed
+    if (this.doEstablishRelationships) {
+      establishRelationships([document]);
+      
+      // Verify relationships if needed
+      if (this.doVerifyRelationships) {
+        verifyRelationships([document]);
+      }
+    }
     
     return [document];
   }
@@ -175,11 +206,10 @@ export class Walker {
         return [];
       }
       
-      if (Array.isArray(result)) {
-        return result;
-      }
+      // If result is a single node, convert to array
+      const resultNodes = Array.isArray(result) ? result : [result];
       
-      return [result];
+      return resultNodes;
     } catch (error) {
       if (error instanceof NoRuleError && !this.strictRules) {
         // Fall back to default handling
@@ -239,10 +269,6 @@ export class Walker {
       return [];
     }
     
-    if (Array.isArray(result)) {
-      return result;
-    }
-    
-    return [result];
+    return Array.isArray(result) ? result : [result];
   }
 }

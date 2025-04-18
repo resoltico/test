@@ -27,13 +27,14 @@ describe('Debug Tests', () => {
     const html = '<h1>Original Heading</h1>';
     const ast = await convertHtmlToAst(html);
     
-    // The first node should be a Document node containing a Heading
+    // The first node should be a Document node
     expect(ast.length).toBeGreaterThan(0);
     expect(ast[0].type).toBe('Document');
     
-    // Get the heading node inside the document
+    // Document should contain a Heading
     const document = ast[0];
     expect('children' in document).toBe(true);
+    
     if ('children' in document && document.children.length > 0) {
       const heading = document.children[0];
       expect(heading.type).toBe('Heading');

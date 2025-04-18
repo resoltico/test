@@ -1,6 +1,6 @@
 /**
  * AST normalization utilities
- * Cleans up and validates AST nodes for consistency
+ * Cleans up and validates AST nodes for consistency while preserving relationships
  */
 
 import {
@@ -18,6 +18,12 @@ import {
 } from './types.js';
 import * as builder from './builder.js';
 import { NormalizationError } from '../utils/errors.js';
+import { 
+  verifyRelationships, 
+  fixRelationships, 
+  detachFromParent,
+  attachToParent
+} from './relationship.js';
 
 /**
  * Options for AST normalization
@@ -47,6 +53,11 @@ export interface NormalizerOptions {
    * Whether to normalize lists (e.g., ensure consistent item structure)
    */
   normalizeLists?: boolean;
+  
+  /**
+   * Whether to verify and fix relationships after normalization
+   */
+  verifyRelationships?: boolean;
 }
 
 /**
@@ -58,6 +69,7 @@ const DEFAULT_OPTIONS: NormalizerOptions = {
   fixStructure: true,
   normalizeTables: true,
   normalizeLists: true,
+  verifyRelationships: true,
 };
 
 /**
@@ -97,6 +109,13 @@ export function normalizeAst(ast: ASTNode[], options?: NormalizerOptions): ASTNo
       result = normalizeLists(result);
     }
     
+    // Verify and fix relationships if needed
+    if (opts.verifyRelationships) {
+      if (!verifyRelationships(result)) {
+        result = fixRelationships(result);
+      }
+    }
+    
     return result;
   } catch (error) {
     throw new NormalizationError('Failed to normalize AST', {
@@ -129,9 +148,13 @@ function removeEmptyNodes(ast: ASTNode[]): ASTNode[] {
         continue;
       }
       
-      // Create a new node with the processed children
-      const newNode = { ...node, children };
-      result.push(newNode);
+      // Update children with preserved relationships
+      parentNode.children = [];
+      for (const child of children) {
+        parentNode.appendChild(child);
+      }
+      
+      result.push(parentNode);
     } else {
       // Include non-parent nodes
       result.push(node);
@@ -147,41 +170,57 @@ function removeEmptyNodes(ast: ASTNode[]): ASTNode[] {
  * @returns The AST with adjacent text nodes merged
  */
 function mergeAdjacentTextNodes(ast: ASTNode[]): ASTNode[] {
-  const result: ASTNode[] = [];
+  if (!isParentNode(ast[0]?.parent)) {
+    // If we're at the root or nodes don't share a parent, process each node individually
+    const result: ASTNode[] = [];
+    
+    for (const node of ast) {
+      if (isParentNode(node)) {
+        // Process children recursively
+        const parentNode = node as ParentNode & ASTNode;
+        mergeAdjacentTextNodes(parentNode.children);
+        result.push(node);
+      } else {
+        result.push(node);
+      }
+    }
+    
+    return result;
+  }
   
-  let lastNode: ASTNode | null = null;
+  // Get the parent of these nodes since they share one
+  const parent = ast[0].parent as ParentNode & ASTNode;
+  const children = [...parent.children]; // Work with a copy
   
-  for (const node of ast) {
-    // Process parent nodes recursively
-    if (isParentNode(node)) {
-      const parentNode = node as ParentNode & ASTNode;
-      const children = mergeAdjacentTextNodes(parentNode.children);
-      
-      // Create a new node with the processed children
-      const newNode = { ...node, children };
-      
-      // Add the node to the result
-      lastNode = newNode;
-      result.push(newNode);
-    } else if (node.type === 'Text' && lastNode?.type === 'Text') {
+  // Clear parent's children
+  parent.children = [];
+  
+  // Process and reattach children
+  let prevTextNode: TextNode | null = null;
+  
+  for (const node of children) {
+    if (node.type === 'Text' && prevTextNode) {
       // Merge with previous text node
-      const lastTextNode = lastNode as TextNode;
-      const currentTextNode = node as TextNode;
-      
-      // Create a new text node with the merged content
-      const mergedNode = builder.text(lastTextNode.value + currentTextNode.value);
-      
-      // Replace the last node with the merged one
-      result[result.length - 1] = mergedNode;
-      lastNode = mergedNode;
+      prevTextNode.value += (node as TextNode).value;
+    } else if (node.type === 'Text') {
+      // First text node, remember it
+      prevTextNode = node as TextNode;
+      parent.appendChild(node);
     } else {
-      // Add non-text nodes or first text node
-      lastNode = node;
-      result.push(node);
+      // Not a text node, reset prevTextNode
+      prevTextNode = null;
+      
+      // Process children of parent nodes
+      if (isParentNode(node)) {
+        mergeAdjacentTextNodes(node.children);
+      }
+      
+      parent.appendChild(node);
     }
   }
   
-  return result;
+  // Return the original array
+  return ast;
 }
 
 /**
@@ -198,24 +237,22 @@ function fixStructure(ast: ASTNode[]): ASTNode[] {
       const parentNode = node as ParentNode & ASTNode;
       
       // Process children
-      let children = fixStructure(parentNode.children);
+      fixStructure(parentNode.children);
       
       // For block nodes, ensure children are valid
       if (isBlockNode(node)) {
         // For paragraphs, flatten nested paragraphs
         if (node.type === 'Paragraph') {
-          children = flattenNestedParagraphs(children);
+          flattenNestedParagraphs(node);
         }
         
         // Ensure block nodes don't contain other block nodes (except for specific types)
         if (!['Document', 'Blockquote', 'ListItem'].includes(node.type)) {
-          children = ensureNoBlockNodes(children);
+          ensureNoBlockNodes(node);
         }
       }
       
-      // Create a new node with the processed children
-      const newNode = { ...node, children };
-      result.push(newNode);
+      result.push(node);
     } else {
       // Include non-parent nodes
       result.push(node);
@@ -227,44 +264,58 @@ function fixStructure(ast: ASTNode[]): ASTNode[] {
 
 /**
  * Flattens nested paragraphs
- * @param ast The AST to process
- * @returns The AST with nested paragraphs flattened
+ * @param node The paragraph node to process
  */
-function flattenNestedParagraphs(ast: ASTNode[]): ASTNode[] {
-  const result: ASTNode[] = [];
+function flattenNestedParagraphs(node: ParentNode & ASTNode): void {
+  if (node.type !== 'Paragraph') return;
   
-  for (const node of ast) {
-    if (node.type === 'Paragraph') {
-      // Flatten nested paragraph
-      result.push(...(node as ParentNode & ASTNode).children);
+  const newChildren: ASTNode[] = [];
+  
+  for (const child of node.children) {
+    if (child.type === 'Paragraph') {
+      // Add the paragraph's children directly
+      for (const nestedChild of (child as ParentNode).children) {
+        nestedChild.parent = node;
+        newChildren.push(nestedChild);
+      }
     } else {
-      result.push(node);
+      newChildren.push(child);
     }
   }
   
-  return result;
+  // Replace children while preserving relationships
+  node.children = [];
+  for (const child of newChildren) {
+    node.appendChild(child);
+  }
 }
 
 /**
- * Ensures an AST doesn't contain block nodes
- * @param ast The AST to process
- * @returns The AST with block nodes removed or transformed
+ * Ensures a block node doesn't contain other block nodes
+ * @param node The block node to process
  */
-function ensureNoBlockNodes(ast: ASTNode[]): ASTNode[] {
-  const result: ASTNode[] = [];
+function ensureNoBlockNodes(node: ParentNode & ASTNode): void {
+  const newChildren: ASTNode[] = [];
   
-  for (const node of ast) {
-    if (isBlockNode(node)) {
-      // If it's a block node in an inline context, flatten its children
-      if (isParentNode(node)) {
-        result.push(...(node as ParentNode & ASTNode).children);
+  for (const child of node.children) {
+    if (isBlockNode(child)) {
+      // If it's a block node in an inline context, extract its children
+      if (isParentNode(child)) {
+        for (const nestedChild of (child as ParentNode).children) {
+          nestedChild.parent = node;
+          newChildren.push(nestedChild);
+        }
       }
     } else {
-      result.push(node);
+      newChildren.push(child);
     }
   }
   
-  return result;
+  // Replace children while preserving relationships
+  node.children = [];
+  for (const child of newChildren) {
+    node.appendChild(child);
+  }
 }
 
 /**
@@ -273,27 +324,17 @@ function ensureNoBlockNodes(ast: ASTNode[]): ASTNode[] {
  * @returns The AST with tables normalized
  */
 function normalizeTables(ast: ASTNode[]): ASTNode[] {
-  const result: ASTNode[] = [];
-  
   for (const node of ast) {
     if (node.type === 'Table') {
       // Normalize table
-      result.push(normalizeTable(node as TableNode));
+      normalizeTable(node as TableNode);
     } else if (isParentNode(node)) {
       // Process children recursively
-      const parentNode = node as ParentNode & ASTNode;
-      const children = normalizeTables(parentNode.children);
-      
-      // Create a new node with the processed children
-      const newNode = { ...node, children };
-      result.push(newNode);
-    } else {
-      // Include non-parent nodes
-      result.push(node);
+      normalizeTables(node.children);
     }
   }
   
-  return result;
+  return ast;
 }
 
 /**
@@ -302,22 +343,19 @@ function normalizeTables(ast: ASTNode[]): ASTNode[] {
  * @returns The normalized table node
  */
 function normalizeTable(table: TableNode): TableNode {
-  // Clone the node
-  const newTable = { ...table };
-  
   // Ensure we have rows
-  if (!isParentNode(newTable) || newTable.children.length === 0) {
-    return newTable;
+  if (!isParentNode(table) || table.children.length === 0) {
+    return table;
   }
   
   // Process rows
-  const rows = newTable.children as TableRowNode[];
+  const rows = table.children as TableRowNode[];
   
   // Ensure we have a header row
   if (!rows.some(row => row.isHeader)) {
     // Convert first row to header
     if (rows.length > 0) {
-      rows[0] = { ...rows[0], isHeader: true };
+      rows[0].isHeader = true;
     }
   }
   
@@ -330,37 +368,27 @@ function normalizeTable(table: TableNode): TableNode {
   }, 0);
   
   // Normalize cell count in each row
-  const normalizedRows = rows.map(row => {
-    if (!isParentNode(row)) {
-      return row;
-    }
+  for (const row of rows) {
+    if (!isParentNode(row)) continue;
     
     const cells = row.children as TableCellNode[];
     
     // If we need to add cells
     if (cells.length < maxCells) {
-      const newCells = [...cells];
-      
       // Add empty cells
       for (let i = cells.length; i < maxCells; i++) {
-        newCells.push(builder.tableCell([]));
+        const newCell = builder.tableCell([], { parent: row });
+        row.appendChild(newCell);
       }
-      
-      return { ...row, children: newCells };
     }
-    
-    return row;
-  });
-  
-  // Ensure alignments match cell count
-  if (!newTable.align || newTable.align.length !== maxCells) {
-    newTable.align = Array(maxCells).fill(null);
   }
   
-  // Update the rows
-  newTable.children = normalizedRows;
+  // Ensure alignments match cell count
+  if (!table.align || table.align.length !== maxCells) {
+    table.align = Array(maxCells).fill(null);
+  }
   
-  return newTable;
+  return table;
 }
 
 /**
@@ -369,27 +397,17 @@ function normalizeTable(table: TableNode): TableNode {
  * @returns The AST with lists normalized
  */
 function normalizeLists(ast: ASTNode[]): ASTNode[] {
-  const result: ASTNode[] = [];
-  
   for (const node of ast) {
     if (node.type === 'List') {
       // Normalize list
-      result.push(normalizeList(node as ListNode));
+      normalizeList(node as ListNode);
     } else if (isParentNode(node)) {
       // Process children recursively
-      const parentNode = node as ParentNode & ASTNode;
-      const children = normalizeLists(parentNode.children);
-      
-      // Create a new node with the processed children
-      const newNode = { ...node, children };
-      result.push(newNode);
-    } else {
-      // Include non-parent nodes
-      result.push(node);
+      normalizeLists(node.children);
     }
   }
   
-  return result;
+  return ast;
 }
 
 /**
@@ -398,53 +416,58 @@ function normalizeLists(ast: ASTNode[]): ASTNode[] {
  * @returns The normalized list node
  */
 function normalizeList(list: ListNode): ListNode {
-  // Clone the node
-  const newList = { ...list };
-  
   // Ensure we have list items
-  if (!isParentNode(newList) || newList.children.length === 0) {
-    return newList;
+  if (!isParentNode(list) || list.children.length === 0) {
+    return list;
   }
   
   // Process list items
-  const items = newList.children as ListItemNode[];
+  const items = list.children as ListItemNode[];
   
   // Normalize list items
-  const normalizedItems = items.map(item => {
-    if (!isParentNode(item)) {
-      return item;
-    }
+  for (const item of items) {
+    if (!isParentNode(item)) continue;
     
     // Ensure each list item has a block-level wrapper
     const children = item.children;
     
     if (children.length === 0) {
-      return { ...item, children: [builder.paragraph([])] };
+      const paragraph = builder.paragraph([], { parent: item });
+      item.appendChild(paragraph);
+      continue;
     }
     
     // If all children are inline, wrap in a paragraph
     if (children.every(child => isInlineNode(child))) {
-      return { ...item, children: [builder.paragraph(children)] };
+      // Create new paragraph to hold the inline nodes
+      const paragraph = builder.paragraph([], { parent: item });
+      
+      // Move all children to paragraph
+      const childrenCopy = [...children];
+      item.children = [];
+      
+      // Add paragraph as first child
+      item.appendChild(paragraph);
+      
+      // Move all original children to paragraph
+      for (const child of childrenCopy) {
+        paragraph.appendChild(child);
+      }
     }
-    
-    return item;
-  });
+  }
   
   // Check if this is a task list (all items have checked property set)
-  const isTaskList = normalizedItems.every(item => item.checked !== null);
+  const isTaskList = items.every(item => item.checked !== null);
   
   // If not all items are tasks but some are, make them consistent
-  if (!isTaskList && normalizedItems.some(item => item.checked !== null)) {
+  if (!isTaskList && items.some(item => item.checked !== null)) {
     // Convert non-task items to unchecked tasks
-    normalizedItems.forEach(item => {
+    for (const item of items) {
       if (item.checked === null) {
         item.checked = false;
       }
-    });
+    }
   }
   
-  // Update the list items
-  newList.children = normalizedItems;
-  
-  return newList;
+  return list;
 }

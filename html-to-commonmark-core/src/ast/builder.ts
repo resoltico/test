@@ -1,6 +1,6 @@
 /**
  * AST node creation utilities
- * Provides factory functions for creating AST nodes
+ * Provides factory functions for creating AST nodes with proper parent-child relationships
  */
 
 import {
@@ -28,13 +28,18 @@ import {
   FootnoteDefinitionNode,
   FootnoteReferenceNode,
   Position,
+  ParentNode,
 } from './types.js';
+
+import { implementParentNodeMethods } from './relationship.js';
 
 /**
  * Base options for all AST nodes
  */
 interface BaseNodeOptions {
   position?: Position;
+  parent?: ParentNode & ASTNode;
+  data?: Map<string, any>;
 }
 
 /**
@@ -47,11 +52,23 @@ export function document(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): DocumentNode {
-  return {
+  const node: DocumentNode = {
     type: 'Document',
-    children,
-    ...options,
-  };
+    children: [],
+    parent: options.parent || null,
+    position: options.position,
+    data: options.data,
+  } as DocumentNode;
+  
+  // Implement parent node methods
+  implementParentNodeMethods(node);
+  
+  // Add children with proper parent references
+  for (const child of children) {
+    node.appendChild(child);
+  }
+  
+  return node;
 }
 
 /**
@@ -66,12 +83,24 @@ export function heading(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): HeadingNode {
-  return {
+  const node: HeadingNode = {
     type: 'Heading',
     level,
-    children,
-    ...options,
-  };
+    children: [],
+    parent: options.parent || null,
+    position: options.position,
+    data: options.data,
+  } as HeadingNode;
+  
+  // Implement parent node methods
+  implementParentNodeMethods(node);
+  
+  // Add children with proper parent references
+  for (const child of children) {
+    node.appendChild(child);
+  }
+  
+  return node;
 }
 
 /**
@@ -84,11 +113,23 @@ export function paragraph(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): ParagraphNode {
-  return {
+  const node: ParagraphNode = {
     type: 'Paragraph',
-    children,
-    ...options,
-  };
+    children: [],
+    parent: options.parent || null,
+    position: options.position,
+    data: options.data,
+  } as ParagraphNode;
+  
+  // Implement parent node methods
+  implementParentNodeMethods(node);
+  
+  // Add children with proper parent references
+  for (const child of children) {
+    node.appendChild(child);
+  }
+  
+  return node;
 }
 
 /**
@@ -101,11 +142,23 @@ export function blockquote(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): BlockquoteNode {
-  return {
+  const node: BlockquoteNode = {
     type: 'Blockquote',
-    children,
-    ...options,
-  };
+    children: [],
+    parent: options.parent || null,
+    position: options.position,
+    data: options.data,
+  } as BlockquoteNode;
+  
+  // Implement parent node methods
+  implementParentNodeMethods(node);
+  
+  // Add children with proper parent references
+  for (const child of children) {
+    node.appendChild(child);
+  }
+  
+  return node;
 }
 
 /**
@@ -124,14 +177,26 @@ export function list(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): ListNode {
-  return {
+  const node: ListNode = {
     type: 'List',
     ordered,
     start,
     tight,
-    children,
-    ...options,
-  };
+    children: [],
+    parent: options.parent || null,
+    position: options.position,
+    data: options.data,
+  } as ListNode;
+  
+  // Implement parent node methods
+  implementParentNodeMethods(node);
+  
+  // Add children with proper parent references
+  for (const child of children) {
+    node.appendChild(child);
+  }
+  
+  return node;
 }
 
 /**
@@ -146,12 +211,24 @@ export function listItem(
   checked: boolean | null = null,
   options: BaseNodeOptions = {}
 ): ListItemNode {
-  return {
+  const node: ListItemNode = {
     type: 'ListItem',
     checked,
-    children,
-    ...options,
-  };
+    children: [],
+    parent: options.parent || null,
+    position: options.position,
+    data: options.data,
+  } as ListItemNode;
+  
+  // Implement parent node methods
+  implementParentNodeMethods(node);
+  
+  // Add children with proper parent references
+  for (const child of children) {
+    node.appendChild(child);
+  }
+  
+  return node;
 }
 
 /**
@@ -173,8 +250,10 @@ export function codeBlock(
     value,
     language,
     meta,
-    ...options,
-  };
+    parent: options.parent || null,
+    position: options.position,
+    data: options.data,
+  } as CodeBlockNode;
 }
 
 /**
@@ -187,8 +266,10 @@ export function thematicBreak(
 ): ThematicBreakNode {
   return {
     type: 'ThematicBreak',
-    ...options,
-  };
+    parent: options.parent || null,
+    position: options.position,
+    data: options.data,
+  } as ThematicBreakNode;
 }
 
 /**
@@ -203,12 +284,24 @@ export function table(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): TableNode {
-  return {
+  const node: TableNode = {
     type: 'Table',
     align,
-    children,
-    ...options,
-  };
+    children: [],
+    parent: options.parent || null,
+    position: options.position,
+    data: options.data,
+  } as TableNode;
+  
+  // Implement parent node methods
+  implementParentNodeMethods(node);
+  
+  // Add children with proper parent references
+  for (const child of children) {
+    node.appendChild(child);
+  }
+  
+  return node;
 }
 
 /**
@@ -223,12 +316,24 @@ export function tableRow(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): TableRowNode {
-  return {
+  const node: TableRowNode = {
     type: 'TableRow',
     isHeader,
-    children,
-    ...options,
-  };
+    children: [],
+    parent: options.parent || null,
+    position: options.position,
+    data: options.data,
+  } as TableRowNode;
+  
+  // Implement parent node methods
+  implementParentNodeMethods(node);
+  
+  // Add children with proper parent references
+  for (const child of children) {
+    node.appendChild(child);
+  }
+  
+  return node;
 }
 
 /**
@@ -241,11 +346,23 @@ export function tableCell(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): TableCellNode {
-  return {
+  const node: TableCellNode = {
     type: 'TableCell',
-    children,
-    ...options,
-  };
+    children: [],
+    parent: options.parent || null,
+    position: options.position,
+    data: options.data,
+  } as TableCellNode;
+  
+  // Implement parent node methods
+  implementParentNodeMethods(node);
+  
+  // Add children with proper parent references
+  for (const child of children) {
+    node.appendChild(child);
+  }
+  
+  return node;
 }
 
 /**
@@ -261,8 +378,10 @@ export function html(
   return {
     type: 'HTML',
     value,
-    ...options,
-  };
+    parent: options.parent || null,
+    position: options.position,
+    data: options.data,
+  } as HTMLNode;
 }
 
 /**
@@ -278,8 +397,10 @@ export function text(
   return {
     type: 'Text',
     value,
-    ...options,
-  };
+    parent: options.parent || null,
+    position: options.position,
+    data: options.data,
+  } as TextNode;
 }
 
 /**
@@ -292,11 +413,23 @@ export function emphasis(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): EmphasisNode {
-  return {
+  const node: EmphasisNode = {
     type: 'Emphasis',
-    children,
-    ...options,
-  };
+    children: [],
+    parent: options.parent || null,
+    position: options.position,
+    data: options.data,
+  } as EmphasisNode;
+  
+  // Implement parent node methods
+  implementParentNodeMethods(node);
+  
+  // Add children with proper parent references
+  for (const child of children) {
+    node.appendChild(child);
+  }
+  
+  return node;
 }
 
 /**
@@ -309,11 +442,23 @@ export function strong(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): StrongNode {
-  return {
+  const node: StrongNode = {
     type: 'Strong',
-    children,
-    ...options,
-  };
+    children: [],
+    parent: options.parent || null,
+    position: options.position,
+    data: options.data,
+  } as StrongNode;
+  
+  // Implement parent node methods
+  implementParentNodeMethods(node);
+  
+  // Add children with proper parent references
+  for (const child of children) {
+    node.appendChild(child);
+  }
+  
+  return node;
 }
 
 /**
@@ -330,13 +475,25 @@ export function link(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): LinkNode {
-  return {
+  const node: LinkNode = {
     type: 'Link',
     url,
     title,
-    children,
-    ...options,
-  };
+    children: [],
+    parent: options.parent || null,
+    position: options.position,
+    data: options.data,
+  } as LinkNode;
+  
+  // Implement parent node methods
+  implementParentNodeMethods(node);
+  
+  // Add children with proper parent references
+  for (const child of children) {
+    node.appendChild(child);
+  }
+  
+  return node;
 }
 
 /**
@@ -355,14 +512,26 @@ export function image(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): ImageNode {
-  return {
+  const node: ImageNode = {
     type: 'Image',
     url,
     title,
     alt,
-    children,
-    ...options,
-  };
+    children: [],
+    parent: options.parent || null,
+    position: options.position,
+    data: options.data,
+  } as ImageNode;
+  
+  // Implement parent node methods
+  implementParentNodeMethods(node);
+  
+  // Add children with proper parent references
+  for (const child of children) {
+    node.appendChild(child);
+  }
+  
+  return node;
 }
 
 /**
@@ -378,8 +547,10 @@ export function inlineCode(
   return {
     type: 'InlineCode',
     value,
-    ...options,
-  };
+    parent: options.parent || null,
+    position: options.position,
+    data: options.data,
+  } as InlineCodeNode;
 }
 
 /**
@@ -395,8 +566,10 @@ export function lineBreak(
   return {
     type: 'Break',
     hard,
-    ...options,
-  };
+    parent: options.parent || null,
+    position: options.position,
+    data: options.data,
+  } as BreakNode;
 }
 
 /**
@@ -409,11 +582,23 @@ export function strikethrough(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): StrikethroughNode {
-  return {
+  const node: StrikethroughNode = {
     type: 'Strikethrough',
-    children,
-    ...options,
-  };
+    children: [],
+    parent: options.parent || null,
+    position: options.position,
+    data: options.data,
+  } as StrikethroughNode;
+  
+  // Implement parent node methods
+  implementParentNodeMethods(node);
+  
+  // Add children with proper parent references
+  for (const child of children) {
+    node.appendChild(child);
+  }
+  
+  return node;
 }
 
 /**
@@ -430,13 +615,25 @@ export function footnoteDefinition(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): FootnoteDefinitionNode {
-  return {
+  const node: FootnoteDefinitionNode = {
     type: 'FootnoteDefinition',
     identifier,
     label,
-    children,
-    ...options,
-  };
+    children: [],
+    parent: options.parent || null,
+    position: options.position,
+    data: options.data,
+  } as FootnoteDefinitionNode;
+  
+  // Implement parent node methods
+  implementParentNodeMethods(node);
+  
+  // Add children with proper parent references
+  for (const child of children) {
+    node.appendChild(child);
+  }
+  
+  return node;
 }
 
 /**
@@ -455,6 +652,8 @@ export function footnoteReference(
     type: 'FootnoteReference',
     identifier,
     label,
-    ...options,
-  };
+    parent: options.parent || null,
+    position: options.position,
+    data: options.data,
+  } as FootnoteReferenceNode;
 }

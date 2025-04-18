@@ -30,7 +30,7 @@ export class RuleRegistry {
   }
 
   /**
-   * Registers a rule
+   * Registers a rule with special case handling for tag variants
    * @param rule The rule to register
    * @returns This registry for chaining
    */
@@ -41,7 +41,37 @@ export class RuleRegistry {
 
     // Store uppercase tag name for case-insensitive lookup
     const tagName = rule.tagName.toUpperCase();
-    this.rules.set(tagName, rule);
+    
+    // Handle special cases with tag variants
+    if (tagName === 'H') {
+      // Register for H1-H6
+      for (let i = 1; i <= 6; i++) {
+        this.rules.set(`H${i}`, rule);
+      }
+    } else if (tagName === 'EM') {
+      // Register for all emphasis-like tags
+      this.rules.set('EM', rule);
+      this.rules.set('I', rule);
+      this.rules.set('CITE', rule);
+      this.rules.set('DFN', rule);
+    } else if (tagName === 'STRONG') {
+      // Register for all strong-like tags
+      this.rules.set('STRONG', rule);
+      this.rules.set('B', rule);
+    } else if (tagName === 'DEL') {
+      // Register for all strikethrough-like tags
+      this.rules.set('DEL', rule);
+      this.rules.set('S', rule);
+      this.rules.set('STRIKE', rule);
+    } else {
+      // Standard case - register the tag as-is
+      this.rules.set(tagName, rule);
+    }
+    
+    // If this is a default rule, set it
+    if (tagName === '_DEFAULT_') {
+      this.defaultRule = rule;
+    }
     
     return this;
   }

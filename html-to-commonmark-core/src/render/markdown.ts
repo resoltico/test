@@ -1,12 +1,11 @@
 /**
  * Markdown renderer
- * Renders an AST as CommonMark-compatible markdown
+ * Renders an AST as CommonMark-compatible markdown with parent context awareness
  */
 
-import { ASTNode, isParentNode } from '../ast/types.js';
+import { ASTNode, isParentNode, hasAncestor } from '../ast/types.js';
 import { RenderOptions, DEFAULT_OPTIONS } from './options.js';
 import { RenderError } from '../utils/errors.js';
-import { escapeMarkdown } from '../utils/escape.js';
 
 /**
  * Renders an AST as markdown
@@ -135,6 +134,12 @@ class MarkdownRenderer {
    */
   private renderParagraph(node: ASTNode): string {
     if (!isParentNode(node)) return '';
+    
+    // Special handling for paragraphs in list items
+    if (hasAncestor(node, 'ListItem')) {
+      return `${this.renderNodes(node.children)}\n`;
+    }
+    
     return `${this.renderNodes(node.children)}\n\n`;
   }
   
@@ -321,7 +326,7 @@ class MarkdownRenderer {
       content = itemNode.children.map((child: ASTNode, index: number) => {
         const childContent = this.renderNode(child, listLevel);
         
-        // Apply proper indentation for block elements
+        // Apply proper indentation for block elements except first paragraph
         if (child.type !== 'Paragraph' || index > 0) {
           return childContent.replace(/^/gm, contentIndent);
         }
@@ -425,7 +430,20 @@ class MarkdownRenderer {
     
     // Calculate column widths based on content
     const columnWidths: number[] = [];
+    let maxColumns = 0;
     
+    // First pass to determine max column count
+    for (const row of rows) {
+      if (!isParentNode(row)) continue;
+      maxColumns = Math.max(maxColumns, row.children.length);
+    }
+    
+    // Initialize column widths
+    for (let i = 0; i < maxColumns; i++) {
+      columnWidths.push(3); // Minimum width of 3 for separator row
+    }
+    
+    // Second pass to calculate column widths
     for (const row of rows) {
       if (!isParentNode(row)) continue;
       
@@ -462,7 +480,7 @@ class MarkdownRenderer {
         }
       });
       
-      result += `|${separators.join('|')}|\n`;
+      result += `| ${separators.join(' | ')} |\n`;
       
       // Data rows
       for (let i = 1; i < rows.length; i++) {
@@ -488,31 +506,35 @@ class MarkdownRenderer {
     
     // Get cells
     const cells = node.children;
+    const cellsToRender = [];
     
     // Render each cell
-    const renderedCells = cells.map((cell, index) => {
-      const content = this.renderNode(cell, 0).trim();
+    for (let i = 0; i < columnWidths.length; i++) {
+      let content = '';
       
-      // Pad to column width if provided
-      if (columnWidths[index] !== undefined) {
-        const tableNode = node.parent as any;
-        const align = tableNode?.align?.[index] || null;
-        
-        if (align === 'right') {
-          return ' '.repeat(Math.max(0, columnWidths[index] - content.length)) + content;
-        } else if (align === 'center') {
-          const leftPad = Math.floor((columnWidths[index] - content.length) / 2);
-          const rightPad = Math.ceil((columnWidths[index] - content.length) / 2);
-          return ' '.repeat(leftPad) + content + ' '.repeat(rightPad);
-        } else {
-          return content + ' '.repeat(Math.max(0, columnWidths[index] - content.length));
-        }
+      if (i < cells.length) {
+        content = this.renderNode(cells[i], 0).trim();
       }
       
-      return content;
-    });
+      // Pad to column width
+      const width = columnWidths[i];
+      const tableNode = node.parent as any;
+      const align = tableNode?.align?.[i] || null;
+      
+      if (align === 'right') {
+        content = ' '.repeat(Math.max(0, width - content.length)) + content;
+      } else if (align === 'center') {
+        const leftPad = Math.floor((width - content.length) / 2);
+        const rightPad = Math.ceil((width - content.length) / 2);
+        content = ' '.repeat(leftPad) + content + ' '.repeat(rightPad);
+      } else {
+        content = content + ' '.repeat(Math.max(0, width - content.length));
+      }
+      
+      cellsToRender.push(content);
+    }
     
-    return `|${renderedCells.join('|')}|`;
+    return `| ${cellsToRender.join(' | ')} |`;
   }
   
   /**

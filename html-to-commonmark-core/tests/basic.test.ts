@@ -176,9 +176,13 @@ describe('html-to-commonmark-core', () => {
       const ast = await convertHtmlToAst(html);
       
       // Modify the AST (change the heading text)
-      if (ast.length > 0 && ast[0].type === 'Heading' && ast[0].children.length > 0) {
-        if (ast[0].children[0].type === 'Text') {
-          ast[0].children[0].value = 'Modified Heading';
+      if (ast.length > 0 && ast[0].type === 'Document' && ast[0].children.length > 0) {
+        const heading = ast[0].children[0];
+        if (heading.type === 'Heading' && heading.children.length > 0) {
+          const textNode = heading.children[0];
+          if (textNode.type === 'Text') {
+            textNode.value = 'Modified Heading';
+          }
         }
       }
       

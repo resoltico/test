@@ -26,7 +26,8 @@ export interface LinePosition {
 export interface BaseNode {
   type: string;
   position?: Position;
-  parent?: ParentNode;
+  parent: ParentNode | null;  // Reference to parent node
+  data?: Map<string, any>;    // Optional metadata
 }
 
 /**
@@ -34,6 +35,11 @@ export interface BaseNode {
  */
 export interface ParentNode extends BaseNode {
   children: ASTNode[];
+  
+  // Helper methods for relationship management
+  appendChild(node: ASTNode): void;
+  removeChild(node: ASTNode): boolean;
+  replaceChild(oldNode: ASTNode, newNode: ASTNode): boolean;
 }
 
 /**
@@ -196,14 +202,6 @@ export interface StrikethroughNode extends ParentNode {
 }
 
 /**
- * Task list item node (GFM extension) - represents checkbox in list items
- */
-export interface TaskListItemNode extends ListItemNode {
-  type: 'ListItem';
-  checked: boolean;
-}
-
-/**
  * Footnote definition node (GFM extension)
  */
 export interface FootnoteDefinitionNode extends ParentNode {
@@ -293,4 +291,108 @@ export function isInlineNode(node: ASTNode): boolean {
     'FootnoteReference',
     'HTML'
   ].includes(node.type);
+}
+
+/**
+ * Gets the ancestors of a node
+ * @param node The node to get ancestors for
+ * @returns Array of ancestor nodes from immediate parent to root
+ */
+export function getAncestors(node: ASTNode): ASTNode[] {
+  const ancestors: ASTNode[] = [];
+  let current = node.parent;
+  
+  while (current) {
+    ancestors.push(current);
+    current = current.parent;
+  }
+  
+  return ancestors;
+}
+
+/**
+ * Checks if a node has an ancestor of a specific type
+ * @param node The node to check
+ * @param type The ancestor type to look for
+ * @returns True if the node has an ancestor of the specified type
+ */
+export function hasAncestor(node: ASTNode, type: string): boolean {
+  let current = node.parent;
+  
+  while (current) {
+    if (current.type === type) {
+      return true;
+    }
+    current = current.parent;
+  }
+  
+  return false;
+}
+
+/**
+ * Gets the root node of a tree
+ * @param node Any node in the tree
+ * @returns The root node
+ */
+export function getRoot(node: ASTNode): ASTNode {
+  let current = node;
+  
+  while (current.parent) {
+    current = current.parent;
+  }
+  
+  return current;
+}
+
+/**
+ * Gets siblings of a node
+ * @param node The node to get siblings for
+ * @returns Array of sibling nodes or empty array if no parent
+ */
+export function getSiblings(node: ASTNode): ASTNode[] {
+  if (!node.parent) {
+    return [];
+  }
+  
+  return node.parent.children.filter(child => child !== node);
+}
+
+/**
+ * Gets the previous sibling of a node
+ * @param node The node to get the previous sibling for
+ * @returns The previous sibling or null if none
+ */
+export function getPreviousSibling(node: ASTNode): ASTNode | null {
+  if (!node.parent) {
+    return null;
+  }
+  
+  const siblings = node.parent.children;
+  const index = siblings.indexOf(node);
+  
+  if (index <= 0) {
+    return null;
+  }
+  
+  return siblings[index - 1];
+}
+
+/**
+ * Gets the next sibling of a node
+ * @param node The node to get the next sibling for
+ * @returns The next sibling or null if none
+ */
+export function getNextSibling(node: ASTNode): ASTNode | null {
+  if (!node.parent) {
+    return null;
+  }
+  
+  const siblings = node.parent.children;
+  const index = siblings.indexOf(node);
+  
+  if (index === -1 || index >= siblings.length - 1) {
+    return null;
+  }
+  
+  return siblings[index + 1];
 }

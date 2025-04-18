@@ -3,7 +3,7 @@
  */
 
 import { ASTNode } from '../ast/types.js';
-import { HtmlNode, ElementNode, TextNode, isElementNode, isTextNode } from '../types/html.js';
+import { HtmlNode, isElementNode, isTextNode } from '../types/html.js';
 
 /**
  * Prints a DOM tree for debugging

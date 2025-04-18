@@ -40,31 +40,46 @@ function extractColumnAlignments(node: ElementNode): Array<'left' | 'center' | '
   const alignments: Array<'left' | 'center' | 'right' | null> = [];
   
   // Look for thead
-  const thead = node.getElementsByTagName('thead')[0];
-  if (thead) {
+  const theads = node.getElementsByTagName('thead');
+  if (theads.length > 0) {
+    const thead = theads[0];
     const rows = thead.getElementsByTagName('tr');
     if (rows.length > 0) {
-      const cells = rows[0].getElementsByTagName('th').length > 0
-        ? rows[0].getElementsByTagName('th')
-        : rows[0].getElementsByTagName('td');
-      
-      for (const cell of cells) {
-        alignments.push(determineAlignment(cell));
+      const headCells = rows[0].getElementsByTagName('th');
+      if (headCells.length > 0) {
+        for (const cell of headCells) {
+          alignments.push(determineAlignment(cell));
+        }
+        return alignments;
       }
       
-      return alignments;
+      const dataCells = rows[0].getElementsByTagName('td');
+      if (dataCells.length > 0) {
+        for (const cell of dataCells) {
+          alignments.push(determineAlignment(cell));
+        }
+        return alignments;
+      }
     }
   }
   
   // If no thead, look at the first row
   const rows = node.getElementsByTagName('tr');
   if (rows.length > 0) {
-    const cells = rows[0].getElementsByTagName('th').length > 0
-      ? rows[0].getElementsByTagName('th')
-      : rows[0].getElementsByTagName('td');
+    const headCells = rows[0].getElementsByTagName('th');
+    if (headCells.length > 0) {
+      for (const cell of headCells) {
+        alignments.push(determineAlignment(cell));
+      }
+      return alignments;
+    }
     
-    for (const cell of cells) {
-      alignments.push(determineAlignment(cell));
+    const dataCells = rows[0].getElementsByTagName('td');
+    if (dataCells.length > 0) {
+      for (const cell of dataCells) {
+        alignments.push(determineAlignment(cell));
+      }
+      return alignments;
     }
   }
   
@@ -91,7 +106,6 @@ export const tableRule: TagRule = {
 
 /**
  * Rule for handling <thead> elements
- * Simply renders the children as the rows will be processed by the tr rule
  */
 export const theadRule: TagRule = {
   tagName: 'THEAD',
@@ -108,7 +122,6 @@ export const theadRule: TagRule = {
 
 /**
  * Rule for handling <tbody> elements
- * Simply renders the children as the rows will be processed by the tr rule
  */
 export const tbodyRule: TagRule = {
   tagName: 'TBODY',

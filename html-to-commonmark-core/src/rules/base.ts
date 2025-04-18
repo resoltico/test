@@ -2,7 +2,7 @@
  * Base interfaces for HTML tag handling rules
  */
 
-import { ASTNode } from '../ast/types.js';
+import { ASTNode, hasAncestor, getSiblings } from '../ast/types.js';
 import { ElementNode, HtmlNode } from '../types/html.js';
 
 /**
@@ -82,6 +82,21 @@ export interface RuleContext {
    * @returns Array of tag names
    */
   getTagPath(): string[];
+  
+  /**
+   * Check if an AST node has an ancestor of a specific type
+   * @param node The AST node to check
+   * @param type The ancestor type to check for
+   * @returns True if the node has an ancestor of the specified type
+   */
+  hasAncestor(node: ASTNode, type: string): boolean;
+  
+  /**
+   * Check if an AST node has siblings
+   * @param node The AST node to check
+   * @returns True if the node has siblings, false otherwise
+   */
+  hasAstSiblings(node: ASTNode): boolean;
 }
 
 /**
@@ -202,6 +217,14 @@ export function createRuleContext(
       return parentNodeStack
         .filter(node => 'tagName' in node)
         .map(node => (node as ElementNode).tagName);
+    },
+    
+    hasAncestor(node: ASTNode, type: string): boolean {
+      return hasAncestor(node, type);
+    },
+    
+    hasAstSiblings(node: ASTNode): boolean {
+      return getSiblings(node).length > 0;
     }
   };
 }
