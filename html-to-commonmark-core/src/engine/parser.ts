@@ -25,6 +25,11 @@ export interface ParserOptions {
    * Whether to preserve comments in the output
    */
   preserveComments?: boolean;
+  
+  /**
+   * Whether to output debug information
+   */
+  debug?: boolean;
 }
 
 /**
@@ -34,6 +39,7 @@ const DEFAULT_OPTIONS: ParserOptions = {
   strict: false,
   normalize: true,
   preserveComments: false,
+  debug: false,
 };
 
 /**
@@ -60,6 +66,11 @@ export function parseHtml(html: string, options?: ParserOptions): ElementNode {
       documentElement.normalize();
     }
     
+    if (opts.debug) {
+      console.log('Parsed HTML document:');
+      console.log(documentElement.innerHTML);
+    }
+    
     // Convert the JSDOM document to our HtmlNode structure
     return convertDomNode(documentElement) as ElementNode;
   } catch (error) {
@@ -76,6 +87,11 @@ export function parseHtml(html: string, options?: ParserOptions): ElementNode {
       
       if (opts.normalize) {
         dom.window.document.body.normalize();
+      }
+      
+      if (opts.debug) {
+        console.log('Recovered HTML document:');
+        console.log(dom.window.document.body.innerHTML);
       }
       
       return convertDomNode(dom.window.document.body.firstChild as Element) as ElementNode;

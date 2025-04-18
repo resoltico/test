@@ -26,7 +26,7 @@ export interface LinePosition {
 export interface BaseNode {
   type: string;
   position?: Position;
-  parent: ParentNode | null;  // Reference to parent node
+  parent: (ParentNode & ASTNode) | null;  // Reference to parent node
   data?: Map<string, any>;    // Optional metadata
 }
 
@@ -249,11 +249,10 @@ export type ASTNode =
 /**
  * Type guard to check if a node is a parent node
  */
-export function isParentNode(node: ASTNode): node is ParentNode & ASTNode {
-  return (
+export function isParentNode(node: ASTNode | ParentNode | null): node is ParentNode & ASTNode {
+  return node !== null &&
     'children' in node &&
-    Array.isArray((node as ParentNode).children)
-  );
+    Array.isArray((node as ParentNode).children);
 }
 
 /**

@@ -96,6 +96,7 @@ export class RuleRegistry {
    */
   public setDefaultRule(rule: TagRule): RuleRegistry {
     this.defaultRule = rule;
+    this.rules.set('_DEFAULT_', rule);
     return this;
   }
 
@@ -105,6 +106,7 @@ export class RuleRegistry {
    * @returns The rule, or undefined if not found
    */
   public getRule(tagName: string): TagRule | undefined {
+    // Make sure lookup is using uppercase
     return this.rules.get(tagName.toUpperCase());
   }
 
@@ -122,6 +124,18 @@ export class RuleRegistry {
    */
   public getAllRules(): Map<string, TagRule> {
     return new Map(this.rules);
+  }
+
+  /**
+   * Dumps registered rules for debugging
+   * @returns A string representation of all registered rules
+   */
+  public dumpRules(): string {
+    const lines = ['Registered rules:'];
+    for (const [tag, rule] of this.rules.entries()) {
+      lines.push(`  ${tag} -> ${rule.tagName}`);
+    }
+    return lines.join('\n');
   }
 
   /**

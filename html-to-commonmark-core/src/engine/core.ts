@@ -132,6 +132,12 @@ export class HtmlToCommonMarkEngine {
     }
     
     this.events = new EventEmitter();
+    
+    // Debugging output for rule registration
+    if (this.options.debug) {
+      console.log(`Initialized engine with ${this.rules.getRuleCount()} rules`);
+      console.log(this.rules.dumpRules());
+    }
   }
   
   /**
@@ -160,6 +166,11 @@ export class HtmlToCommonMarkEngine {
       
       // Emit 'afterParse' event
       await this.events.emit('afterParse', dom);
+      
+      // Before creating the walker, ensure we have all rules
+      if (this.options.debug) {
+        console.log(`Creating walker with ${this.rules.getRuleCount()} rules`);
+      }
       
       // Create the walker with relationship-aware options
       const walkStartTime = this.options.debug ? Date.now() : 0;

@@ -24,6 +24,13 @@ export const allRules: TagRule[] = [
  */
 export function createRuleMap(rules: TagRule[]): Map<string, TagRule> {
   const registry = new RuleRegistry(rules);
+  
+  // Debugging: Check the registry contents
+  console.log(`Created rule map with ${registry.getRuleCount()} rules`);
+  if (registry.getRuleCount() > 0) {
+    console.log(registry.dumpRules());
+  }
+  
   return registry.getAllRules();
 }
 

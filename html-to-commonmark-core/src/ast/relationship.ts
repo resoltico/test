@@ -39,7 +39,7 @@ export function establishRelationships(nodes: ASTNode[]): ASTNode[] {
  * Implements the ParentNode interface methods on a node
  * @param node The node to implement methods on
  */
-function implementParentNodeMethods(node: ParentNode & ASTNode): void {
+export function implementParentNodeMethods(node: ParentNode & ASTNode): void {
   // Implement appendChild method
   node.appendChild = function(childNode: ASTNode): void {
     // Set parent reference

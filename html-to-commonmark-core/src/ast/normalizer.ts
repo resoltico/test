@@ -20,9 +20,7 @@ import * as builder from './builder.js';
 import { NormalizationError } from '../utils/errors.js';
 import { 
   verifyRelationships, 
-  fixRelationships, 
-  detachFromParent,
-  attachToParent
+  fixRelationships
 } from './relationship.js';
 
 /**
@@ -170,7 +168,7 @@ function removeEmptyNodes(ast: ASTNode[]): ASTNode[] {
  * @returns The AST with adjacent text nodes merged
  */
 function mergeAdjacentTextNodes(ast: ASTNode[]): ASTNode[] {
-  if (!isParentNode(ast[0]?.parent)) {
+  if (ast.length === 0 || !ast[0] || !ast[0].parent || !isParentNode(ast[0].parent)) {
     // If we're at the root or nodes don't share a parent, process each node individually
     const result: ASTNode[] = [];
     
@@ -377,7 +375,7 @@ function normalizeTable(table: TableNode): TableNode {
     if (cells.length < maxCells) {
       // Add empty cells
       for (let i = cells.length; i < maxCells; i++) {
-        const newCell = builder.tableCell([], { parent: row });
+        const newCell = builder.tableCell();
         row.appendChild(newCell);
       }
     }
@@ -432,7 +430,7 @@ function normalizeList(list: ListNode): ListNode {
     const children = item.children;
     
     if (children.length === 0) {
-      const paragraph = builder.paragraph([], { parent: item });
+      const paragraph = builder.paragraph();
       item.appendChild(paragraph);
       continue;
     }
@@ -440,7 +438,7 @@ function normalizeList(list: ListNode): ListNode {
     // If all children are inline, wrap in a paragraph
     if (children.every(child => isInlineNode(child))) {
       // Create new paragraph to hold the inline nodes
-      const paragraph = builder.paragraph([], { parent: item });
+      const paragraph = builder.paragraph();
       
       // Move all children to paragraph
       const childrenCopy = [...children];

@@ -105,3 +105,35 @@ export function compareOutput(actual: string, expected: string): void {
     }
   }
 }
+
+/**
+ * Logs details about the rule registry
+ * @param ruleMap Map of tag names to rules
+ */
+export function logRuleRegistry(ruleMap: Map<string, any>): void {
+  console.log(`Rule registry contains ${ruleMap.size} rules`);
+  for (const [tagName, rule] of ruleMap.entries()) {
+    console.log(`  ${tagName} -> ${rule?.tagName || 'unknown rule'}`);
+  }
+}
+
+/**
+ * Enables debug mode by setting up global handlers
+ * @param enable Whether to enable debug mode
+ */
+export function enableDebugMode(enable: boolean = true): void {
+  if (enable) {
+    // Set up global error handlers for more detailed output
+    process.on('uncaughtException', (error) => {
+      console.error('UNCAUGHT EXCEPTION:');
+      console.error(error);
+    });
+    
+    process.on('unhandledRejection', (reason) => {
+      console.error('UNHANDLED REJECTION:');
+      console.error(reason);
+    });
+    
+    console.log('Debug mode enabled');
+  }
+}

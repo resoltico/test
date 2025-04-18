@@ -149,7 +149,7 @@ export const listItemRule: TagRule = {
     
     if (!hasBlockElement && children.length > 0) {
       // Create a paragraph to hold the children
-      const paragraph = builder.paragraph([], { parent: null });
+      const paragraph = builder.paragraph();
       
       // Add all children to the paragraph
       for (const child of children) {

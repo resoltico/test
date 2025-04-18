@@ -31,15 +31,51 @@ import {
   ParentNode,
 } from './types.js';
 
-import { implementParentNodeMethods } from './relationship.js';
-
 /**
  * Base options for all AST nodes
  */
 interface BaseNodeOptions {
   position?: Position;
-  parent?: ParentNode & ASTNode;
+  parent?: (ParentNode & ASTNode) | null;
   data?: Map<string, any>;
+}
+
+/**
+ * Create a basic parent node with properly implemented methods
+ * @param props The properties of the node
+ * @returns A node with parent methods implemented
+ */
+function createParentNode<T extends ParentNode & ASTNode>(props: Omit<T, 'appendChild' | 'removeChild' | 'replaceChild'>): T {
+  const node = props as unknown as T;
+  
+  // Add required methods
+  node.appendChild = function(childNode: ASTNode): void {
+    childNode.parent = this;
+    this.children.push(childNode);
+  };
+  
+  node.removeChild = function(childNode: ASTNode): boolean {
+    const index = this.children.indexOf(childNode);
+    if (index !== -1) {
+      this.children.splice(index, 1);
+      childNode.parent = null;
+      return true;
+    }
+    return false;
+  };
+  
+  node.replaceChild = function(oldNode: ASTNode, newNode: ASTNode): boolean {
+    const index = this.children.indexOf(oldNode);
+    if (index !== -1) {
+      this.children[index] = newNode;
+      oldNode.parent = null;
+      newNode.parent = this;
+      return true;
+    }
+    return false;
+  };
+  
+  return node;
 }
 
 /**
@@ -52,16 +88,13 @@ export function document(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): DocumentNode {
-  const node: DocumentNode = {
+  const node = createParentNode<DocumentNode>({
     type: 'Document',
     children: [],
     parent: options.parent || null,
     position: options.position,
     data: options.data,
-  } as DocumentNode;
-  
-  // Implement parent node methods
-  implementParentNodeMethods(node);
+  });
   
   // Add children with proper parent references
   for (const child of children) {
@@ -83,17 +116,14 @@ export function heading(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): HeadingNode {
-  const node: HeadingNode = {
+  const node = createParentNode<HeadingNode>({
     type: 'Heading',
     level,
     children: [],
     parent: options.parent || null,
     position: options.position,
     data: options.data,
-  } as HeadingNode;
-  
-  // Implement parent node methods
-  implementParentNodeMethods(node);
+  });
   
   // Add children with proper parent references
   for (const child of children) {
@@ -113,16 +143,13 @@ export function paragraph(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): ParagraphNode {
-  const node: ParagraphNode = {
+  const node = createParentNode<ParagraphNode>({
     type: 'Paragraph',
     children: [],
     parent: options.parent || null,
     position: options.position,
     data: options.data,
-  } as ParagraphNode;
-  
-  // Implement parent node methods
-  implementParentNodeMethods(node);
+  });
   
   // Add children with proper parent references
   for (const child of children) {
@@ -142,16 +169,13 @@ export function blockquote(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): BlockquoteNode {
-  const node: BlockquoteNode = {
+  const node = createParentNode<BlockquoteNode>({
     type: 'Blockquote',
     children: [],
     parent: options.parent || null,
     position: options.position,
     data: options.data,
-  } as BlockquoteNode;
-  
-  // Implement parent node methods
-  implementParentNodeMethods(node);
+  });
   
   // Add children with proper parent references
   for (const child of children) {
@@ -177,7 +201,7 @@ export function list(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): ListNode {
-  const node: ListNode = {
+  const node = createParentNode<ListNode>({
     type: 'List',
     ordered,
     start,
@@ -186,10 +210,7 @@ export function list(
     parent: options.parent || null,
     position: options.position,
     data: options.data,
-  } as ListNode;
-  
-  // Implement parent node methods
-  implementParentNodeMethods(node);
+  });
   
   // Add children with proper parent references
   for (const child of children) {
@@ -211,17 +232,14 @@ export function listItem(
   checked: boolean | null = null,
   options: BaseNodeOptions = {}
 ): ListItemNode {
-  const node: ListItemNode = {
+  const node = createParentNode<ListItemNode>({
     type: 'ListItem',
     checked,
     children: [],
     parent: options.parent || null,
     position: options.position,
     data: options.data,
-  } as ListItemNode;
-  
-  // Implement parent node methods
-  implementParentNodeMethods(node);
+  });
   
   // Add children with proper parent references
   for (const child of children) {
@@ -253,7 +271,7 @@ export function codeBlock(
     parent: options.parent || null,
     position: options.position,
     data: options.data,
-  } as CodeBlockNode;
+  };
 }
 
 /**
@@ -269,7 +287,7 @@ export function thematicBreak(
     parent: options.parent || null,
     position: options.position,
     data: options.data,
-  } as ThematicBreakNode;
+  };
 }
 
 /**
@@ -284,17 +302,14 @@ export function table(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): TableNode {
-  const node: TableNode = {
+  const node = createParentNode<TableNode>({
     type: 'Table',
     align,
     children: [],
     parent: options.parent || null,
     position: options.position,
     data: options.data,
-  } as TableNode;
-  
-  // Implement parent node methods
-  implementParentNodeMethods(node);
+  });
   
   // Add children with proper parent references
   for (const child of children) {
@@ -316,17 +331,14 @@ export function tableRow(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): TableRowNode {
-  const node: TableRowNode = {
+  const node = createParentNode<TableRowNode>({
     type: 'TableRow',
     isHeader,
     children: [],
     parent: options.parent || null,
     position: options.position,
     data: options.data,
-  } as TableRowNode;
-  
-  // Implement parent node methods
-  implementParentNodeMethods(node);
+  });
   
   // Add children with proper parent references
   for (const child of children) {
@@ -346,16 +358,13 @@ export function tableCell(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): TableCellNode {
-  const node: TableCellNode = {
+  const node = createParentNode<TableCellNode>({
     type: 'TableCell',
     children: [],
     parent: options.parent || null,
     position: options.position,
     data: options.data,
-  } as TableCellNode;
-  
-  // Implement parent node methods
-  implementParentNodeMethods(node);
+  });
   
   // Add children with proper parent references
   for (const child of children) {
@@ -381,7 +390,7 @@ export function html(
     parent: options.parent || null,
     position: options.position,
     data: options.data,
-  } as HTMLNode;
+  };
 }
 
 /**
@@ -400,7 +409,7 @@ export function text(
     parent: options.parent || null,
     position: options.position,
     data: options.data,
-  } as TextNode;
+  };
 }
 
 /**
@@ -413,16 +422,13 @@ export function emphasis(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): EmphasisNode {
-  const node: EmphasisNode = {
+  const node = createParentNode<EmphasisNode>({
     type: 'Emphasis',
     children: [],
     parent: options.parent || null,
     position: options.position,
     data: options.data,
-  } as EmphasisNode;
-  
-  // Implement parent node methods
-  implementParentNodeMethods(node);
+  });
   
   // Add children with proper parent references
   for (const child of children) {
@@ -442,16 +448,13 @@ export function strong(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): StrongNode {
-  const node: StrongNode = {
+  const node = createParentNode<StrongNode>({
     type: 'Strong',
     children: [],
     parent: options.parent || null,
     position: options.position,
     data: options.data,
-  } as StrongNode;
-  
-  // Implement parent node methods
-  implementParentNodeMethods(node);
+  });
   
   // Add children with proper parent references
   for (const child of children) {
@@ -475,7 +478,7 @@ export function link(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): LinkNode {
-  const node: LinkNode = {
+  const node = createParentNode<LinkNode>({
     type: 'Link',
     url,
     title,
@@ -483,10 +486,7 @@ export function link(
     parent: options.parent || null,
     position: options.position,
     data: options.data,
-  } as LinkNode;
-  
-  // Implement parent node methods
-  implementParentNodeMethods(node);
+  });
   
   // Add children with proper parent references
   for (const child of children) {
@@ -512,7 +512,7 @@ export function image(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): ImageNode {
-  const node: ImageNode = {
+  const node = createParentNode<ImageNode>({
     type: 'Image',
     url,
     title,
@@ -521,10 +521,7 @@ export function image(
     parent: options.parent || null,
     position: options.position,
     data: options.data,
-  } as ImageNode;
-  
-  // Implement parent node methods
-  implementParentNodeMethods(node);
+  });
   
   // Add children with proper parent references
   for (const child of children) {
@@ -550,7 +547,7 @@ export function inlineCode(
     parent: options.parent || null,
     position: options.position,
     data: options.data,
-  } as InlineCodeNode;
+  };
 }
 
 /**
@@ -569,7 +566,7 @@ export function lineBreak(
     parent: options.parent || null,
     position: options.position,
     data: options.data,
-  } as BreakNode;
+  };
 }
 
 /**
@@ -582,16 +579,13 @@ export function strikethrough(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): StrikethroughNode {
-  const node: StrikethroughNode = {
+  const node = createParentNode<StrikethroughNode>({
     type: 'Strikethrough',
     children: [],
     parent: options.parent || null,
     position: options.position,
     data: options.data,
-  } as StrikethroughNode;
-  
-  // Implement parent node methods
-  implementParentNodeMethods(node);
+  });
   
   // Add children with proper parent references
   for (const child of children) {
@@ -615,7 +609,7 @@ export function footnoteDefinition(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): FootnoteDefinitionNode {
-  const node: FootnoteDefinitionNode = {
+  const node = createParentNode<FootnoteDefinitionNode>({
     type: 'FootnoteDefinition',
     identifier,
     label,
@@ -623,10 +617,7 @@ export function footnoteDefinition(
     parent: options.parent || null,
     position: options.position,
     data: options.data,
-  } as FootnoteDefinitionNode;
-  
-  // Implement parent node methods
-  implementParentNodeMethods(node);
+  });
   
   // Add children with proper parent references
   for (const child of children) {
@@ -655,5 +646,5 @@ export function footnoteReference(
     parent: options.parent || null,
     position: options.position,
     data: options.data,
-  } as FootnoteReferenceNode;
+  };
 }

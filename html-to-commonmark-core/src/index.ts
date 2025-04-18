@@ -43,10 +43,11 @@ import { EventEmitter } from './utils/events.js';
 import * as debug from './utils/debug.js';
 export { errors, escape, EventEmitter, debug };
 
-// Create a default engine instance
+// Create a default engine instance with debug mode
 const defaultEngine = new HtmlToCommonMarkEngine({
   establishRelationships: true,
-  verifyRelationships: true
+  verifyRelationships: true,
+  debug: false // Set to true to enable debug logging
 });
 
 /**
@@ -118,4 +119,12 @@ export async function convertHtmlToMarkdown(html: string, options?: EngineOption
 export default async function convert(html: string, options?: EngineOptions): Promise<string> {
   const result = await convertHtmlToMarkdown(html, options);
   return result.markdown;
+}
+
+/**
+ * Enable debug mode for enhanced error reporting and logging
+ * @param enable Whether to enable debug mode
+ */
+export function enableDebugMode(enable: boolean = true): void {
+  debug.enableDebugMode(enable);
 }

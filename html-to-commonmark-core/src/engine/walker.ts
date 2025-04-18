@@ -3,7 +3,7 @@
  * Traverses HTML DOM and applies rules to convert to AST with proper relationships
  */
 
-import { ASTNode, ParentNode } from '../ast/types.js';
+import { ASTNode } from '../ast/types.js';
 import { TagRule, RuleContext, createRuleContext } from '../rules/base.js';
 import { ElementNode, HtmlNode, TextNode, isElementNode, isTextNode } from '../types/html.js';
 import { RuleError } from '../utils/errors.js';
@@ -98,6 +98,12 @@ export class Walker {
     this.preserveComments = options.preserveComments ?? DEFAULT_OPTIONS.preserveComments!;
     this.doEstablishRelationships = options.establishRelationships ?? DEFAULT_OPTIONS.establishRelationships!;
     this.doVerifyRelationships = options.verifyRelationships ?? DEFAULT_OPTIONS.verifyRelationships!;
+    
+    // Logging for debugging
+    console.log(`Rule map contains ${this.ruleMap.size} rules`);
+    for (const [tag, rule] of this.ruleMap.entries()) {
+      console.log(`Registered rule for tag: ${tag}, rule: ${rule.tagName}`);
+    }
   }
   
   /**
@@ -188,9 +194,12 @@ export class Walker {
       const rule = this.findRule(tagName);
       
       if (!rule) {
+        console.log(`No rule found for tag: ${tagName}, using default rule`);
         // No rule found, fall back to default behavior
         return this.handleNoRule(node, parentNodeStack);
       }
+      
+      console.log(`Found rule for tag: ${tagName}, rule: ${rule.tagName}`);
       
       // Create a new context for this rule
       const context = createRuleContext(
@@ -247,7 +256,11 @@ export class Walker {
    * @returns The rule, or undefined if not found
    */
   private findRule(tagName: string): TagRule | undefined {
-    return this.ruleMap.get(tagName.toUpperCase());
+    // Make sure we're looking up the tag in uppercase
+    const upperTagName = tagName.toUpperCase();
+    const rule = this.ruleMap.get(upperTagName);
+    console.log(`Looking up rule for tag: ${upperTagName}, found: ${rule ? 'yes' : 'no'}`);
+    return rule;
   }
   
   /**

@@ -27,6 +27,6 @@ export const imageRule: TagRule = {
     const title = node.getAttribute('title');
     
     // Create the image node
-    return builder.image(url, title, alt, []);
+    return builder.image(url, title, alt);
   }
 };
