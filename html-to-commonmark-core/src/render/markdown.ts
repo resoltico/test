@@ -6,6 +6,7 @@
 import { ASTNode, isParentNode, hasAncestor } from '../ast/types.js';
 import { RenderOptions, DEFAULT_OPTIONS } from './options.js';
 import { RenderError } from '../utils/errors.js';
+import { debugLog } from '../utils/debug.js';
 
 /**
  * Renders an AST as markdown
@@ -16,6 +17,8 @@ import { RenderError } from '../utils/errors.js';
 export function renderMarkdown(ast: ASTNode[], options: RenderOptions = {}): string {
   try {
     const mergedOptions = { ...DEFAULT_OPTIONS, ...options };
+    debugLog("Rendering markdown with options", "info", mergedOptions);
+    
     const renderer = new MarkdownRenderer(mergedOptions);
     return renderer.render(ast);
   } catch (error) {
@@ -65,6 +68,8 @@ class MarkdownRenderer {
    * @returns Markdown string
    */
   private renderNode(node: ASTNode, listLevel: number = 0): string {
+    debugLog(`Rendering node of type: ${node.type}`, "info");
+    
     switch (node.type) {
       case 'Document':
         return this.renderDocument(node);
@@ -252,12 +257,21 @@ class MarkdownRenderer {
    * @returns Markdown string
    */
   private renderImage(node: ASTNode): string {
-    if (!isParentNode(node)) return '';
+    debugLog("Rendering image node", "info", node);
+    
     const imageNode = node as any;
+    
+    // Ensure the image node has the required properties
+    if (!imageNode || !imageNode.url) {
+      debugLog("Invalid image node: missing url property", "warn", imageNode);
+      return '';
+    }
     
     const alt = imageNode.alt || '';
     const url = imageNode.url;
     const title = imageNode.title;
+    
+    debugLog(`Image properties: url=${url}, alt=${alt}, title=${title}`, "info");
     
     if (title) {
       return `![${alt}](${url} "${title}")`;
@@ -276,9 +290,22 @@ class MarkdownRenderer {
     if (!isParentNode(node)) return '';
     const listNode = node as any;
     
-    const items = listNode.children.map((item: ASTNode) => 
-      this.renderNode(item, listLevel + 1)
-    ).join('');
+    // Check if this is an ordered list
+    const isOrdered = listNode.ordered === true;
+    
+    debugLog(`Rendering list: ordered=${isOrdered}, items=${listNode.children.length}`, "info");
+    
+    // Process each list item
+    const items = listNode.children.map((item: ASTNode) => {
+      // Make sure we're only processing list items
+      if (item.type !== 'ListItem') {
+        debugLog(`Expected ListItem but got ${item.type} in List`, "warn");
+        return this.renderNode(item, listLevel + 1);
+      }
+      
+      // Pass the list type information to the list item renderer
+      return this.renderListItem(item, listLevel + 1, isOrdered);
+    }).join('');
     
     // Add an extra newline after nested lists
     const suffix = listLevel > 0 ? '\n' : '';
@@ -290,24 +317,26 @@ class MarkdownRenderer {
    * Renders a list item node
    * @param node List item node
    * @param listLevel Current list nesting level
+   * @param isOrdered Whether the parent list is ordered
    * @returns Markdown string
    */
-  private renderListItem(node: ASTNode, listLevel: number): string {
+  private renderListItem(node: ASTNode, listLevel: number, isOrdered: boolean = false): string {
     if (!isParentNode(node)) return '';
     const itemNode = node as any;
+    
+    debugLog(`Rendering list item at level ${listLevel}, ordered=${isOrdered}`, "info");
     
     // Determine indentation based on list level
     const indent = ' '.repeat((listLevel - 1) * (this.options.indentSize || 2));
     
-    // Get the bullet marker or ordered list marker
+    // Get the bullet marker or ordered list marker based on the isOrdered parameter
     let marker;
-    
-    // Check if we're in an ordered list by looking at parent
-    const parent = node.parent;
-    if (parent && parent.type === 'List' && (parent as any).ordered) {
+    if (isOrdered) {
       marker = this.options.orderedMarker || '1.';
+      debugLog(`Using ordered marker: ${marker}`, "info");
     } else {
       marker = this.options.bulletMarker || '-';
+      debugLog(`Using bullet marker: ${marker}`, "info");
     }
     
     // Check if this is a task item
@@ -418,6 +447,8 @@ class MarkdownRenderer {
     if (!isParentNode(node)) return '';
     const tableNode = node as any;
     
+    debugLog(`Rendering table with ${tableNode.children.length} rows`, "info");
+    
     // Get alignment information
     const aligns = tableNode.align || [];
     
@@ -436,11 +467,19 @@ class MarkdownRenderer {
     for (const row of rows) {
       if (!isParentNode(row)) continue;
       maxColumns = Math.max(maxColumns, row.children.length);
+      debugLog(`Row has ${row.children.length} cells`, "info");
     }
+    
+    debugLog(`Table has ${maxColumns} columns maximum`, "info");
     
     // Initialize column widths
     for (let i = 0; i < maxColumns; i++) {
       columnWidths.push(3); // Minimum width of 3 for separator row
+    }
+    
+    // Make sure we have enough columns in the align array
+    while (aligns.length < maxColumns) {
+      aligns.push(null);
     }
     
     // Second pass to calculate column widths
@@ -449,6 +488,7 @@ class MarkdownRenderer {
       
       const cells = row.children;
       for (let i = 0; i < cells.length; i++) {
+        // Safely render the cell content
         const cellContent = this.renderNode(cells[i], 0).trim();
         const cellWidth = cellContent.length;
         
@@ -457,6 +497,8 @@ class MarkdownRenderer {
         }
       }
     }
+    
+    debugLog(`Calculated column widths: ${JSON.stringify(columnWidths)}`, "info");
     
     // Render each row
     let result = '';
@@ -504,22 +546,34 @@ class MarkdownRenderer {
   private renderTableRow(node: ASTNode, columnWidths: number[] = []): string {
     if (!isParentNode(node)) return '';
     
+    debugLog(`Rendering table row with ${node.children.length} cells`, "info");
+    
     // Get cells
     const cells = node.children;
     const cellsToRender = [];
+    
+    // Ensure we're working with an array of cells
+    if (!Array.isArray(cells)) {
+      debugLog('Expected array of cells but got:', "warn", cells);
+      return '| |';
+    }
     
     // Render each cell
     for (let i = 0; i < columnWidths.length; i++) {
       let content = '';
       
       if (i < cells.length) {
-        content = this.renderNode(cells[i], 0).trim();
+        content = this.renderTableCell(cells[i]).trim();
       }
       
       // Pad to column width
-      const width = columnWidths[i];
-      const tableNode = node.parent as any;
-      const align = tableNode?.align?.[i] || null;
+      const width = columnWidths[i] || 3;
+      
+      // Get alignment if available
+      let align = null;
+      if (node.parent && 'align' in node.parent && Array.isArray(node.parent.align)) {
+        align = node.parent.align[i];
+      }
       
       if (align === 'right') {
         content = ' '.repeat(Math.max(0, width - content.length)) + content;
@@ -543,11 +597,17 @@ class MarkdownRenderer {
    * @returns Markdown string
    */
   private renderTableCell(node: ASTNode): string {
-    if (!isParentNode(node)) return '';
+    debugLog(`Rendering table cell of type ${node.type}`, "info");
     
-    // Escape pipes in cell content if configured
+    if (!isParentNode(node)) {
+      // If not a parent node, convert to string safely
+      return String((node as any).value || '');
+    }
+    
+    // Render the content of the cell
     const content = this.renderNodes(node.children);
     
+    // Escape pipes in cell content if configured
     if (this.options.escapePipeInTables) {
       return content.replace(/\|/g, '\\|');
     }

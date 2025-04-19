@@ -87,7 +87,7 @@ export const unorderedListRule: TagRule = {
     // Determine if this is a tight list
     const tight = isTightList(node);
     
-    // Create the list node
+    // Create the list node with ordered=false to indicate it's an unordered list
     return builder.list(false, null, tight, children);
   }
 };
@@ -108,7 +108,7 @@ export const orderedListRule: TagRule = {
     // Parse the start attribute
     const start = parseListStart(node);
     
-    // Create the list node
+    // Create the list node with ordered=true to indicate it's an ordered list
     return builder.list(true, start, tight, children);
   }
 };
@@ -149,13 +149,7 @@ export const listItemRule: TagRule = {
     
     if (!hasBlockElement && children.length > 0) {
       // Create a paragraph to hold the children
-      const paragraph = builder.paragraph();
-      
-      // Add all children to the paragraph
-      for (const child of children) {
-        paragraph.appendChild(child);
-      }
-      
+      const paragraph = builder.paragraph(children);
       children = [paragraph];
     }
     

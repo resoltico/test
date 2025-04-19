@@ -44,6 +44,11 @@ export interface WalkerOptions {
    * Whether to verify relationships after establishing them
    */
   verifyRelationships?: boolean;
+  
+  /**
+   * Enable debugging output
+   */
+  debug?: boolean;
 }
 
 /**
@@ -54,6 +59,7 @@ const DEFAULT_OPTIONS: Partial<WalkerOptions> = {
   preserveComments: false,
   establishRelationships: true,
   verifyRelationships: true,
+  debug: false
 };
 
 /**
@@ -86,6 +92,7 @@ export class Walker {
   private preserveComments: boolean;
   private doEstablishRelationships: boolean;
   private doVerifyRelationships: boolean;
+  private isDebugEnabled: boolean;
   
   /**
    * Creates a new Walker
@@ -98,11 +105,14 @@ export class Walker {
     this.preserveComments = options.preserveComments ?? DEFAULT_OPTIONS.preserveComments!;
     this.doEstablishRelationships = options.establishRelationships ?? DEFAULT_OPTIONS.establishRelationships!;
     this.doVerifyRelationships = options.verifyRelationships ?? DEFAULT_OPTIONS.verifyRelationships!;
+    this.isDebugEnabled = options.debug ?? DEFAULT_OPTIONS.debug!;
     
     // Logging for debugging
-    console.log(`Rule map contains ${this.ruleMap.size} rules`);
-    for (const [tag, rule] of this.ruleMap.entries()) {
-      console.log(`Registered rule for tag: ${tag}, rule: ${rule.tagName}`);
+    if (this.isDebugEnabled) {
+      console.log(`Rule map contains ${this.ruleMap.size} rules`);
+      for (const [tag, rule] of this.ruleMap.entries()) {
+        console.log(`Registered rule for tag: ${tag}, rule: ${rule.tagName}`);
+      }
     }
   }
   
@@ -129,11 +139,63 @@ export class Walker {
       
       // Verify relationships if needed
       if (this.doVerifyRelationships) {
-        verifyRelationships([document]);
+        const valid = verifyRelationships([document]);
+        if (!valid && this.isDebugEnabled) {
+          console.error("Parent-child relationships are invalid after walking");
+        }
       }
     }
     
     return [document];
+  }
+  
+  /**
+   * Validates that an AST node has all required properties based on its type
+   * @param node The AST node to validate
+   */
+  private validateAstNode(node: ASTNode): void {
+    // Only log validation errors if debug is enabled
+    if (!this.isDebugEnabled) return;
+    
+    // Validate common properties
+    if (!node.type) {
+      console.error(`Node missing 'type' property:`, node);
+    }
+    
+    // Type-specific validation
+    switch (node.type) {
+      case 'List':
+        if (!('ordered' in node)) {
+          console.error(`List node missing 'ordered' property:`, node);
+          (node as any).ordered = false; // Add default value to fix
+        }
+        break;
+        
+      case 'Image':
+        if (!('url' in node)) {
+          console.error(`Image node missing 'url' property:`, node);
+          (node as any).url = ''; // Add default value to fix
+        }
+        if (!('alt' in node)) {
+          console.error(`Image node missing 'alt' property:`, node);
+          (node as any).alt = ''; // Add default value to fix
+        }
+        break;
+        
+      case 'Link':
+        if (!('url' in node)) {
+          console.error(`Link node missing 'url' property:`, node);
+          (node as any).url = ''; // Add default value to fix
+        }
+        break;
+        
+      case 'Table':
+        if (!('align' in node)) {
+          console.error(`Table node missing 'align' property:`, node);
+          (node as any).align = []; // Add default value to fix
+        }
+        break;
+    }
   }
   
   /**
@@ -194,12 +256,16 @@ export class Walker {
       const rule = this.findRule(tagName);
       
       if (!rule) {
-        console.log(`No rule found for tag: ${tagName}, using default rule`);
+        if (this.isDebugEnabled) {
+          console.log(`No rule found for tag: ${tagName}, using default rule`);
+        }
         // No rule found, fall back to default behavior
         return this.handleNoRule(node, parentNodeStack);
       }
       
-      console.log(`Found rule for tag: ${tagName}, rule: ${rule.tagName}`);
+      if (this.isDebugEnabled) {
+        console.log(`Found rule for tag: ${tagName}, rule: ${rule.tagName}`);
+      }
       
       // Create a new context for this rule
       const context = createRuleContext(
@@ -217,6 +283,13 @@ export class Walker {
       
       // If result is a single node, convert to array
       const resultNodes = Array.isArray(result) ? result : [result];
+      
+      // Validate resulting nodes if debug is enabled
+      if (this.isDebugEnabled) {
+        for (const node of resultNodes) {
+          this.validateAstNode(node);
+        }
+      }
       
       return resultNodes;
     } catch (error) {
@@ -259,7 +332,11 @@ export class Walker {
     // Make sure we're looking up the tag in uppercase
     const upperTagName = tagName.toUpperCase();
     const rule = this.ruleMap.get(upperTagName);
-    console.log(`Looking up rule for tag: ${upperTagName}, found: ${rule ? 'yes' : 'no'}`);
+    
+    if (this.isDebugEnabled) {
+      console.log(`Looking up rule for tag: ${upperTagName}, found: ${rule ? 'yes' : 'no'}`);
+    }
+    
     return rule;
   }
   

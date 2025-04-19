@@ -2,10 +2,10 @@
  * Rule for converting HTML image elements to AST image nodes
  */
 
-import * as builder from '../../ast/builder.js';
 import { TagRule, RuleContext } from '../base.js';
 import { ElementNode } from '../../types/html.js';
 import { ASTNode } from '../../ast/types.js';
+import * as builder from '../../ast/builder.js';
 
 /**
  * Rule for handling <img> elements
@@ -26,7 +26,7 @@ export const imageRule: TagRule = {
     const alt = node.getAttribute('alt') || '';
     const title = node.getAttribute('title');
     
-    // Create the image node
+    // Create the image node using the builder
     return builder.image(url, title, alt);
   }
 };

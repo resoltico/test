@@ -30,6 +30,7 @@ import {
   Position,
   ParentNode,
 } from './types.js';
+import { debugLog } from '../utils/debug.js';
 
 /**
  * Base options for all AST nodes
@@ -50,6 +51,7 @@ function createParentNode<T extends ParentNode & ASTNode>(props: Omit<T, 'append
   
   // Add required methods
   node.appendChild = function(childNode: ASTNode): void {
+    debugLog(`Appending child of type ${childNode.type} to parent of type ${this.type}`, "info");
     childNode.parent = this;
     this.children.push(childNode);
   };
@@ -88,6 +90,8 @@ export function document(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): DocumentNode {
+  debugLog("Creating document node", "info");
+  
   const node = createParentNode<DocumentNode>({
     type: 'Document',
     children: [],
@@ -116,6 +120,8 @@ export function heading(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): HeadingNode {
+  debugLog(`Creating heading node level ${level}`, "info");
+  
   const node = createParentNode<HeadingNode>({
     type: 'Heading',
     level,
@@ -143,6 +149,8 @@ export function paragraph(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): ParagraphNode {
+  debugLog("Creating paragraph node", "info");
+  
   const node = createParentNode<ParagraphNode>({
     type: 'Paragraph',
     children: [],
@@ -169,6 +177,8 @@ export function blockquote(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): BlockquoteNode {
+  debugLog("Creating blockquote node", "info");
+  
   const node = createParentNode<BlockquoteNode>({
     type: 'Blockquote',
     children: [],
@@ -201,6 +211,8 @@ export function list(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): ListNode {
+  debugLog(`Creating ${ordered ? 'ordered' : 'unordered'} list with ${children.length} items`, "info");
+  
   const node = createParentNode<ListNode>({
     type: 'List',
     ordered,
@@ -217,6 +229,9 @@ export function list(
     node.appendChild(child);
   }
   
+  // Log for debugging - ensure ordered property is set correctly
+  debugLog(`Created list with ordered=${node.ordered}`, "info");
+  
   return node;
 }
 
@@ -232,6 +247,8 @@ export function listItem(
   checked: boolean | null = null,
   options: BaseNodeOptions = {}
 ): ListItemNode {
+  debugLog(`Creating list item node${checked !== null ? ` (checked=${checked})` : ''}`, "info");
+  
   const node = createParentNode<ListItemNode>({
     type: 'ListItem',
     checked,
@@ -263,6 +280,8 @@ export function codeBlock(
   meta: string | null = null,
   options: BaseNodeOptions = {}
 ): CodeBlockNode {
+  debugLog(`Creating code block node ${language ? `with language ${language}` : 'without language'}`, "info");
+  
   return {
     type: 'CodeBlock',
     value,
@@ -282,6 +301,8 @@ export function codeBlock(
 export function thematicBreak(
   options: BaseNodeOptions = {}
 ): ThematicBreakNode {
+  debugLog("Creating thematic break node", "info");
+  
   return {
     type: 'ThematicBreak',
     parent: options.parent || null,
@@ -302,6 +323,8 @@ export function table(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): TableNode {
+  debugLog(`Creating table node with ${children.length} rows and ${align.length} alignments`, "info");
+  
   const node = createParentNode<TableNode>({
     type: 'Table',
     align,
@@ -331,6 +354,8 @@ export function tableRow(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): TableRowNode {
+  debugLog(`Creating table row node (isHeader=${isHeader}) with ${children.length} cells`, "info");
+  
   const node = createParentNode<TableRowNode>({
     type: 'TableRow',
     isHeader,
@@ -358,6 +383,8 @@ export function tableCell(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): TableCellNode {
+  debugLog("Creating table cell node", "info");
+  
   const node = createParentNode<TableCellNode>({
     type: 'TableCell',
     children: [],
@@ -384,6 +411,8 @@ export function html(
   value: string,
   options: BaseNodeOptions = {}
 ): HTMLNode {
+  debugLog("Creating HTML node", "info");
+  
   return {
     type: 'HTML',
     value,
@@ -403,6 +432,8 @@ export function text(
   value: string,
   options: BaseNodeOptions = {}
 ): TextNode {
+  debugLog(`Creating text node: "${value.length > 30 ? value.substring(0, 27) + '...' : value}"`, "info");
+  
   return {
     type: 'Text',
     value,
@@ -422,6 +453,8 @@ export function emphasis(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): EmphasisNode {
+  debugLog("Creating emphasis node", "info");
+  
   const node = createParentNode<EmphasisNode>({
     type: 'Emphasis',
     children: [],
@@ -448,6 +481,8 @@ export function strong(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): StrongNode {
+  debugLog("Creating strong node", "info");
+  
   const node = createParentNode<StrongNode>({
     type: 'Strong',
     children: [],
@@ -478,6 +513,8 @@ export function link(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): LinkNode {
+  debugLog(`Creating link node: url=${url}`, "info");
+  
   const node = createParentNode<LinkNode>({
     type: 'Link',
     url,
@@ -501,7 +538,6 @@ export function link(
  * @param url Image URL
  * @param title Image title
  * @param alt Alt text
- * @param children Child nodes
  * @param options Additional options
  * @returns An image node
  */
@@ -509,9 +545,11 @@ export function image(
   url: string,
   title: string | null = null,
   alt: string = '',
-  children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): ImageNode {
+  debugLog(`Creating image node: url=${url}, alt=${alt}`, "info");
+  
+  // Create the image node properly
   const node = createParentNode<ImageNode>({
     type: 'Image',
     url,
@@ -523,9 +561,9 @@ export function image(
     data: options.data,
   });
   
-  // Add children with proper parent references
-  for (const child of children) {
-    node.appendChild(child);
+  // Double-check that required properties are set
+  if (!node.url) {
+    debugLog(`WARNING: Image node created without URL!`, "warn");
   }
   
   return node;
@@ -541,6 +579,8 @@ export function inlineCode(
   value: string,
   options: BaseNodeOptions = {}
 ): InlineCodeNode {
+  debugLog("Creating inline code node", "info");
+  
   return {
     type: 'InlineCode',
     value,
@@ -560,6 +600,8 @@ export function lineBreak(
   hard: boolean = false,
   options: BaseNodeOptions = {}
 ): BreakNode {
+  debugLog(`Creating ${hard ? 'hard' : 'soft'} break node`, "info");
+  
   return {
     type: 'Break',
     hard,
@@ -579,6 +621,8 @@ export function strikethrough(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): StrikethroughNode {
+  debugLog("Creating strikethrough node", "info");
+  
   const node = createParentNode<StrikethroughNode>({
     type: 'Strikethrough',
     children: [],
@@ -609,6 +653,8 @@ export function footnoteDefinition(
   children: ASTNode[] = [],
   options: BaseNodeOptions = {}
 ): FootnoteDefinitionNode {
+  debugLog(`Creating footnote definition node: ${identifier}`, "info");
+  
   const node = createParentNode<FootnoteDefinitionNode>({
     type: 'FootnoteDefinition',
     identifier,
@@ -639,6 +685,8 @@ export function footnoteReference(
   label: string,
   options: BaseNodeOptions = {}
 ): FootnoteReferenceNode {
+  debugLog(`Creating footnote reference node: ${identifier}`, "info");
+  
   return {
     type: 'FootnoteReference',
     identifier,
