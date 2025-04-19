@@ -126,5 +126,5 @@ export default async function convert(html: string, options?: EngineOptions): Pr
  * @param enable Whether to enable debug mode
  */
 export function enableDebugMode(enable: boolean = true): void {
-  debug.enableDebugMode(enable);
+  debug.enableDebug(enable); // Fixed: Changed from enableDebugMode to enableDebug
 }

@@ -6,6 +6,7 @@ import * as builder from '../../ast/builder.js';
 import { TagRule, RuleContext } from '../base.js';
 import { ElementNode, isElementNode } from '../../types/html.js';
 import { ASTNode } from '../../ast/types.js';
+import { debugLog } from '../../utils/debug.js';
 
 /**
  * Helper function to determine if a list is tight
@@ -81,6 +82,8 @@ export const unorderedListRule: TagRule = {
   tagName: 'UL',
   
   emit(node: ElementNode, context: RuleContext): ASTNode {
+    debugLog('Processing unordered list', 'info');
+    
     // Generate children AST (should be list items)
     const children = context.renderChildrenAsAst(node);
     
@@ -88,7 +91,15 @@ export const unorderedListRule: TagRule = {
     const tight = isTightList(node);
     
     // Create the list node with ordered=false to indicate it's an unordered list
-    return builder.list(false, null, tight, children);
+    const listNode = builder.list(false, null, tight, children);
+    
+    // Debugging output to ensure ordered property is set correctly
+    debugLog('Created unordered list node with ordered=false', 'info', {
+      ordered: (listNode as any).ordered,
+      childCount: children.length
+    });
+    
+    return listNode;
   }
 };
 
@@ -99,6 +110,8 @@ export const orderedListRule: TagRule = {
   tagName: 'OL',
   
   emit(node: ElementNode, context: RuleContext): ASTNode {
+    debugLog('Processing ordered list', 'info');
+    
     // Generate children AST (should be list items)
     const children = context.renderChildrenAsAst(node);
     
@@ -109,7 +122,16 @@ export const orderedListRule: TagRule = {
     const start = parseListStart(node);
     
     // Create the list node with ordered=true to indicate it's an ordered list
-    return builder.list(true, start, tight, children);
+    const listNode = builder.list(true, start, tight, children);
+    
+    // Debugging output to ensure ordered property is set correctly
+    debugLog('Created ordered list node with ordered=true', 'info', {
+      ordered: (listNode as any).ordered,
+      start: start,
+      childCount: children.length
+    });
+    
+    return listNode;
   }
 };
 
@@ -120,6 +142,8 @@ export const listItemRule: TagRule = {
   tagName: 'LI',
   
   emit(node: ElementNode, context: RuleContext): ASTNode {
+    debugLog('Processing list item', 'info');
+    
     // Check if we're inside a list
     if (!context.isInside('UL') && !context.isInside('OL')) {
       // Not inside a list, wrap in a paragraph
@@ -154,7 +178,14 @@ export const listItemRule: TagRule = {
     }
     
     // Create the list item node
-    return builder.listItem(children, checked);
+    const listItemNode = builder.listItem(children, checked);
+    
+    debugLog('Created list item node', 'info', {
+      checked: checked,
+      childCount: children.length
+    });
+    
+    return listItemNode;
   }
 };
 

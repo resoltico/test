@@ -6,6 +6,7 @@ import * as builder from '../../ast/builder.js';
 import { TagRule, RuleContext } from '../base.js';
 import { ElementNode, isElementNode } from '../../types/html.js';
 import { ASTNode } from '../../ast/types.js';
+import { debugLog } from '../../utils/debug.js';
 
 /**
  * Determines the alignment for a table cell from its style or align attribute
@@ -93,14 +94,23 @@ export const tableRule: TagRule = {
   tagName: 'TABLE',
   
   emit(node: ElementNode, context: RuleContext): ASTNode {
+    debugLog('Processing table element', 'info');
+    
     // Extract column alignments
     const align = extractColumnAlignments(node);
     
     // Generate children AST (table rows)
     const children = context.renderChildrenAsAst(node);
     
+    debugLog('Creating table node', 'info', { 
+      alignments: align,
+      childCount: children.length
+    });
+    
     // Create the table node
-    return builder.table(align, children);
+    const tableNode = builder.table(align, children);
+    
+    return tableNode;
   }
 };
 
@@ -111,6 +121,8 @@ export const theadRule: TagRule = {
   tagName: 'THEAD',
   
   emit(node: ElementNode, context: RuleContext): ASTNode[] {
+    debugLog('Processing thead element', 'info');
+    
     // Just render the children, marking them as header rows
     context.store('isHeaderRow', true);
     const children = context.renderChildrenAsAst(node);
@@ -127,6 +139,8 @@ export const tbodyRule: TagRule = {
   tagName: 'TBODY',
   
   emit(node: ElementNode, context: RuleContext): ASTNode[] {
+    debugLog('Processing tbody element', 'info');
+    
     // Just render the children
     return context.renderChildrenAsAst(node);
   }
@@ -139,6 +153,8 @@ export const trRule: TagRule = {
   tagName: 'TR',
   
   emit(node: ElementNode, context: RuleContext): ASTNode {
+    debugLog('Processing table row', 'info');
+    
     // Check if we're in a header row
     const isHeader = context.retrieve<boolean>('isHeaderRow') || 
                      context.isInside('THEAD') ||
@@ -149,8 +165,15 @@ export const trRule: TagRule = {
     // Generate children AST (table cells)
     const children = context.renderChildrenAsAst(node);
     
+    debugLog('Creating table row node', 'info', { 
+      isHeader,
+      cellCount: children.length
+    });
+    
     // Create the table row node
-    return builder.tableRow(isHeader, children);
+    const rowNode = builder.tableRow(isHeader, children);
+    
+    return rowNode;
   }
 };
 
@@ -161,11 +184,15 @@ export const thRule: TagRule = {
   tagName: 'TH',
   
   emit(node: ElementNode, context: RuleContext): ASTNode {
+    debugLog('Processing table header cell', 'info');
+    
     // Generate children AST
     const children = context.renderChildrenAsAst(node);
     
     // Create the table cell node
-    return builder.tableCell(children);
+    const cellNode = builder.tableCell(children);
+    
+    return cellNode;
   }
 };
 
@@ -176,11 +203,15 @@ export const tdRule: TagRule = {
   tagName: 'TD',
   
   emit(node: ElementNode, context: RuleContext): ASTNode {
+    debugLog('Processing table data cell', 'info');
+    
     // Generate children AST
     const children = context.renderChildrenAsAst(node);
     
     // Create the table cell node
-    return builder.tableCell(children);
+    const cellNode = builder.tableCell(children);
+    
+    return cellNode;
   }
 };
 
