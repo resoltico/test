@@ -1,0 +1,28 @@
+flowchart LR
+    HTML[HTML Input] --> Parser[HTML Parser]
+    Parser --> RAW[Raw AST]
+    RAW --> OP1[Operation 1]
+    OP1 --> OP2[Operation 2]
+    OP2 --> OP3[Operation 3]
+    OP3 --> FINAL[Transformed AST]
+    
+    subgraph "Storage"
+        FINAL --> Store[Store AST]
+        Store --> Retrieve[Retrieve AST]
+        Retrieve --> FINAL
+    end
+    
+    FINAL --> Serialize[HTML Serializer]
+    Serialize --> Output[HTML Output]
+    
+    subgraph "Transformation Operations"
+        OP1
+        OP2
+        OP3
+    end
+    
+    subgraph "Examples"
+        SAN[Sanitize HTML] -.-> OP1
+        RM[Remove Elements] -.-> OP2
+        ADD[Add Classes] -.-> OP3
+    end

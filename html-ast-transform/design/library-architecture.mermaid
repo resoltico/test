@@ -1,0 +1,48 @@
+flowchart TB
+    subgraph "Core Components"
+        Types[Types Module]
+        Parser[Parser Module]
+        Transformer[Transformer Module]
+        Serializer[Serializer Module]
+        Storage[Storage Module]
+        Utils[Utils Module]
+    end
+    
+    subgraph "External Interface"
+        HtmlAstTransform[HtmlAstTransform Class]
+        HtmlAstTransform --> Parser
+        HtmlAstTransform --> Transformer
+        HtmlAstTransform --> Serializer
+        HtmlAstTransform --> Storage
+        HtmlAstTransform --> Pipeline[Process Pipeline]
+    end
+    
+    subgraph "Storage Implementations"
+        Storage --> MemoryStorage[Memory Storage]
+        Storage --> FileStorage[File Storage]
+        Storage --> CustomStorage[Custom Storage]
+    end
+    
+    subgraph "Transformer Operations"
+        Transformer --> BasicOps[Basic Operations]
+        Transformer --> AdvancedOps[Advanced Operations]
+        Transformer --> CustomOps[Custom Operations]
+        
+        BasicOps --> RemoveComments[Remove Comments]
+        BasicOps --> RemoveElements[Remove Elements]
+        BasicOps --> CollapseWhitespace[Collapse Whitespace]
+        
+        AdvancedOps --> SanitizeHtml[Sanitize HTML]
+        AdvancedOps --> SecureLinks[Secure External Links]
+        AdvancedOps --> AbsoluteUrls[Absolute URLs]
+    end
+    
+    Types --> Parser
+    Types --> Transformer
+    Types --> Serializer
+    Types --> Storage
+    
+    Utils --> Parser
+    Utils --> Transformer
+    Utils --> Serializer
+    Utils --> Storage

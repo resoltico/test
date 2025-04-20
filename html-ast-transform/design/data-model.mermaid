@@ -1,0 +1,77 @@
+classDiagram
+    class AstNode {
+        +string type
+        +string? name
+        +string? value
+        +Record~string,string~? attributes
+        +AstNode[]? children
+        +AstNode? parent
+        +SourcePosition? sourcePosition
+        +Record~string,unknown~? meta
+    }
+    
+    class ElementNode {
+        +string type = "element"
+        +string name
+        +Record~string,string~ attributes
+        +AstNode[] children
+        +boolean? selfClosing
+    }
+    
+    class TextNode {
+        +string type = "text"
+        +string value
+    }
+    
+    class CommentNode {
+        +string type = "comment"
+        +string value
+    }
+    
+    class DocumentNode {
+        +string type = "document"
+        +AstNode[] children
+        +Doctype? doctype
+    }
+    
+    class SourcePosition {
+        +number startLine
+        +number startCol
+        +number endLine
+        +number endCol
+    }
+    
+    class Doctype {
+        +string name
+        +string publicId
+        +string systemId
+    }
+    
+    class AstStorage {
+        <<interface>>
+        +store(id: string, ast: AstNode) Promise~void~
+        +retrieve(id: string) Promise~AstNode|null~
+        +exists(id: string) Promise~boolean~
+        +delete(id: string) Promise~boolean~
+        +list() Promise~string[]~
+    }
+    
+    class MemoryStorage {
+        -Map~string,Buffer~ storage
+        -boolean compressed
+    }
+    
+    class FileStorage {
+        -string basePath
+        -boolean compressed
+    }
+    
+    AstNode <|-- ElementNode
+    AstNode <|-- TextNode
+    AstNode <|-- CommentNode
+    AstNode <|-- DocumentNode
+    AstNode *-- SourcePosition
+    DocumentNode *-- Doctype
+    
+    AstStorage <|.. MemoryStorage
+    AstStorage <|.. FileStorage

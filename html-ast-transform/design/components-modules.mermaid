@@ -1,0 +1,50 @@
+graph TD
+    Main[HtmlAstTransform Class]
+    
+    Parser[Parser Module]
+    Transform[Transformer Module]
+    Serial[Serializer Module]
+    Store[Storage Module]
+    
+    Util[Utils Module]
+    Types[Types Module]
+    
+    JSDOM[JSDOM Library]
+    NodeJS[Node.js v22+ Features]
+    
+    Main --> Parser
+    Main --> Transform
+    Main --> Serial
+    Main --> Store
+    
+    Parser --> Types
+    Transform --> Types
+    Serial --> Types
+    Store --> Types
+    
+    Parser --> Util
+    Transform --> Util
+    Serial --> Util
+    Store --> Util
+    
+    Parser --> JSDOM
+    Parser --> NodeJS
+    Transform --> NodeJS
+    Store --> NodeJS
+    
+    subgraph CoreModules
+        Parser
+        Transform
+        Serial
+        Store
+    end
+    
+    subgraph SupportModules
+        Util
+        Types
+    end
+    
+    subgraph ExternalDependencies
+        JSDOM
+        NodeJS
+    end

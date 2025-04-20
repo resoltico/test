@@ -1,0 +1,38 @@
+sequenceDiagram
+    participant Client as Client Application
+    participant Library as HtmlAstTransform
+    participant Parser as HTML Parser
+    participant Transformer as AST Transformer
+    participant Storage as Storage Module
+    participant Serializer as HTML Serializer
+    
+    Client->>Library: HTML from external source
+    
+    Library->>Parser: parse(html, options)
+    Note over Parser: Uses JSDOM + Node.js v22+ features
+    Parser-->>Library: ParseResult {ast, meta}
+    
+    Library->>Transformer: transform(ast, options)
+    Note over Transformer: Applies registered transform operations
+    Transformer-->>Library: TransformResult {ast, meta}
+    
+    opt Store AST
+        Library->>Storage: store(id, ast)
+        Storage-->>Library: Confirmation
+    end
+    
+    Library-->>Client: Transformed AST
+    
+    opt Convert back to HTML
+        Client->>Library: toHtml(ast, options)
+        Library->>Serializer: serialize(ast, options)
+        Serializer-->>Library: HTML string
+        Library-->>Client: HTML string
+    end
+    
+    opt Retrieve stored AST
+        Client->>Library: retrieve(id)
+        Library->>Storage: retrieve(id)
+        Storage-->>Library: Stored AST
+        Library-->>Client: Retrieved AST
+    end
